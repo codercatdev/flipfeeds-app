@@ -11,6 +11,23 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@react-native-firebase/ai": "^23.4.1",
+    "@react-native-firebase/analytics": "^23.4.1",
+    "@react-native-firebase/app": "^23.4.1",
+    "@react-native-firebase/app-check": "^23.4.1",
+    "@react-native-firebase/app-distribution": "^23.4.1",
+    "@react-native-firebase/auth": "^23.4.1",
+    "@react-native-firebase/crashlytics": "^23.4.1",
+    "@react-native-firebase/database": "^23.4.1",
+    "@react-native-firebase/firestore": "^23.4.1",
+    "@react-native-firebase/functions": "^23.4.1",
+    "@react-native-firebase/in-app-messaging": "^23.4.1",
+    "@react-native-firebase/installations": "^23.4.1",
+    "@react-native-firebase/messaging": "^23.4.1",
+    "@react-native-firebase/ml": "^23.4.1",
+    "@react-native-firebase/perf": "^23.4.1",
+    "@react-native-firebase/remote-config": "^23.4.1",
+    "@react-native-firebase/storage": "^23.4.1",
     "@tailwindcss/postcss": "^4.1.13",
     "expo": "^54.0.0",
     "expo-status-bar": "~3.0.8",
@@ -28,14 +45,14 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@types/react": "~19.1.10",
+    "babel-preset-expo": "~54.0.0",
     "eslint": "^9.25.1",
     "eslint-config-expo": "~10.0.0",
     "eslint-config-prettier": "^10.1.2",
     "prettier": "^3.2.5",
-    "tailwindcss": "^4.1.13",
     "prettier-plugin-tailwindcss": "^0.6.14",
-    "typescript": "~5.9.2",
-    "babel-preset-expo": "~54.0.0"
+    "tailwindcss": "^4.1.13",
+    "typescript": "~5.9.2"
   },
   "main": "node_modules/expo/AppEntry.js",
   "resolutions": {

@@ -2,6 +2,7 @@ import React from 'react';
 import { Text, View } from 'react-native';
 
 import { EditScreenInfo } from './EditScreenInfo';
+import { getApp } from '@react-native-firebase/app';
 
 type ScreenContentProps = {
   title: string;
@@ -15,6 +16,9 @@ export const ScreenContent = ({ title, path, children }: ScreenContentProps) => 
       <Text className={styles.title}>{title}</Text>
       <View className={styles.separator} />
       <EditScreenInfo path={path} />
+      <Text className='flex max-w-sm mx-auto justify-items-center items-center'>
+        {JSON.stringify(getApp(), null, 2)}
+      </Text>
       {children}
     </View>
   );

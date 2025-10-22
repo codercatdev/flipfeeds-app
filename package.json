@@ -31,6 +31,7 @@
     "@react-native-firebase/storage": "^23.4.1",
     "@tailwindcss/postcss": "^4.1.13",
     "expo": "^54.0.0",
+    "expo-dev-client": "~6.0.16",
     "expo-status-bar": "~3.0.8",
     "nativewind": "preview",
     "postcss": "^8.5.6",

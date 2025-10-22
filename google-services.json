@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "361402949529",
+    "project_id": "flipfeeds-app",
+    "storage_bucket": "flipfeeds-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:361402949529:android:3369676e3acc9158ef3d08",
+        "android_client_info": {
+          "package_name": "com.flipfeeds.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCv--k-UWc-5Opw988V7HUeLD1lrO0uSko"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

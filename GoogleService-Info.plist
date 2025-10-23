@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CLIENT_ID</key>
+	<string>361402949529-r2043klm9rhlffk8hiutftkj6keh9th6.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.361402949529-r2043klm9rhlffk8hiutftkj6keh9th6</string>
 	<key>API_KEY</key>
 	<string>AIzaSyCiu5HDfL8YKAFdd0FrPdWoERGD507Z5-w</string>
 	<key>GCM_SENDER_ID</key>
@@ -26,5 +30,7 @@
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
 	<string>1:361402949529:ios:55c3caaab65abd02ef3d08</string>
+	<key>DATABASE_URL</key>
+	<string>https://flipfeeds-app-default-rtdb.firebaseio.com</string>
 </dict>
 </plist>

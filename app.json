@@ -1,15 +1,18 @@
 {
   "expo": {
-    "name": "my-expo-app",
-    "slug": "my-expo-app",
+    "name": "flipfeeds-app",
+    "slug": "flipfeeds-app",
+    "scheme": "flipfeeds-app",
     "version": "1.0.0",
     "web": {
+      "bundler": "metro",
       "favicon": "./assets/favicon.png"
     },
     "experiments": {
       "tsconfigPaths": true
     },
     "plugins": [
+      "expo-router",
       "@react-native-firebase/app",
       "@react-native-firebase/app-check",
       "@react-native-firebase/app-distribution",

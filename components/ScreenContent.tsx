@@ -17,7 +17,7 @@ export const ScreenContent = ({ title, path, children }: ScreenContentProps) => 
       <View className={styles.separator} />
       <EditScreenInfo path={path} />
       <Text className='flex max-w-sm mx-auto justify-items-center items-center'>
-        {JSON.stringify(getApp(), null, 2)}
+        {/* {JSON.stringify(getApp(), null, 2)} */}
       </Text>
       {children}
     </View>

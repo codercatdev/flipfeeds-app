@@ -6,20 +6,17 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { initializeFirebase } from '@/lib/firebaseConfig';
-
-export const unstable_settings = {
-    initialRouteName: '(tabs)',
-};
 
 function RootLayoutNav() {
     const colorScheme = useColorScheme();
     const { user, loading } = useAuth();
     const segments = useSegments();
     const router = useRouter();
+    const [isNavigationReady, setIsNavigationReady] = useState(false);
 
-    // Initialize Firebase for web
+    // Initialize Firebase
     useEffect(() => {
         initializeFirebase();
     }, []);
@@ -37,11 +34,15 @@ function RootLayoutNav() {
             // Redirect to tabs if authenticated and in auth group
             router.replace('/(tabs)');
         }
+
+        // Mark navigation as ready after first auth check
+        setIsNavigationReady(true);
     }, [user, loading, segments]);
 
-    if (loading) {
+    // Show loading screen until auth is checked and navigation is ready
+    if (loading || !isNavigationReady) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colorScheme === 'dark' ? '#000' : '#fff' }}>
                 <ActivityIndicator size="large" />
             </View>
         );

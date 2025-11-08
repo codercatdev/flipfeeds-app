@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import { VertexAI } from '@google-cloud/vertexai';
 
 // Initialize Firebase Admin SDK
@@ -97,7 +98,7 @@ Just provide the tip directly, without any preamble or labels.`;
         // STEP 5: Return the Result
         return {
             tip: tipText.trim(),
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            timestamp: FieldValue.serverTimestamp(),
         };
 
     } catch (error: any) {

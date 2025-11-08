@@ -9,7 +9,12 @@
     "prebuild-clean": "expo prebuild -- --clean",
     "lint": "eslint \"**/*.{js,jsx,ts,tsx}\" && prettier -c \"**/*.{js,jsx,ts,tsx,json}\"",
     "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json}\" --write",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "functions:build": "cd functions && npm run build",
+    "functions:watch": "cd functions && npm run build:watch",
+    "emulators": "firebase emulators:start",
+    "emulators:functions": "npm run functions:build && firebase emulators:start --only functions,firestore",
+    "dev:emulators": "npm run functions:watch & firebase emulators:start"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

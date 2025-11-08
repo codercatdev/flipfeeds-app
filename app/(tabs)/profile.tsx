@@ -9,6 +9,7 @@ import {
     Alert,
     ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import firestore from '@react-native-firebase/firestore';
@@ -102,132 +103,136 @@ export default function ProfileScreen() {
     }
 
     return (
-        <ScrollView
+        <SafeAreaView
             style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}
-            contentContainerStyle={styles.content}
+            edges={['top', 'left', 'right']}
         >
-            <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>Profile</Text>
-
-            <View style={styles.section}>
-                <Text style={[styles.label, { color: isDark ? '#aaa' : '#666' }]}>Name</Text>
-                <TextInput
-                    style={[
-                        styles.input,
-                        {
-                            backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
-                            color: isDark ? '#fff' : '#000',
-                            borderColor: isDark ? '#333' : '#ddd',
-                        },
-                    ]}
-                    value={profile.name}
-                    onChangeText={(text) => setProfile({ ...profile, name: text })}
-                    placeholder="Your name"
-                    placeholderTextColor={isDark ? '#666' : '#999'}
-                />
-            </View>
-
-            <View style={styles.section}>
-                <Text style={[styles.label, { color: isDark ? '#aaa' : '#666' }]}>
-                    Fitness Goal
-                </Text>
-                <View style={styles.optionsContainer}>
-                    {FITNESS_GOALS.map((goal) => (
-                        <TouchableOpacity
-                            key={goal}
-                            style={[
-                                styles.option,
-                                {
-                                    backgroundColor:
-                                        profile.fitnessGoal === goal
-                                            ? '#007AFF'
-                                            : isDark
-                                                ? '#1a1a1a'
-                                                : '#f5f5f5',
-                                    borderColor: isDark ? '#333' : '#ddd',
-                                },
-                            ]}
-                            onPress={() => setProfile({ ...profile, fitnessGoal: goal })}
-                        >
-                            <Text
-                                style={[
-                                    styles.optionText,
-                                    {
-                                        color:
-                                            profile.fitnessGoal === goal
-                                                ? '#fff'
-                                                : isDark
-                                                    ? '#fff'
-                                                    : '#000',
-                                    },
-                                ]}
-                            >
-                                {goal}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </View>
-
-            <View style={styles.section}>
-                <Text style={[styles.label, { color: isDark ? '#aaa' : '#666' }]}>
-                    Dietary Preference
-                </Text>
-                <View style={styles.optionsContainer}>
-                    {DIETARY_PREFERENCES.map((preference) => (
-                        <TouchableOpacity
-                            key={preference}
-                            style={[
-                                styles.option,
-                                {
-                                    backgroundColor:
-                                        profile.dietaryPreference === preference
-                                            ? '#007AFF'
-                                            : isDark
-                                                ? '#1a1a1a'
-                                                : '#f5f5f5',
-                                    borderColor: isDark ? '#333' : '#ddd',
-                                },
-                            ]}
-                            onPress={() =>
-                                setProfile({ ...profile, dietaryPreference: preference })
-                            }
-                        >
-                            <Text
-                                style={[
-                                    styles.optionText,
-                                    {
-                                        color:
-                                            profile.dietaryPreference === preference
-                                                ? '#fff'
-                                                : isDark
-                                                    ? '#fff'
-                                                    : '#000',
-                                    },
-                                ]}
-                            >
-                                {preference}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </View>
-
-            <TouchableOpacity
-                style={[styles.saveButton, saving && styles.buttonDisabled]}
-                onPress={saveProfile}
-                disabled={saving}
+            <ScrollView
+                contentContainerStyle={styles.content}
             >
-                {saving ? (
-                    <ActivityIndicator color="#fff" />
-                ) : (
-                    <Text style={styles.saveButtonText}>Save Profile</Text>
-                )}
-            </TouchableOpacity>
+                <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>Profile</Text>
 
-            <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-                <Text style={styles.signOutButtonText}>Sign Out</Text>
-            </TouchableOpacity>
-        </ScrollView>
+                <View style={styles.section}>
+                    <Text style={[styles.label, { color: isDark ? '#aaa' : '#666' }]}>Name</Text>
+                    <TextInput
+                        style={[
+                            styles.input,
+                            {
+                                backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
+                                color: isDark ? '#fff' : '#000',
+                                borderColor: isDark ? '#333' : '#ddd',
+                            },
+                        ]}
+                        value={profile.name}
+                        onChangeText={(text) => setProfile({ ...profile, name: text })}
+                        placeholder="Your name"
+                        placeholderTextColor={isDark ? '#666' : '#999'}
+                    />
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={[styles.label, { color: isDark ? '#aaa' : '#666' }]}>
+                        Fitness Goal
+                    </Text>
+                    <View style={styles.optionsContainer}>
+                        {FITNESS_GOALS.map((goal) => (
+                            <TouchableOpacity
+                                key={goal}
+                                style={[
+                                    styles.option,
+                                    {
+                                        backgroundColor:
+                                            profile.fitnessGoal === goal
+                                                ? '#007AFF'
+                                                : isDark
+                                                    ? '#1a1a1a'
+                                                    : '#f5f5f5',
+                                        borderColor: isDark ? '#333' : '#ddd',
+                                    },
+                                ]}
+                                onPress={() => setProfile({ ...profile, fitnessGoal: goal })}
+                            >
+                                <Text
+                                    style={[
+                                        styles.optionText,
+                                        {
+                                            color:
+                                                profile.fitnessGoal === goal
+                                                    ? '#fff'
+                                                    : isDark
+                                                        ? '#fff'
+                                                        : '#000',
+                                        },
+                                    ]}
+                                >
+                                    {goal}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={[styles.label, { color: isDark ? '#aaa' : '#666' }]}>
+                        Dietary Preference
+                    </Text>
+                    <View style={styles.optionsContainer}>
+                        {DIETARY_PREFERENCES.map((preference) => (
+                            <TouchableOpacity
+                                key={preference}
+                                style={[
+                                    styles.option,
+                                    {
+                                        backgroundColor:
+                                            profile.dietaryPreference === preference
+                                                ? '#007AFF'
+                                                : isDark
+                                                    ? '#1a1a1a'
+                                                    : '#f5f5f5',
+                                        borderColor: isDark ? '#333' : '#ddd',
+                                    },
+                                ]}
+                                onPress={() =>
+                                    setProfile({ ...profile, dietaryPreference: preference })
+                                }
+                            >
+                                <Text
+                                    style={[
+                                        styles.optionText,
+                                        {
+                                            color:
+                                                profile.dietaryPreference === preference
+                                                    ? '#fff'
+                                                    : isDark
+                                                        ? '#fff'
+                                                        : '#000',
+                                        },
+                                    ]}
+                                >
+                                    {preference}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
+                <TouchableOpacity
+                    style={[styles.saveButton, saving && styles.buttonDisabled]}
+                    onPress={saveProfile}
+                    disabled={saving}
+                >
+                    {saving ? (
+                        <ActivityIndicator color="#fff" />
+                    ) : (
+                        <Text style={styles.saveButtonText}>Save Profile</Text>
+                    )}
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+                    <Text style={styles.signOutButtonText}>Sign Out</Text>
+                </TouchableOpacity>
+            </ScrollView>
+        </SafeAreaView>
     );
 }
 

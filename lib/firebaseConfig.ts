@@ -18,8 +18,8 @@ const firebaseConfig = {
 
 // Use emulators only in development mode
 // __DEV__ is true when running locally (npm/expo start), false in production builds
-const USE_EMULATORS = __DEV__;
-
+// const USE_EMULATORS = __DEV__;
+const USE_EMULATORS = false; // Disable emulators for now
 export const initializeFirebase = () => {
     console.log('🔥 Firebase initialization starting...');
     console.log(`   Environment: ${__DEV__ ? 'DEVELOPMENT' : 'PRODUCTION'}`);

@@ -3,8 +3,16 @@ import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import firestore from '@react-native-firebase/firestore';
 
+type UserDoc = {
+    name: string;
+    email: string;
+    fitnessGoal: string;
+    dietaryPreference: string;
+} | null;
+
 type AuthContextType = {
     user: FirebaseAuthTypes.User | null;
+    userDoc: UserDoc;
     loading: boolean;
     signInWithGoogle: () => Promise<void>;
     signOut: () => Promise<void>;
@@ -14,6 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
+    const [userDoc, setUserDoc] = useState<UserDoc>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -31,6 +40,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         return unsubscribe;
     }, []);
+
+    // Set up real-time listener for Firestore user profile
+    useEffect(() => {
+        if (!user) {
+            setUserDoc(null);
+            return;
+        }
+
+        const unsubscribe = firestore()
+            .collection('users')
+            .doc(user.uid)
+            .onSnapshot(
+                (doc) => {
+                    if (doc.exists()) {
+                        const data = doc.data();
+                        setUserDoc({
+                            name: data?.name || '',
+                            email: data?.email || '',
+                            fitnessGoal: data?.fitnessGoal || '',
+                            dietaryPreference: data?.dietaryPreference || '',
+                        });
+                    } else {
+                        setUserDoc(null);
+                    }
+                },
+                (error) => {
+                    console.error('Error listening to user profile:', error);
+                    setUserDoc(null);
+                }
+            );
+
+        return () => unsubscribe();
+    }, [user]);
 
     const signInWithGoogle = async () => {
         try {
@@ -81,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+        <AuthContext.Provider value={{ user, userDoc, loading, signInWithGoogle, signOut }}>
             {children}
         </AuthContext.Provider>
     );

@@ -8,6 +8,7 @@ import {
     ActivityIndicator,
     Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -30,7 +31,7 @@ export default function LoginScreen() {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]} edges={['top', 'left', 'right', 'bottom']}>
             <View style={styles.content}>
                 <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>
                     FlipFeeds
@@ -62,7 +63,7 @@ export default function LoginScreen() {
                     </Text>
                 </View>
             </View>
-        </View>
+        </SafeAreaView>
     );
 }
 

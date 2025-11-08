@@ -8,66 +8,36 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
 import functions from '@react-native-firebase/functions';
-import firestore from '@react-native-firebase/firestore';
-
-interface UserProfile {
-  name: string;
-  fitnessGoal: string;
-  dietaryPreference: string;
-}
 
 export default function DashboardScreen() {
-  const { user } = useAuth();
+  const { user, userDoc } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
 
   const [tip, setTip] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(true);
   const [hasCompleteProfile, setHasCompleteProfile] = useState(false);
 
-  // Real-time listener for user profile changes
+  // Check profile completeness whenever userDoc changes
   useEffect(() => {
-    if (!user) return;
-
-    setProfileLoading(true);
-
-    // Set up real-time listener for profile changes
-    const unsubscribe = firestore()
-      .collection('users')
-      .doc(user.uid)
-      .onSnapshot(
-        (userDoc) => {
-          if (userDoc.exists()) {
-            const data = userDoc.data() as UserProfile;
-            // Check if all required fields are filled and not default values
-            const isComplete = !!(
-              data.name &&
-              data.fitnessGoal &&
-              data.dietaryPreference
-            );
-
-            setHasCompleteProfile(isComplete);
-          } else {
-            setHasCompleteProfile(false);
-          }
-          setProfileLoading(false);
-        },
-        (error) => {
-          console.error('Error listening to profile:', error);
-          setHasCompleteProfile(false);
-          setProfileLoading(false);
-        }
+    if (userDoc) {
+      // Check if all required fields are filled
+      const isComplete = !!(
+        userDoc.name &&
+        userDoc.fitnessGoal &&
+        userDoc.dietaryPreference
       );
-
-    // Cleanup listener on unmount
-    return () => unsubscribe();
-  }, [user]);
+      setHasCompleteProfile(isComplete);
+    } else {
+      setHasCompleteProfile(false);
+    }
+  }, [userDoc]);
 
   const getDailyTip = async () => {
     setLoading(true);
@@ -95,98 +65,98 @@ export default function DashboardScreen() {
   };
 
   return (
-    <ScrollView
+    <SafeAreaView
       style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}
-      contentContainerStyle={styles.content}
+      edges={['top', 'left', 'right']}
     >
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>
-          Dashboard
-        </Text>
-        <Text style={[styles.subtitle, { color: isDark ? '#aaa' : '#666' }]}>
-          Welcome back, {user?.displayName || user?.email?.split('@')[0] || 'User'}!
-        </Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+      >
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>
+            Dashboard
+          </Text>
+          <Text style={[styles.subtitle, { color: isDark ? '#aaa' : '#666' }]}>
+            Welcome back, {userDoc?.name || user?.displayName || user?.email?.split('@')[0] || 'User'}!
+          </Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={[styles.cardTitle, { color: isDark ? '#fff' : '#000' }]}>
-          AI-Powered Daily Tip
-        </Text>
+        <View style={styles.card}>
+          <Text style={[styles.cardTitle, { color: isDark ? '#fff' : '#000' }]}>
+            AI-Powered Daily Tip
+          </Text>
 
-        {profileLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" />
-          </View>
-        ) : !hasCompleteProfile ? (
-          <>
-            <Text style={[styles.cardSubtitle, { color: isDark ? '#aaa' : '#666' }]}>
-              Complete your profile to get personalized AI-powered fitness and nutrition advice
-            </Text>
-
-            <View
-              style={[
-                styles.warningContainer,
-                {
-                  backgroundColor: isDark ? '#2c2400' : '#fff3cd',
-                  borderColor: isDark ? '#665c00' : '#ffc107',
-                },
-              ]}
-            >
-              <Text style={[styles.warningText, { color: isDark ? '#ffeb3b' : '#856404' }]}>
-                ⚠️ Profile incomplete
+          {!hasCompleteProfile ? (
+            <>
+              <Text style={[styles.cardSubtitle, { color: isDark ? '#aaa' : '#666' }]}>
+                Complete your profile to get personalized AI-powered fitness and nutrition advice
               </Text>
-              <Text style={[styles.warningSubtext, { color: isDark ? '#ccc' : '#856404' }]}>
-                Please set your fitness goal and dietary preference to unlock AI tips
-              </Text>
-            </View>
 
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: '#28a745' }]}
-              onPress={() => router.push('/(tabs)/profile')}
-            >
-              <Text style={styles.buttonText}>Complete Profile</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <Text style={[styles.cardSubtitle, { color: isDark ? '#aaa' : '#666' }]}>
-              Get personalized fitness and nutrition advice based on your profile
-            </Text>
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={getDailyTip}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Get My Daily Tip</Text>
-              )}
-            </TouchableOpacity>
-
-            {tip ? (
               <View
                 style={[
-                  styles.tipContainer,
+                  styles.warningContainer,
                   {
-                    backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
-                    borderColor: isDark ? '#333' : '#ddd',
+                    backgroundColor: isDark ? '#2c2400' : '#fff3cd',
+                    borderColor: isDark ? '#665c00' : '#ffc107',
                   },
                 ]}
               >
-                <Text style={[styles.tipLabel, { color: isDark ? '#aaa' : '#666' }]}>
-                  Your Daily Tip
+                <Text style={[styles.warningText, { color: isDark ? '#ffeb3b' : '#856404' }]}>
+                  ⚠️ Profile incomplete
                 </Text>
-                <Text style={[styles.tipText, { color: isDark ? '#fff' : '#000' }]}>
-                  {tip}
+                <Text style={[styles.warningSubtext, { color: isDark ? '#ccc' : '#856404' }]}>
+                  Please set your fitness goal and dietary preference to unlock AI tips
                 </Text>
               </View>
-            ) : null}
-          </>
-        )}
-      </View>
-    </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: '#28a745' }]}
+                onPress={() => router.push('/(tabs)/profile')}
+              >
+                <Text style={styles.buttonText}>Complete Profile</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.cardSubtitle, { color: isDark ? '#aaa' : '#666' }]}>
+                Get personalized fitness and nutrition advice based on your profile
+              </Text>
+
+              <TouchableOpacity
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={getDailyTip}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Get My Daily Tip</Text>
+                )}
+              </TouchableOpacity>
+
+              {tip ? (
+                <View
+                  style={[
+                    styles.tipContainer,
+                    {
+                      backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
+                      borderColor: isDark ? '#333' : '#ddd',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.tipLabel, { color: isDark ? '#aaa' : '#666' }]}>
+                    Your Daily Tip
+                  </Text>
+                  <Text style={[styles.tipText, { color: isDark ? '#fff' : '#000' }]}>
+                    {tip}
+                  </Text>
+                </View>
+              ) : null}
+            </>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 

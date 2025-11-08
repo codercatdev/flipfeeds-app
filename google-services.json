@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "361402949529-rod8piir1naer2isqfhre3en71eauge1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.flipfeeds.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
           "client_id": "361402949529-g9a9tjuciarclra19mraq2hfe7jeongn.apps.googleusercontent.com",
           "client_type": 3
         }

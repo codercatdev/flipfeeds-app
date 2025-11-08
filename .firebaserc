@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "prod": "flipfeeds-app"
+  },
+  "targets": {},
+  "etags": {}
+}

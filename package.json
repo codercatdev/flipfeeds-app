@@ -30,6 +30,7 @@
     "@react-native-firebase/perf": "^23.5.0",
     "@react-native-firebase/remote-config": "^23.5.0",
     "@react-native-firebase/storage": "^23.5.0",
+    "@react-native-google-signin/google-signin": "^16.0.0",
     "@tailwindcss/postcss": "^4.1.13",
     "expo": "^54.0.22",
     "expo-build-properties": "~1.0.9",

@@ -1,10 +1,6 @@
-// Import the functions you need from the SDKs you need
-import { Platform } from 'react-native';
-
-import { getApp, getApps, initializeApp } from '@react-native-firebase/app';
-import { initializeAuth } from '@react-native-firebase/auth';
-import { initializeFirestore } from '@react-native-firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// Firebase configuration
+// For web, this is initialized automatically by @react-native-firebase
+// For native platforms, GoogleService files are used
 
 const firebaseConfig = {
     apiKey: "AIzaSyD1573e-6QA1z7pzcCVZS8FJjYb3Kywcy0",
@@ -17,12 +13,9 @@ const firebaseConfig = {
 };
 
 export const initializeFirebase = async () => {
-    // Initialize Firebase
-    if (Platform.OS === 'web') {
-        const app = !getApps().length ? await initializeApp(firebaseConfig) : getApp();
-        initializeAuth(app, {
-            persistence: AsyncStorage,
-        });
-        initializeFirestore(app, { experimentalForceLongPolling: true });
-    }
+    // No-op for now - Firebase is initialized via GoogleService files on native
+    // and automatically on web via @react-native-firebase
+    console.log('Firebase initialized');
 }
+
+export { firebaseConfig };

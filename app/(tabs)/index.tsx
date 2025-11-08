@@ -1,98 +1,219 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { useAuth } from '@/contexts/AuthContext';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import functions from '@react-native-firebase/functions';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function DashboardScreen() {
+  const { user } = useAuth();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
-export default function HomeScreen() {
+  const [tip, setTip] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+
+  const getDailyTip = async () => {
+    setLoading(true);
+    setTip('');
+
+    try {
+      // Call the Cloud Function
+      const result = await functions().httpsCallable('getDailyTipTool')();
+
+      const data = result.data as { tip?: string };
+      if (data && data.tip) {
+        setTip(data.tip);
+      } else {
+        Alert.alert('Error', 'No tip received from the server');
+      }
+    } catch (error: any) {
+      console.error('Error getting tip:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to get your daily tip. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/icon.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <ScrollView
+      style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}
+      contentContainerStyle={styles.content}
+    >
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>
+          Dashboard
+        </Text>
+        <Text style={[styles.subtitle, { color: isDark ? '#aaa' : '#666' }]}>
+          Welcome back, {user?.email?.split('@')[0] || 'User'}!
+        </Text>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <View style={styles.card}>
+        <Text style={[styles.cardTitle, { color: isDark ? '#fff' : '#000' }]}>
+          AI-Powered Daily Tip
+        </Text>
+        <Text style={[styles.cardSubtitle, { color: isDark ? '#aaa' : '#666' }]}>
+          Get personalized fitness and nutrition advice based on your profile
+        </Text>
+
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={getDailyTip}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Get My Daily Tip</Text>
+          )}
+        </TouchableOpacity>
+
+        {tip ? (
+          <View
+            style={[
+              styles.tipContainer,
+              {
+                backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
+                borderColor: isDark ? '#333' : '#ddd',
+              },
+            ]}
+          >
+            <Text style={[styles.tipLabel, { color: isDark ? '#aaa' : '#666' }]}>
+              Your Daily Tip
+            </Text>
+            <Text style={[styles.tipText, { color: isDark ? '#fff' : '#000' }]}>
+              {tip}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.infoCard}>
+        <Text style={[styles.infoTitle, { color: isDark ? '#fff' : '#000' }]}>
+          How it works
+        </Text>
+        <View style={styles.infoItem}>
+          <Text style={[styles.infoBullet, { color: isDark ? '#007AFF' : '#007AFF' }]}>
+            1.
+          </Text>
+          <Text style={[styles.infoText, { color: isDark ? '#aaa' : '#666' }]}>
+            Your request is authenticated using Firebase Auth
+          </Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Text style={[styles.infoBullet, { color: isDark ? '#007AFF' : '#007AFF' }]}>
+            2.
+          </Text>
+          <Text style={[styles.infoText, { color: isDark ? '#aaa' : '#666' }]}>
+            Cloud Function validates your token and fetches your profile
+          </Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Text style={[styles.infoBullet, { color: isDark ? '#007AFF' : '#007AFF' }]}>
+            3.
+          </Text>
+          <Text style={[styles.infoText, { color: isDark ? '#aaa' : '#666' }]}>
+            AI generates personalized advice based on your goals
+          </Text>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
+  content: {
+    padding: 24,
+  },
+  header: {
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+  },
+  card: {
+    marginBottom: 24,
+  },
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  cardSubtitle: {
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    height: 50,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  tipContainer: {
+    marginTop: 20,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  tipLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  tipText: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  infoCard: {
+    marginTop: 8,
+  },
+  infoTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    alignItems: 'flex-start',
+  },
+  infoBullet: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    flex: 1,
+    lineHeight: 20,
   },
 });

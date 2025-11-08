@@ -2,6 +2,7 @@
 // For web, this is initialized automatically by @react-native-firebase
 // For native platforms, GoogleService files are used
 
+import { Platform } from 'react-native';
 import functions from '@react-native-firebase/functions';
 import firestore from '@react-native-firebase/firestore';
 
@@ -15,26 +16,35 @@ const firebaseConfig = {
     appId: "1:361402949529:web:a197cc4ada3a64aaef3d08"
 };
 
-// Set to true to use local emulators for testing
-const USE_EMULATORS = true;
+// Use emulators only in development mode
+// __DEV__ is true when running locally (npm/expo start), false in production builds
+const USE_EMULATORS = __DEV__;
 
-export const initializeFirebase = async () => {
-    console.log('Firebase initialized');
+export const initializeFirebase = () => {
+    console.log('🔥 Firebase initialization starting...');
+    console.log(`   Environment: ${__DEV__ ? 'DEVELOPMENT' : 'PRODUCTION'}`);
 
     if (USE_EMULATORS) {
         // Connect to Firebase Emulators
         // Android emulator: use 10.0.2.2 (maps to localhost on host machine)
         // iOS simulator: use 'localhost'
         // Physical device: use your computer's IP address (e.g., '192.168.68.70')
-        const host = '10.0.2.2'; // Android emulator
+        const host = Platform.OS === 'ios' ? 'localhost' : '10.0.2.2';
 
-        functions().useEmulator(host, 5001);
-        firestore().useEmulator(host, 8080);
+        try {
+            functions().useEmulator(host, 5001);
+            firestore().useEmulator(host, 8080);
 
-        console.log('🔧 Using Firebase Emulators');
-        console.log(`   Functions: http://${host}:5001`);
-        console.log(`   Firestore: http://${host}:8080`);
-        console.log(`   Emulator UI: http://localhost:4000`);
+            console.log('✅ Firebase Emulators Connected');
+            console.log(`   Platform: ${Platform.OS}`);
+            console.log(`   Functions: http://${host}:5001`);
+            console.log(`   Firestore: http://${host}:8080`);
+            console.log(`   Emulator UI: http://localhost:4000`);
+        } catch (error) {
+            console.error('❌ Error connecting to emulators:', error);
+        }
+    } else {
+        console.log('🌐 Using production Firebase');
     }
 }
 

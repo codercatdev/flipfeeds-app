@@ -1,0 +1,90 @@
+name: Build iOS Release
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - "feature/**"
+      - "release/**"
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for version calculation
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install CocoaPods
+        run: sudo gem install cocoapods
+
+      - name: Show version info
+        run: npm run version:show
+
+      - name: Run Expo Prebuild
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Sync iOS version (with branch-aware semver)
+        run: npm run ios:sync-version
+
+      - name: Install iOS dependencies
+        run: |
+          cd ios
+          pod install
+          cd ..
+
+      # For App Store builds, you'll need to set up signing
+      # This is a simplified example for development builds
+      - name: Build iOS Archive
+        run: npm run ios:archive
+        env:
+          # Add your signing configuration here
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+
+      - name: Upload Archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-archive
+          path: ios/build/flipfeedsapp.xcarchive
+
+      # Upload to Firebase App Distribution (if IPA export is configured)
+      - name: Export IPA
+        if: success()
+        continue-on-error: true
+        run: npm run ios:export
+
+      - name: Install Firebase CLI
+        if: success()
+        run: npm install -g firebase-tools
+
+      - name: Upload to Firebase App Distribution
+        if: success()
+        continue-on-error: true
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_IOS_APP_ID: ${{ secrets.FIREBASE_IOS_APP_ID }}
+          FIREBASE_GROUPS: ${{ github.ref == 'refs/heads/main' && 'production-testers' || 'internal-testers' }}
+        run: node scripts/upload-to-firebase.js ios

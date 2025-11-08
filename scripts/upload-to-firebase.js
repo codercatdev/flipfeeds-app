@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+require('dotenv').config();
+
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -15,6 +17,26 @@ if (!platform || !['android', 'ios'].includes(platform)) {
 const versionInfo = generateVersion();
 
 console.log(`\n🚀 Uploading ${platform} build to Firebase App Distribution\n`);
+
+// Check for required environment variables
+const androidAppId = process.env.FIREBASE_ANDROID_APP_ID;
+const iosAppId = process.env.FIREBASE_IOS_APP_ID;
+
+if (platform === 'android' && !androidAppId) {
+    console.error('❌ Error: FIREBASE_ANDROID_APP_ID not set');
+    console.error('   1. Copy .env.example to .env');
+    console.error('   2. Add your Firebase Android App ID from Firebase Console');
+    console.error('   3. Format: FIREBASE_ANDROID_APP_ID=1:123456789:android:abc123');
+    process.exit(1);
+}
+
+if (platform === 'ios' && !iosAppId) {
+    console.error('❌ Error: FIREBASE_IOS_APP_ID not set');
+    console.error('   1. Copy .env.example to .env');
+    console.error('   2. Add your Firebase iOS App ID from Firebase Console');
+    console.error('   3. Format: FIREBASE_IOS_APP_ID=1:123456789:ios:abc123');
+    process.exit(1);
+}
 
 // Determine file path
 let appPath;
@@ -40,16 +62,20 @@ if (platform === 'android') {
 // Get groups from environment or use default
 const groups = process.env.FIREBASE_GROUPS || 'testers';
 
+// Get the app ID for the platform
+const appId = platform === 'android' ? androidAppId : iosAppId;
+
 // Construct the Firebase CLI command
 const command = [
     'firebase appdistribution:distribute',
     `"${appPath}"`,
-    `--app ${platform === 'android' ? process.env.FIREBASE_ANDROID_APP_ID || 'YOUR_ANDROID_APP_ID' : process.env.FIREBASE_IOS_APP_ID || 'YOUR_IOS_APP_ID'}`,
+    `--app ${appId}`,
     `--groups "${groups}"`,
     `--release-notes "${releaseNotes}"`,
 ].join(' ');
 
 console.log('📦 File:', appPath);
+console.log('🆔 App ID:', appId);
 console.log('📝 Release Notes:', releaseNotes);
 console.log('👥 Groups:', groups);
 console.log('\nExecuting Firebase CLI...\n');
@@ -57,11 +83,14 @@ console.log('\nExecuting Firebase CLI...\n');
 try {
     execSync(command, { stdio: 'inherit' });
     console.log('\n✅ Successfully uploaded to Firebase App Distribution!');
+    console.log(`   Testers in "${groups}" group will receive a notification.`);
 } catch (error) {
     console.error('\n❌ Failed to upload to Firebase App Distribution');
-    console.error('Make sure you have:');
-    console.error('  1. Firebase CLI installed: npm install -g firebase-tools');
-    console.error('  2. Logged in: firebase login');
-    console.error('  3. Set FIREBASE_ANDROID_APP_ID and FIREBASE_IOS_APP_ID environment variables');
+    console.error('\nTroubleshooting:');
+    console.error('  1. Ensure Firebase CLI is installed: npm install -g firebase-tools');
+    console.error('  2. Login to Firebase: firebase login');
+    console.error('  3. Check your .env file has the correct App IDs');
+    console.error('  4. Verify the tester group exists in Firebase Console');
+    console.error('  5. Ensure you have permission to distribute to this app');
     process.exit(1);
 }

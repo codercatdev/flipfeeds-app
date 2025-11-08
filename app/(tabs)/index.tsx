@@ -31,36 +31,42 @@ export default function DashboardScreen() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [hasCompleteProfile, setHasCompleteProfile] = useState(false);
 
-  // Check if user has completed their profile
+  // Real-time listener for user profile changes
   useEffect(() => {
-    const checkProfile = async () => {
-      if (!user) return;
+    if (!user) return;
 
-      try {
-        const userDoc = await firestore().collection('users').doc(user.uid).get();
+    setProfileLoading(true);
 
-        if (userDoc.exists()) {
-          const data = userDoc.data() as UserProfile;
-          // Check if all required fields are filled and not default values
-          const isComplete = !!(
-            data.name &&
-            data.fitnessGoal &&
-            data.dietaryPreference
-          );
+    // Set up real-time listener for profile changes
+    const unsubscribe = firestore()
+      .collection('users')
+      .doc(user.uid)
+      .onSnapshot(
+        (userDoc) => {
+          if (userDoc.exists()) {
+            const data = userDoc.data() as UserProfile;
+            // Check if all required fields are filled and not default values
+            const isComplete = !!(
+              data.name &&
+              data.fitnessGoal &&
+              data.dietaryPreference
+            );
 
-          setHasCompleteProfile(isComplete);
-        } else {
+            setHasCompleteProfile(isComplete);
+          } else {
+            setHasCompleteProfile(false);
+          }
+          setProfileLoading(false);
+        },
+        (error) => {
+          console.error('Error listening to profile:', error);
           setHasCompleteProfile(false);
+          setProfileLoading(false);
         }
-      } catch (error) {
-        console.error('Error checking profile:', error);
-        setHasCompleteProfile(false);
-      } finally {
-        setProfileLoading(false);
-      }
-    };
+      );
 
-    checkProfile();
+    // Cleanup listener on unmount
+    return () => unsubscribe();
   }, [user]);
 
   const getDailyTip = async () => {

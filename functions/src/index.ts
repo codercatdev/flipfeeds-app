@@ -13,7 +13,7 @@ const vertexAI = new VertexAI({
 
 // Reference to the generative model
 const generativeModel = vertexAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash',
 });
 
 interface UserProfile {

@@ -104,7 +104,7 @@ export default function DashboardScreen() {
           Dashboard
         </Text>
         <Text style={[styles.subtitle, { color: isDark ? '#aaa' : '#666' }]}>
-          Welcome back, {user?.email?.split('@')[0] || 'User'}!
+          Welcome back, {user?.displayName || user?.email?.split('@')[0] || 'User'}!
         </Text>
       </View>
 

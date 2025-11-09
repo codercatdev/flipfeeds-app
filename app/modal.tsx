@@ -22,8 +22,8 @@ export default function AddFriendModal() {
         try {
             const snapshot = await firestore()
                 .collection('users')
-                .where('displayName', '>=', searchQuery)
-                .where('displayName', '<=', searchQuery + '\uf8ff')
+                .where('username', '>=', searchQuery.toLowerCase())
+                .where('username', '<=', searchQuery.toLowerCase() + '\uf8ff')
                 .limit(10)
                 .get();
 
@@ -96,7 +96,7 @@ export default function AddFriendModal() {
                     <Text className="text-lg font-semibold text-gray-900 dark:text-white">
                         {item.displayName}
                     </Text>
-                    <Text className="text-sm text-gray-600 dark:text-gray-400">{item.email}</Text>
+                    <Text className="text-sm text-gray-600 dark:text-gray-400">@{item.username}</Text>
                 </View>
             </View>
             <TouchableOpacity
@@ -127,12 +127,13 @@ export default function AddFriendModal() {
                     <Ionicons name="search" size={20} color="#9CA3AF" />
                     <TextInput
                         className="flex-1 ml-2 text-gray-900 dark:text-white"
-                        placeholder="Search by display name"
+                        placeholder="Search by username"
                         placeholderTextColor="#9CA3AF"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                         onSubmitEditing={handleSearch}
-                        autoCapitalize="words"
+                        autoCapitalize="none"
+                        autoCorrect={false}
                     />
                     <TouchableOpacity onPress={handleSearch} disabled={loading}>
                         {loading ? (
@@ -151,7 +152,7 @@ export default function AddFriendModal() {
                         Find Your Friends
                     </Text>
                     <Text className="text-gray-600 dark:text-gray-400 text-center">
-                        Search for friends by their display name to send them a friend request
+                        Search for friends by their username to send them a friend request
                     </Text>
                 </View>
             ) : (

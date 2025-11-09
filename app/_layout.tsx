@@ -14,7 +14,7 @@ import { initializeFirebase } from '@/lib/firebaseConfig';
 
 function RootLayoutNav() {
     const colorScheme = useColorScheme();
-    const { user, loading, updateFCMToken } = useAuth();
+    const { user, userDoc, loading, updateFCMToken } = useAuth();
     const segments = useSegments();
     const router = useRouter();
 
@@ -51,6 +51,7 @@ function RootLayoutNav() {
         }
 
         const inAuthGroup = segments[0] === '(auth)';
+        const currentRoute = segments.join('/');
 
         if (!user) {
             // User not authenticated - ensure they're on login page
@@ -60,14 +61,23 @@ function RootLayoutNav() {
             } else {
                 console.log('Already in auth group, segments:', segments);
             }
-        } else if (user && inAuthGroup) {
-            // User authenticated but in auth group - redirect to tabs
-            console.log('Redirecting to tabs, segments:', segments);
-            router.replace('/(tabs)');
-        } else {
-            console.log('User logged in and in correct location, segments:', segments);
+        } else if (user && userDoc) {
+            // User authenticated - check onboarding status
+            if (!userDoc.hasCompletedOnboarding) {
+                // User needs to complete onboarding
+                if (!currentRoute.includes('onboarding')) {
+                    console.log('Redirecting to onboarding, segments:', segments);
+                    router.replace('/(auth)/onboarding');
+                }
+            } else if (inAuthGroup) {
+                // User completed onboarding but still in auth group - redirect to tabs
+                console.log('Redirecting to tabs, segments:', segments);
+                router.replace('/(tabs)');
+            } else {
+                console.log('User logged in and in correct location, segments:', segments);
+            }
         }
-    }, [user, loading, segments]);
+    }, [user, loading]);
 
     // Show loading screen until auth is checked
     if (loading) {

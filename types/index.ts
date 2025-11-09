@@ -2,11 +2,20 @@
 
 export interface User {
     uid: string;
+    username?: string; // Unique handle like @username (optional until onboarding complete)
     displayName: string;
     email: string;
     photoURL?: string;
     fcmToken?: string;
     createdAt: number;
+    hasCompletedOnboarding?: boolean; // True once username is set
+    usernameLastChanged?: number; // Timestamp of last username change (for 7-day cooldown)
+}
+
+export interface UsernameChange {
+    oldUsername: string | null;
+    newUsername: string;
+    timestamp: number;
 }
 
 export interface Friendship {

@@ -16,6 +16,13 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isOwner(userId);
       allow update: if isAuthenticated() && isOwner(userId);
       allow delete: if false;
+
+      // Username history subcollection
+      match /usernameHistory/{historyId} {
+        allow read: if isAuthenticated() && isOwner(userId);
+        allow create: if isAuthenticated() && isOwner(userId);
+        allow update, delete: if false; // Username history is immutable
+      }
     }
 
     match /friendships/{friendshipId} {

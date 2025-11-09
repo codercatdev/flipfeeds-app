@@ -14,15 +14,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginScreen() {
+    // Note: This screen uses the legacy signup flow with username.
+    // New Google sign-in users will go through onboarding to set their username.
+    // This keeps backward compatibility for email signup.
     const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [displayName, setDisplayName] = useState('');
+    const [username, setUsername] = useState('');
     const [loading, setLoading] = useState(false);
     const { signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
 
     const handleEmailAuth = async () => {
-        if (!email || !password || (isSignUp && !displayName)) {
+        if (!email || !password || (isSignUp && (!displayName || !username))) {
             Alert.alert('Error', 'Please fill in all fields');
             return;
         }
@@ -30,7 +34,7 @@ export default function LoginScreen() {
         setLoading(true);
         try {
             if (isSignUp) {
-                await signUpWithEmail(email, password, displayName);
+                await signUpWithEmail(email, password, displayName, username);
             } else {
                 await signInWithEmail(email, password);
             }
@@ -78,14 +82,25 @@ export default function LoginScreen() {
                     {/* Email/Password Form */}
                     <View className="mb-6">
                         {isSignUp && (
-                            <TextInput
-                                className="bg-gray-100 text-gray-900 px-4 py-3 rounded-lg mb-4"
-                                placeholder="Display Name"
-                                placeholderTextColor="#9CA3AF"
-                                value={displayName}
-                                onChangeText={setDisplayName}
-                                autoCapitalize="words"
-                            />
+                            <>
+                                <TextInput
+                                    className="bg-gray-100 text-gray-900 px-4 py-3 rounded-lg mb-4"
+                                    placeholder="Display Name"
+                                    placeholderTextColor="#9CA3AF"
+                                    value={displayName}
+                                    onChangeText={setDisplayName}
+                                    autoCapitalize="words"
+                                />
+                                <TextInput
+                                    className="bg-gray-100 text-gray-900 px-4 py-3 rounded-lg mb-4"
+                                    placeholder="Username (e.g., johndoe)"
+                                    placeholderTextColor="#9CA3AF"
+                                    value={username}
+                                    onChangeText={(text) => setUsername(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                />
+                            </>
                         )}
                         <TextInput
                             className="bg-gray-100 text-gray-900 px-4 py-3 rounded-lg mb-4"

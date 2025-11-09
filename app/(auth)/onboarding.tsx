@@ -34,7 +34,7 @@ export default function OnboardingScreen() {
                 .get();
 
             setIsAvailable(snapshot.empty);
-            
+
             if (!snapshot.empty) {
                 Alert.alert('Username taken', 'This username is already in use. Please choose another.');
             }
@@ -82,9 +82,9 @@ export default function OnboardingScreen() {
                     Username
                 </Text>
                 <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-                    <Text style={{ 
-                        fontSize: 16, 
-                        color: '#666666', 
+                    <Text style={{
+                        fontSize: 16,
+                        color: '#666666',
                         paddingVertical: 12,
                         paddingLeft: 16,
                         backgroundColor: '#f5f5f5',
@@ -146,10 +146,10 @@ export default function OnboardingScreen() {
                 </TouchableOpacity>
 
                 {isAvailable === true && (
-                    <View style={{ 
-                        backgroundColor: '#D4EDDA', 
-                        padding: 12, 
-                        borderRadius: 8, 
+                    <View style={{
+                        backgroundColor: '#D4EDDA',
+                        padding: 12,
+                        borderRadius: 8,
                         marginBottom: 16,
                         borderWidth: 1,
                         borderColor: '#C3E6CB'
@@ -161,10 +161,10 @@ export default function OnboardingScreen() {
                 )}
 
                 {isAvailable === false && (
-                    <View style={{ 
-                        backgroundColor: '#F8D7DA', 
-                        padding: 12, 
-                        borderRadius: 8, 
+                    <View style={{
+                        backgroundColor: '#F8D7DA',
+                        padding: 12,
+                        borderRadius: 8,
                         marginBottom: 16,
                         borderWidth: 1,
                         borderColor: '#F5C6CB'

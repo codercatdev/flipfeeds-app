@@ -17,7 +17,7 @@ export default function AddFriendModal() {
 
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
-        
+
         setLoading(true);
         try {
             const snapshot = await firestore()
@@ -30,7 +30,7 @@ export default function AddFriendModal() {
             const results: User[] = snapshot.docs
                 .map(doc => doc.data() as User)
                 .filter(u => u.uid !== user?.uid);
-            
+
             setSearchResults(results);
         } catch (error) {
             console.error('Error searching users:', error);

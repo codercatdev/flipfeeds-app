@@ -20,13 +20,13 @@ export default function ProfileScreen() {
         try {
             const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
             if (result.didCancel || !result.assets || !result.assets[0]) return;
-            
+
             const asset = result.assets[0];
             const uri = asset.uri;
             if (!uri) return;
 
             setUploading(true);
-            
+
             // ML Kit Image Labeling Demo
             try {
                 const detectedLabels = await ml().cloudImageLabelerProcessImage(uri);
@@ -45,7 +45,7 @@ export default function ProfileScreen() {
 
             // Update Firestore
             await firestore().collection('users').doc(user?.uid).update({ photoURL: downloadURL });
-            
+
             Alert.alert('Success', 'Profile picture updated!');
         } catch (error) {
             console.error('Error uploading image:', error);
@@ -106,7 +106,7 @@ export default function ProfileScreen() {
 
     const handleUpdateUsername = async () => {
         const { canChange, daysRemaining } = canChangeUsername();
-        
+
         if (!canChange) {
             Alert.alert(
                 'Cannot change username',
@@ -152,12 +152,12 @@ export default function ProfileScreen() {
                         )}
                         {uploading && <ActivityIndicator className="absolute" color="#F97316" />}
                     </TouchableOpacity>
-                    
+
                     <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                         {userDoc?.displayName}
                     </Text>
-                    
-                    <TouchableOpacity 
+
+                    <TouchableOpacity
                         onPress={openUsernameModal}
                         className="flex-row items-center mb-2"
                     >
@@ -166,9 +166,9 @@ export default function ProfileScreen() {
                         </Text>
                         <Text className="text-[#F97316] ml-2">✏️</Text>
                     </TouchableOpacity>
-                    
+
                     <Text className="text-gray-600 dark:text-gray-400 mb-2">{userDoc?.email}</Text>
-                    
+
                     {userDoc?.usernameLastChanged && (
                         <Text className="text-xs text-gray-500 dark:text-gray-500 mb-8">
                             {(() => {
@@ -180,7 +180,7 @@ export default function ProfileScreen() {
                             })()}
                         </Text>
                     )}
-                    
+
                     {labels.length > 0 && (
                         <View className="mb-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
                             <Text className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
@@ -223,15 +223,15 @@ export default function ProfileScreen() {
                         <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 8, color: '#000000' }}>
                             Change Username
                         </Text>
-                        
+
                         {(() => {
                             const { canChange, daysRemaining } = canChangeUsername();
                             if (!canChange) {
                                 return (
-                                    <View style={{ 
-                                        backgroundColor: '#FEF3C7', 
-                                        padding: 12, 
-                                        borderRadius: 8, 
+                                    <View style={{
+                                        backgroundColor: '#FEF3C7',
+                                        padding: 12,
+                                        borderRadius: 8,
                                         marginBottom: 16,
                                         borderWidth: 1,
                                         borderColor: '#FDE68A'
@@ -253,9 +253,9 @@ export default function ProfileScreen() {
                             New Username
                         </Text>
                         <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-                            <Text style={{ 
-                                fontSize: 16, 
-                                color: '#666666', 
+                            <Text style={{
+                                fontSize: 16,
+                                color: '#666666',
                                 paddingVertical: 12,
                                 paddingLeft: 16,
                                 backgroundColor: '#f5f5f5',

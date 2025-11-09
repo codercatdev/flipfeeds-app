@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             fcmToken,
             createdAt: Date.now(),
         };
-        
+
         // If username is provided, user has completed onboarding
         if (username) {
             userProfile.username = username.toLowerCase();
@@ -125,9 +125,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
             userProfile.hasCompletedOnboarding = false;
         }
-        
+
         await firestore().collection('users').doc(uid).set(userProfile);
-        
+
         // Track username change in history if username provided
         if (username) {
             await firestore()
@@ -151,7 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .collection('users')
                 .where('username', '==', username.toLowerCase())
                 .get();
-            
+
             if (!usernameCheck.empty) {
                 throw new Error('Username already taken');
             }

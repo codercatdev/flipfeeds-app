@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView, TextInput, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView, TextInput, Modal, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import storage from '@react-native-firebase/storage';
 import ml from '@react-native-firebase/ml';
@@ -9,6 +10,7 @@ import firestore from '@react-native-firebase/firestore';
 
 export default function ProfileScreen() {
     const { user, userDoc, signOut, updateUsername, canChangeUsername } = useAuth();
+    const darkMode = useColorScheme() === 'dark' ? '#fff' : '#000';
     const [uploading, setUploading] = useState(false);
     const [labels, setLabels] = useState<string[]>([]);
     const [showUsernameModal, setShowUsernameModal] = useState(false);
@@ -28,14 +30,14 @@ export default function ProfileScreen() {
             setUploading(true);
 
             // ML Kit Image Labeling Demo
-            try {
-                const detectedLabels = await ml().cloudImageLabelerProcessImage(uri);
-                const topLabels = detectedLabels.slice(0, 3).map(label => label.text);
-                setLabels(topLabels);
-                Alert.alert('Image Analysis', `Detected: ${topLabels.join(', ')}`);
-            } catch (mlError) {
-                console.error('ML Kit error:', mlError);
-            }
+            // try {
+            //     const detectedLabels = await ml().cloudImageLabelerProcessImage(uri);
+            //     const topLabels = detectedLabels.slice(0, 3).map(label => label.text);
+            //     setLabels(topLabels);
+            //     Alert.alert('Image Analysis', `Detected: ${topLabels.join(', ')}`);
+            // } catch (mlError) {
+            //     console.error('ML Kit error:', mlError);
+            // }
 
             // Upload to Firebase Storage
             const filename = `profile-pictures/${user?.uid}.jpg`;
@@ -153,7 +155,7 @@ export default function ProfileScreen() {
                         {uploading && <ActivityIndicator className="absolute" color="#F97316" />}
                     </TouchableOpacity>
 
-                    <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                    <Text className="text-3xl font-bold text-black dark:text-white mb-2">
                         {userDoc?.displayName}
                     </Text>
 
@@ -161,16 +163,16 @@ export default function ProfileScreen() {
                         onPress={openUsernameModal}
                         className="flex-row items-center mb-2"
                     >
-                        <Text className="text-lg text-[#F97316] font-semibold">
+                        <Text className="text-lg text-primary font-semibold">
                             @{userDoc?.username}
                         </Text>
-                        <Text className="text-[#F97316] ml-2">✏️</Text>
+                        <Ionicons name="pencil" size={18} color={darkMode} style={{ marginLeft: 8 }} />
                     </TouchableOpacity>
 
-                    <Text className="text-gray-600 dark:text-gray-400 mb-2">{userDoc?.email}</Text>
+                    <Text className="text-black/60 dark:text-white/60 mb-2">{userDoc?.email}</Text>
 
                     {userDoc?.usernameLastChanged && (
-                        <Text className="text-xs text-gray-500 dark:text-gray-500 mb-8">
+                        <Text className="text-xs text-black/50 dark:text-white/50 mb-8">
                             {(() => {
                                 const { canChange, daysRemaining } = canChangeUsername();
                                 if (canChange) {
@@ -182,11 +184,11 @@ export default function ProfileScreen() {
                     )}
 
                     {labels.length > 0 && (
-                        <View className="mb-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                            <Text className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                        <View className="mb-8 p-4 bg-white dark:bg-black border border-black/10 dark:border-white/10 rounded-lg">
+                            <Text className="text-sm font-semibold text-black dark:text-white mb-2">
                                 Image Labels (ML Kit):
                             </Text>
-                            <Text className="text-sm text-gray-600 dark:text-gray-400">
+                            <Text className="text-sm text-black/60 dark:text-white/60">
                                 {labels.join(', ')}
                             </Text>
                         </View>
@@ -194,7 +196,7 @@ export default function ProfileScreen() {
 
                     <TouchableOpacity
                         onPress={handlePickImage}
-                        className="bg-[#F97316] px-8 py-4 rounded-lg mb-4 w-full"
+                        className="bg-primary px-8 py-4 rounded-lg mb-4 w-full"
                         disabled={uploading}
                     >
                         <Text className="text-white font-semibold text-center text-lg">
@@ -218,9 +220,9 @@ export default function ProfileScreen() {
                 animationType="slide"
                 onRequestClose={() => setShowUsernameModal(false)}
             >
-                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 }}>
-                    <View style={{ backgroundColor: '#ffffff', borderRadius: 16, padding: 24 }}>
-                        <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 8, color: '#000000' }}>
+                <View className="flex-1 justify-center p-6" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <View className="bg-white dark:bg-black rounded-2xl p-6 border border-black/20 dark:border-white/20">
+                        <Text className="text-2xl font-bold mb-2 text-black dark:text-white">
                             Change Username
                         </Text>
 
@@ -228,16 +230,10 @@ export default function ProfileScreen() {
                             const { canChange, daysRemaining } = canChangeUsername();
                             if (!canChange) {
                                 return (
-                                    <View style={{
-                                        backgroundColor: '#FEF3C7',
-                                        padding: 12,
-                                        borderRadius: 8,
-                                        marginBottom: 16,
-                                        borderWidth: 1,
-                                        borderColor: '#FDE68A'
-                                    }}>
-                                        <Text style={{ color: '#92400E', fontSize: 14 }}>
-                                            ⚠️ You can only change your username once every 7 days. Please wait {daysRemaining} more day{daysRemaining !== 1 ? 's' : ''}.
+                                    <View className="bg-primary/20 p-3 rounded-lg mb-4 border border-primary flex-row items-center">
+                                        <Ionicons name="warning" size={20} color="#F97316" style={{ marginRight: 8 }} />
+                                        <Text className="text-primary text-sm flex-1">
+                                            You can only change your username once every 7 days. Please wait {daysRemaining} more day{daysRemaining !== 1 ? 's' : ''}.
                                         </Text>
                                     </View>
                                 );
@@ -245,44 +241,23 @@ export default function ProfileScreen() {
                             return null;
                         })()}
 
-                        <Text style={{ fontSize: 14, color: '#666666', marginBottom: 16 }}>
+                        <Text className="text-sm text-black/60 dark:text-white/60 mb-4">
                             You can change your username once every 7 days. Choose carefully!
                         </Text>
 
-                        <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 8, color: '#000000' }}>
+                        <Text className="text-sm font-semibold mb-2 text-black dark:text-white">
                             New Username
                         </Text>
-                        <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-                            <Text style={{
-                                fontSize: 16,
-                                color: '#666666',
-                                paddingVertical: 12,
-                                paddingLeft: 16,
-                                backgroundColor: '#f5f5f5',
-                                borderTopLeftRadius: 8,
-                                borderBottomLeftRadius: 8,
-                                borderWidth: 1,
-                                borderRightWidth: 0,
-                                borderColor: '#e0e0e0'
-                            }}>
-                                @
-                            </Text>
+                        <View className="flex-row mb-4">
+                            <View className="bg-white dark:bg-black px-4 py-3 rounded-l-lg border border-r-0 border-black/20 dark:border-white/20">
+                                <Text className="text-base text-black/60 dark:text-white/60">
+                                    @
+                                </Text>
+                            </View>
                             <TextInput
-                                style={{
-                                    flex: 1,
-                                    height: 48,
-                                    borderWidth: 1,
-                                    borderLeftWidth: 0,
-                                    borderColor: '#e0e0e0',
-                                    borderTopRightRadius: 8,
-                                    borderBottomRightRadius: 8,
-                                    paddingHorizontal: 16,
-                                    fontSize: 16,
-                                    backgroundColor: '#f5f5f5',
-                                    color: '#000000'
-                                }}
+                                className="flex-1 h-12 bg-white dark:bg-black px-4 text-base text-black dark:text-white border border-l-0 border-black/20 dark:border-white/20 rounded-r-lg"
                                 placeholder="username"
-                                placeholderTextColor="#999999"
+                                placeholderTextColor="rgba(0,0,0,0.4)"
                                 value={newUsername}
                                 onChangeText={handleUsernameChange}
                                 autoCapitalize="none"
@@ -291,45 +266,33 @@ export default function ProfileScreen() {
                             />
                         </View>
 
-                        <Text style={{ fontSize: 12, color: '#666666', marginBottom: 16 }}>
+                        <Text className="text-xs text-black/60 dark:text-white/60 mb-4">
                             Only lowercase letters, numbers, and underscores. Min 3 characters.
                         </Text>
 
-                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                        <View className="flex-row gap-3">
                             <TouchableOpacity
-                                style={{
-                                    flex: 1,
-                                    backgroundColor: '#E5E7EB',
-                                    padding: 16,
-                                    borderRadius: 8,
-                                    alignItems: 'center'
-                                }}
+                                className="flex-1 bg-white dark:bg-black border border-black/20 dark:border-white/20 p-4 rounded-lg items-center"
                                 onPress={() => {
                                     setShowUsernameModal(false);
                                     setNewUsername('');
                                 }}
                             >
-                                <Text style={{ color: '#374151', fontSize: 16, fontWeight: '600' }}>
+                                <Text className="text-black dark:text-white text-base font-semibold">
                                     Cancel
                                 </Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={{
-                                    flex: 1,
-                                    backgroundColor: '#F97316',
-                                    padding: 16,
-                                    borderRadius: 8,
-                                    alignItems: 'center',
-                                    opacity: isCheckingUsername || isUpdatingUsername || !canChangeUsername().canChange ? 0.5 : 1
-                                }}
+                                className="flex-1 bg-primary p-4 rounded-lg items-center"
+                                style={{ opacity: isCheckingUsername || isUpdatingUsername || !canChangeUsername().canChange ? 0.5 : 1 }}
                                 onPress={handleUpdateUsername}
                                 disabled={isCheckingUsername || isUpdatingUsername || !canChangeUsername().canChange}
                             >
                                 {isUpdatingUsername || isCheckingUsername ? (
                                     <ActivityIndicator color="#ffffff" />
                                 ) : (
-                                    <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '600' }}>
+                                    <Text className="text-white text-base font-semibold">
                                         Update
                                     </Text>
                                 )}

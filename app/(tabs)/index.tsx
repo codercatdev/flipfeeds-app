@@ -88,21 +88,21 @@ export default function FriendsScreen() {
   };
 
   const renderFriendItem = ({ item }: { item: FriendWithStreak }) => (
-    <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+    <View className="flex-row items-center justify-between px-6 py-4 border-b border-black/10 dark:border-white/10">
       <View className="flex-row items-center flex-1">
         {item.photoURL ? (
           <Image source={{ uri: item.photoURL }} className="w-12 h-12 rounded-full mr-4" />
         ) : (
-          <View className="w-12 h-12 rounded-full bg-[#F97316] items-center justify-center mr-4">
+          <View className="w-12 h-12 rounded-full bg-primary items-center justify-center mr-4">
             <Text className="text-white text-xl font-bold">{item.displayName.charAt(0).toUpperCase()}</Text>
           </View>
         )}
         <View className="flex-1">
-          <Text className="text-lg font-semibold text-gray-900 dark:text-white">{item.displayName}</Text>
+          <Text className="text-lg font-semibold text-black dark:text-white">{item.displayName}</Text>
           {item.streakCount > 0 && (
             <View className="flex-row items-center mt-1">
-              <Text className="text-base mr-1">🔥</Text>
-              <Text className="text-sm text-gray-600 dark:text-gray-400">
+              <Ionicons name="flame" size={16} color="#F97316" style={{ marginRight: 4 }} />
+              <Text className="text-sm text-black/60 dark:text-white/60">
                 {item.streakCount} flip{item.streakCount !== 1 ? 's' : ''}
               </Text>
             </View>
@@ -110,7 +110,7 @@ export default function FriendsScreen() {
         </View>
       </View>
       <TouchableOpacity
-        className="bg-[#F97316] px-6 py-3 rounded-lg"
+        className="bg-primary px-6 py-3 rounded-lg"
         onPress={() => handleFlip(item.uid, item.displayName)}
         disabled={flippingUserId === item.uid}
       >
@@ -125,29 +125,34 @@ export default function FriendsScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}>
+      <View className="flex-1 justify-center items-center bg-white dark:bg-black">
         <ActivityIndicator size="large" color="#F97316" />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }} edges={['top']}>
-      <View className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+    <SafeAreaView className="flex-1 bg-white dark:bg-black" edges={['top']} style={{ flex: 1 }}>
+      <View className="px-6 py-4 border-b border-black/10 dark:border-white/10">
         <View className="flex-row items-center justify-between">
-          <Text className="text-3xl font-bold text-gray-900 dark:text-white">Friends</Text>
-          <TouchableOpacity onPress={() => router.push('/modal')} className="bg-[#F97316] w-10 h-10 rounded-full items-center justify-center">
+          <Text className="text-3xl font-bold text-black dark:text-white">Friends</Text>
+          <TouchableOpacity onPress={() => router.push('/modal')} className="bg-primary w-10 h-10 rounded-full items-center justify-center">
             <Ionicons name="person-add" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
-        {userDoc && <Text className="text-gray-600 dark:text-gray-400 mt-2">Hey {userDoc.displayName}! 👋</Text>}
+        {userDoc && (
+          <View className="flex-row items-center mt-2">
+            <Ionicons name="hand-right" size={20} color="#F97316" style={{ marginRight: 8 }} />
+            <Text className="text-black/60 dark:text-white/60">Hey {userDoc.displayName}!</Text>
+          </View>
+        )}
       </View>
       {friends.length === 0 ? (
         <View className="flex-1 justify-center items-center px-6">
-          <Text className="text-6xl mb-4">👋</Text>
-          <Text className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-2">No Friends Yet</Text>
-          <Text className="text-gray-600 dark:text-gray-400 text-center mb-6">Add friends to start flipping!</Text>
-          <TouchableOpacity onPress={() => router.push('/modal')} className="bg-[#F97316] px-6 py-3 rounded-lg">
+          <Ionicons name="people-outline" size={80} color="#F97316" style={{ marginBottom: 16 }} />
+          <Text className="text-2xl font-bold text-black dark:text-white text-center mb-2">No Friends Yet</Text>
+          <Text className="text-black/60 dark:text-white/60 text-center mb-6">Add friends to start flipping!</Text>
+          <TouchableOpacity onPress={() => router.push('/modal')} className="bg-primary px-6 py-3 rounded-lg">
             <Text className="text-white font-semibold text-lg">Add Friend</Text>
           </TouchableOpacity>
         </View>

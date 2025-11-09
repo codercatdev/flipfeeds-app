@@ -82,7 +82,7 @@ function RootLayoutNav() {
     // Show loading screen until auth is checked
     if (loading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colorScheme === 'dark' ? '#000' : '#fff' }}>
+            <View className="flex-1 justify-center items-center bg-white dark:bg-black">
                 <ActivityIndicator size="large" color="#F97316" />
             </View>
         );

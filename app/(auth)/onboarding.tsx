@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { router } from 'expo-router';
 import firestore from '@react-native-firebase/firestore';
 
@@ -9,6 +11,7 @@ export default function OnboardingScreen() {
     const [isChecking, setIsChecking] = useState(false);
     const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
     const { user, completeOnboarding } = useAuth();
+    const colorScheme = useColorScheme();
 
     const sanitizeUsername = (input: string) => {
         return input.toLowerCase().replace(/[^a-z0-9_]/g, '');
@@ -68,50 +71,32 @@ export default function OnboardingScreen() {
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1, backgroundColor: '#ffffff' }}
+            className="flex-1 bg-white dark:bg-black"
         >
-            <View style={{ flex: 1, padding: 24, justifyContent: 'center' }}>
-                <Text style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 8, color: '#000000' }}>
-                    Welcome to FlipFeeds! 🎉
-                </Text>
-                <Text style={{ fontSize: 16, color: '#666666', marginBottom: 32 }}>
+            <View className="flex-1 p-6 justify-center">
+                <View className="flex-row items-center mb-2">
+                    <Ionicons name="sparkles" size={32} color="#F97316" style={{ marginRight: 8 }} />
+                    <Text className="text-3xl font-bold text-black dark:text-white">
+                        Welcome to FlipFeeds!
+                    </Text>
+                </View>
+                <Text className="text-base text-black/60 dark:text-white/60 mb-8">
                     Choose a unique username to get started. You'll be able to change it later, but you can only do so once every 7 days.
                 </Text>
 
-                <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 8, color: '#000000' }}>
+                <Text className="text-sm font-semibold mb-2 text-black dark:text-white">
                     Username
                 </Text>
-                <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-                    <Text style={{
-                        fontSize: 16,
-                        color: '#666666',
-                        paddingVertical: 12,
-                        paddingLeft: 16,
-                        backgroundColor: '#f5f5f5',
-                        borderTopLeftRadius: 8,
-                        borderBottomLeftRadius: 8,
-                        borderWidth: 1,
-                        borderRightWidth: 0,
-                        borderColor: '#e0e0e0'
-                    }}>
-                        @
-                    </Text>
+                <View className="flex-row mb-4">
+                    <View className="bg-white dark:bg-black px-4 py-3 rounded-l-lg border border-r-0 border-black/20 dark:border-white/20">
+                        <Text className="text-base text-black/60 dark:text-white/60">
+                            @
+                        </Text>
+                    </View>
                     <TextInput
-                        style={{
-                            flex: 1,
-                            height: 48,
-                            borderWidth: 1,
-                            borderLeftWidth: 0,
-                            borderColor: '#e0e0e0',
-                            borderTopRightRadius: 8,
-                            borderBottomRightRadius: 8,
-                            paddingHorizontal: 16,
-                            fontSize: 16,
-                            backgroundColor: '#f5f5f5',
-                            color: '#000000'
-                        }}
+                        className="flex-1 h-12 bg-white dark:bg-black px-4 text-base text-black dark:text-white border border-l-0 border-black/20 dark:border-white/20 rounded-r-lg"
                         placeholder="username"
-                        placeholderTextColor="#999999"
+                        placeholderTextColor="rgba(0,0,0,0.4)"
                         value={username}
                         onChangeText={handleUsernameChange}
                         autoCapitalize="none"
@@ -120,73 +105,50 @@ export default function OnboardingScreen() {
                     />
                 </View>
 
-                <Text style={{ fontSize: 12, color: '#666666', marginBottom: 16 }}>
+                <Text className="text-xs text-black/60 dark:text-white/60 mb-4">
                     Only lowercase letters, numbers, and underscores. Min 3 characters.
                 </Text>
 
                 <TouchableOpacity
-                    style={{
-                        backgroundColor: '#007AFF',
-                        padding: 16,
-                        borderRadius: 8,
-                        alignItems: 'center',
-                        marginBottom: 12,
-                        opacity: username.length < 3 || isChecking ? 0.5 : 1
-                    }}
+                    className="bg-primary p-4 rounded-lg items-center mb-3"
+                    style={{ opacity: username.length < 3 || isChecking ? 0.5 : 1 }}
                     onPress={checkUsernameAvailability}
                     disabled={username.length < 3 || isChecking}
                 >
                     {isChecking ? (
                         <ActivityIndicator color="#ffffff" />
                     ) : (
-                        <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '600' }}>
+                        <Text className="text-white text-base font-semibold">
                             Check Availability
                         </Text>
                     )}
                 </TouchableOpacity>
 
                 {isAvailable === true && (
-                    <View style={{
-                        backgroundColor: '#D4EDDA',
-                        padding: 12,
-                        borderRadius: 8,
-                        marginBottom: 16,
-                        borderWidth: 1,
-                        borderColor: '#C3E6CB'
-                    }}>
-                        <Text style={{ color: '#155724', textAlign: 'center', fontWeight: '600' }}>
-                            ✓ Username available!
+                    <View className="bg-primary/10 p-3 rounded-lg mb-4 border border-primary flex-row items-center justify-center">
+                        <Ionicons name="checkmark-circle" size={20} color="#F97316" style={{ marginRight: 8 }} />
+                        <Text className="text-primary font-semibold">
+                            Username available!
                         </Text>
                     </View>
                 )}
 
                 {isAvailable === false && (
-                    <View style={{
-                        backgroundColor: '#F8D7DA',
-                        padding: 12,
-                        borderRadius: 8,
-                        marginBottom: 16,
-                        borderWidth: 1,
-                        borderColor: '#F5C6CB'
-                    }}>
-                        <Text style={{ color: '#721C24', textAlign: 'center', fontWeight: '600' }}>
-                            ✗ Username already taken
+                    <View className="bg-black dark:bg-white p-3 rounded-lg mb-4 border border-black dark:border-white flex-row items-center justify-center">
+                        <Ionicons name="close-circle" size={20} color={colorScheme === 'dark' ? '#000' : '#fff'} style={{ marginRight: 8 }} />
+                        <Text className="text-white dark:text-black font-semibold">
+                            Username already taken
                         </Text>
                     </View>
                 )}
 
                 <TouchableOpacity
-                    style={{
-                        backgroundColor: '#34C759',
-                        padding: 16,
-                        borderRadius: 8,
-                        alignItems: 'center',
-                        opacity: isAvailable === true ? 1 : 0.5
-                    }}
+                    className="bg-primary p-4 rounded-lg items-center"
+                    style={{ opacity: isAvailable === true ? 1 : 0.5 }}
                     onPress={handleContinue}
                     disabled={isAvailable !== true}
                 >
-                    <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '600' }}>
+                    <Text className="text-white text-base font-semibold">
                         Continue
                     </Text>
                 </TouchableOpacity>

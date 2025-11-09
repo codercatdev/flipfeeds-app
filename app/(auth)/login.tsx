@@ -59,7 +59,7 @@ export default function LoginScreen() {
     };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
+        <SafeAreaView className="flex-1 bg-white dark:bg-black" style={{ flex: 1 }}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
@@ -71,10 +71,10 @@ export default function LoginScreen() {
                     {/* Logo and Title */}
                     <View className="items-center mb-12">
                         <Text className="text-6xl mb-4">🔄</Text>
-                        <Text className="text-4xl font-bold text-gray-900 mb-2">
+                        <Text className="text-4xl font-bold text-black dark:text-white mb-2">
                             FlipFeeds
                         </Text>
-                        <Text className="text-base text-gray-600 text-center">
+                        <Text className="text-base text-black/60 dark:text-white/60 text-center">
                             Social feeds are noise. FlipFeeds is a ping.
                         </Text>
                     </View>
@@ -84,17 +84,17 @@ export default function LoginScreen() {
                         {isSignUp && (
                             <>
                                 <TextInput
-                                    className="bg-gray-100 text-gray-900 px-4 py-3 rounded-lg mb-4"
+                                    className="bg-white dark:bg-black border border-black/20 dark:border-white/20 text-black dark:text-white px-4 py-3 rounded-lg mb-4"
                                     placeholder="Display Name"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor="rgba(0,0,0,0.4)"
                                     value={displayName}
                                     onChangeText={setDisplayName}
                                     autoCapitalize="words"
                                 />
                                 <TextInput
-                                    className="bg-gray-100 text-gray-900 px-4 py-3 rounded-lg mb-4"
+                                    className="bg-white dark:bg-black border border-black/20 dark:border-white/20 text-black dark:text-white px-4 py-3 rounded-lg mb-4"
                                     placeholder="Username (e.g., johndoe)"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor="rgba(0,0,0,0.4)"
                                     value={username}
                                     onChangeText={(text) => setUsername(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                                     autoCapitalize="none"
@@ -103,18 +103,18 @@ export default function LoginScreen() {
                             </>
                         )}
                         <TextInput
-                            className="bg-gray-100 text-gray-900 px-4 py-3 rounded-lg mb-4"
+                            className="bg-white dark:bg-black border border-black/20 dark:border-white/20 text-black dark:text-white px-4 py-3 rounded-lg mb-4"
                             placeholder="Email"
-                            placeholderTextColor="#9CA3AF"
+                            placeholderTextColor="rgba(0,0,0,0.4)"
                             value={email}
                             onChangeText={setEmail}
                             autoCapitalize="none"
                             keyboardType="email-address"
                         />
                         <TextInput
-                            className="bg-gray-100 text-gray-900 px-4 py-3 rounded-lg"
+                            className="bg-white dark:bg-black border border-black/20 dark:border-white/20 text-black dark:text-white px-4 py-3 rounded-lg"
                             placeholder="Password"
-                            placeholderTextColor="#9CA3AF"
+                            placeholderTextColor="rgba(0,0,0,0.4)"
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry
@@ -123,7 +123,7 @@ export default function LoginScreen() {
 
                     {/* Sign In/Up Button */}
                     <TouchableOpacity
-                        className="bg-orange-600 py-4 rounded-lg mb-4"
+                        className="bg-primary py-4 rounded-lg mb-4"
                         onPress={handleEmailAuth}
                         disabled={loading}
                     >
@@ -142,7 +142,7 @@ export default function LoginScreen() {
                         onPress={() => setIsSignUp(!isSignUp)}
                         disabled={loading}
                     >
-                        <Text className="text-orange-600 text-center">
+                        <Text className="text-primary text-center">
                             {isSignUp
                                 ? 'Already have an account? Sign In'
                                 : "Don't have an account? Sign Up"}
@@ -151,19 +151,19 @@ export default function LoginScreen() {
 
                     {/* Divider */}
                     <View className="flex-row items-center mb-6">
-                        <View className="flex-1 h-px bg-gray-300" />
-                        <Text className="mx-4 text-gray-500">OR</Text>
-                        <View className="flex-1 h-px bg-gray-300" />
+                        <View className="flex-1 h-px bg-black/10 dark:bg-white/10" />
+                        <Text className="mx-4 text-black/50 dark:text-white/50">OR</Text>
+                        <View className="flex-1 h-px bg-black/10 dark:bg-white/10" />
                     </View>
 
                     {/* Google Sign In */}
                     <TouchableOpacity
-                        className="bg-white border border-gray-300 py-4 rounded-lg flex-row items-center justify-center"
+                        className="bg-white dark:bg-black border border-black/20 dark:border-white/20 py-4 rounded-lg flex-row items-center justify-center"
                         onPress={handleGoogleSignIn}
                         disabled={loading}
                     >
                         <Text className="text-xl mr-3">G</Text>
-                        <Text className="text-gray-900 font-semibold text-lg">
+                        <Text className="text-black dark:text-white font-semibold text-lg">
                             Sign in with Google
                         </Text>
                     </TouchableOpacity>

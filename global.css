@@ -3,3 +3,7 @@
 @import "tailwindcss/utilities.css";
 
 @import "nativewind/theme";
+
+@theme {
+    --color-primary: #f97316;
+}

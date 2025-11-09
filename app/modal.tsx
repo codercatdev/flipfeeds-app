@@ -81,26 +81,26 @@ export default function AddFriendModal() {
     };
 
     const renderUserItem = ({ item }: { item: User }) => (
-        <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+        <View className="flex-row items-center justify-between px-6 py-4 border-b border-black/10 dark:border-white/10">
             <View className="flex-row items-center flex-1">
                 {item.photoURL ? (
                     <Image source={{ uri: item.photoURL }} className="w-12 h-12 rounded-full mr-4" />
                 ) : (
-                    <View className="w-12 h-12 rounded-full bg-[#F97316] items-center justify-center mr-4">
+                    <View className="w-12 h-12 rounded-full bg-primary items-center justify-center mr-4">
                         <Text className="text-white text-xl font-bold">
                             {item.displayName.charAt(0).toUpperCase()}
                         </Text>
                     </View>
                 )}
                 <View>
-                    <Text className="text-lg font-semibold text-gray-900 dark:text-white">
+                    <Text className="text-lg font-semibold text-black dark:text-white">
                         {item.displayName}
                     </Text>
-                    <Text className="text-sm text-gray-600 dark:text-gray-400">@{item.username}</Text>
+                    <Text className="text-sm text-black/60 dark:text-white/60">@{item.username}</Text>
                 </View>
             </View>
             <TouchableOpacity
-                className="bg-[#F97316] px-4 py-2 rounded-lg"
+                className="bg-primary px-4 py-2 rounded-lg"
                 onPress={() => handleSendRequest(item.uid)}
                 disabled={sendingTo === item.uid}
             >
@@ -115,20 +115,20 @@ export default function AddFriendModal() {
 
     return (
         <SafeAreaView className="flex-1 bg-white dark:bg-black">
-            <View className="flex-row items-center px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+            <View className="flex-row items-center px-6 py-4 border-b border-black/10 dark:border-white/10">
                 <TouchableOpacity onPress={() => router.back()} className="mr-4">
                     <Ionicons name="close" size={28} color="#F97316" />
                 </TouchableOpacity>
-                <Text className="text-2xl font-bold text-gray-900 dark:text-white">Add Friend</Text>
+                <Text className="text-2xl font-bold text-black dark:text-white">Add Friend</Text>
             </View>
 
             <View className="px-6 py-4">
-                <View className="flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-2">
-                    <Ionicons name="search" size={20} color="#9CA3AF" />
+                <View className="flex-row items-center bg-white dark:bg-black border border-black/20 dark:border-white/20 rounded-lg px-4 py-2">
+                    <Ionicons name="search" size={20} color="#F97316" />
                     <TextInput
-                        className="flex-1 ml-2 text-gray-900 dark:text-white"
+                        className="flex-1 ml-2 text-black dark:text-white"
                         placeholder="Search by username"
-                        placeholderTextColor="#9CA3AF"
+                        placeholderTextColor="rgba(0,0,0,0.4)"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                         onSubmitEditing={handleSearch}
@@ -139,7 +139,7 @@ export default function AddFriendModal() {
                         {loading ? (
                             <ActivityIndicator color="#F97316" size="small" />
                         ) : (
-                            <Text className="text-[#F97316] font-semibold">Search</Text>
+                            <Text className="text-primary font-semibold">Search</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -148,10 +148,10 @@ export default function AddFriendModal() {
             {searchResults.length === 0 ? (
                 <View className="flex-1 justify-center items-center px-6">
                     <Text className="text-4xl mb-4">🔍</Text>
-                    <Text className="text-xl font-semibold text-gray-900 dark:text-white text-center mb-2">
+                    <Text className="text-xl font-semibold text-black dark:text-white text-center mb-2">
                         Find Your Friends
                     </Text>
-                    <Text className="text-gray-600 dark:text-gray-400 text-center">
+                    <Text className="text-black/60 dark:text-white/60 text-center">
                         Search for friends by their username to send them a friend request
                     </Text>
                 </View>

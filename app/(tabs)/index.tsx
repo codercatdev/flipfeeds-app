@@ -1,266 +1,164 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '@/contexts/AuthContext';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import firestore from '@react-native-firebase/firestore';
+import database from '@react-native-firebase/database';
 import functions from '@react-native-firebase/functions';
+import perf from '@react-native-firebase/perf';
+import { useAuth } from '@/contexts/AuthContext';
+import { User, Friendship, createStreakKey } from '@/types';
 
-export default function DashboardScreen() {
+interface FriendWithStreak extends User {
+  streakCount: number;
+  friendshipId: string;
+}
+
+export default function FriendsScreen() {
   const { user, userDoc } = useAuth();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const [friends, setFriends] = useState<FriendWithStreak[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [flippingUserId, setFlippingUserId] = useState<string | null>(null);
 
-  const [tip, setTip] = useState<string>('');
-  const [loading, setLoading] = useState(false);
-  const [hasCompleteProfile, setHasCompleteProfile] = useState(false);
-
-  // Check profile completeness whenever userDoc changes
   useEffect(() => {
-    if (userDoc) {
-      // Check if all required fields are filled
-      const isComplete = !!(
-        userDoc.name &&
-        userDoc.fitnessGoal &&
-        userDoc.dietaryPreference
+    if (!user) return;
+    const unsubscribe = firestore()
+      .collection('friendships')
+      .where('users', 'array-contains', user.uid)
+      .where('status', '==', 'accepted')
+      .onSnapshot(
+        async (snapshot) => {
+          const friendsList: FriendWithStreak[] = [];
+          for (const doc of snapshot.docs) {
+            const friendship = doc.data() as Friendship;
+            const friendUid = friendship.users.find((uid) => uid !== user.uid);
+            if (!friendUid) continue;
+            const friendDoc = await firestore().collection('users').doc(friendUid).get();
+            if (friendDoc.exists()) {
+              const friendData = friendDoc.data() as User;
+              friendsList.push({ ...friendData, streakCount: 0, friendshipId: doc.id });
+            }
+          }
+          setFriends(friendsList);
+          setLoading(false);
+        },
+        (error) => { console.error('Error fetching friends:', error); setLoading(false); }
       );
-      setHasCompleteProfile(isComplete);
-    } else {
-      setHasCompleteProfile(false);
-    }
-  }, [userDoc]);
+    return () => unsubscribe();
+  }, [user]);
 
-  const getDailyTip = async () => {
-    setLoading(true);
-    setTip('');
+  useEffect(() => {
+    if (!user || friends.length === 0) return;
+    const unsubscribers: (() => void)[] = [];
+    friends.forEach((friend, index) => {
+      const streakKey = createStreakKey(user.uid, friend.uid);
+      const streakRef = database().ref(`flip_streaks/${streakKey}`);
+      const unsubscribe = streakRef.on('value', (snapshot) => {
+        const streakData = snapshot.val();
+        const streakCount = streakData?.count || 0;
+        setFriends((prevFriends) => {
+          const newFriends = [...prevFriends];
+          newFriends[index] = { ...newFriends[index], streakCount };
+          return newFriends;
+        });
+      });
+      unsubscribers.push(() => streakRef.off('value', unsubscribe));
+    });
+    return () => { unsubscribers.forEach((unsub) => unsub()); };
+  }, [user, friends.length]);
 
+  const handleFlip = async (friendUid: string, friendName: string) => {
+    if (!user) return;
+    setFlippingUserId(friendUid);
     try {
-      // Call the Cloud Function
-      const result = await functions().httpsCallable('getDailyTipTool')();
-
-      const data = result.data as { tip?: string };
-      if (data && data.tip) {
-        setTip(data.tip);
-      } else {
-        Alert.alert('Error', 'No tip received from the server');
-      }
+      const trace = await perf().startTrace('e2e_flip_trace');
+      const sendFlip = functions().httpsCallable('sendFlip');
+      const result = await sendFlip({ recipientUid: friendUid });
+      await trace.stop();
+      console.log('Flip sent successfully:', result.data);
+      Alert.alert('Flip Sent! 🎉', `You flipped ${friendName}!`);
     } catch (error: any) {
-      console.error('Error getting tip:', error);
-      Alert.alert(
-        'Error',
-        error.message || 'Failed to get your daily tip. Please try again.'
-      );
+      console.error('Error sending flip:', error);
+      Alert.alert('Flip Failed', error.message || 'Could not send the flip. Please try again.');
     } finally {
-      setLoading(false);
+      setFlippingUserId(null);
     }
   };
 
-  return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}
-      edges={['top', 'left', 'right']}
-    >
-      <ScrollView
-        contentContainerStyle={styles.content}
-      >
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>
-            Dashboard
-          </Text>
-          <Text style={[styles.subtitle, { color: isDark ? '#aaa' : '#666' }]}>
-            Welcome back, {userDoc?.name || user?.displayName || user?.email?.split('@')[0] || 'User'}!
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={[styles.cardTitle, { color: isDark ? '#fff' : '#000' }]}>
-            AI-Powered Daily Tip
-          </Text>
-
-          {!hasCompleteProfile ? (
-            <>
-              <Text style={[styles.cardSubtitle, { color: isDark ? '#aaa' : '#666' }]}>
-                Complete your profile to get personalized AI-powered fitness and nutrition advice
+  const renderFriendItem = ({ item }: { item: FriendWithStreak }) => (
+    <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+      <View className="flex-row items-center flex-1">
+        {item.photoURL ? (
+          <Image source={{ uri: item.photoURL }} className="w-12 h-12 rounded-full mr-4" />
+        ) : (
+          <View className="w-12 h-12 rounded-full bg-[#F97316] items-center justify-center mr-4">
+            <Text className="text-white text-xl font-bold">{item.displayName.charAt(0).toUpperCase()}</Text>
+          </View>
+        )}
+        <View className="flex-1">
+          <Text className="text-lg font-semibold text-gray-900 dark:text-white">{item.displayName}</Text>
+          {item.streakCount > 0 && (
+            <View className="flex-row items-center mt-1">
+              <Text className="text-base mr-1">🔥</Text>
+              <Text className="text-sm text-gray-600 dark:text-gray-400">
+                {item.streakCount} flip{item.streakCount !== 1 ? 's' : ''}
               </Text>
-
-              <View
-                style={[
-                  styles.warningContainer,
-                  {
-                    backgroundColor: isDark ? '#2c2400' : '#fff3cd',
-                    borderColor: isDark ? '#665c00' : '#ffc107',
-                  },
-                ]}
-              >
-                <Text style={[styles.warningText, { color: isDark ? '#ffeb3b' : '#856404' }]}>
-                  ⚠️ Profile incomplete
-                </Text>
-                <Text style={[styles.warningSubtext, { color: isDark ? '#ccc' : '#856404' }]}>
-                  Please set your fitness goal and dietary preference to unlock AI tips
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                style={[styles.button, { backgroundColor: '#28a745' }]}
-                onPress={() => router.push('/(tabs)/profile')}
-              >
-                <Text style={styles.buttonText}>Complete Profile</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <Text style={[styles.cardSubtitle, { color: isDark ? '#aaa' : '#666' }]}>
-                Get personalized fitness and nutrition advice based on your profile
-              </Text>
-
-              <TouchableOpacity
-                style={[styles.button, loading && styles.buttonDisabled]}
-                onPress={getDailyTip}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>Get My Daily Tip</Text>
-                )}
-              </TouchableOpacity>
-
-              {tip ? (
-                <View
-                  style={[
-                    styles.tipContainer,
-                    {
-                      backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
-                      borderColor: isDark ? '#333' : '#ddd',
-                    },
-                  ]}
-                >
-                  <Text style={[styles.tipLabel, { color: isDark ? '#aaa' : '#666' }]}>
-                    Your Daily Tip
-                  </Text>
-                  <Text style={[styles.tipText, { color: isDark ? '#fff' : '#000' }]}>
-                    {tip}
-                  </Text>
-                </View>
-              ) : null}
-            </>
+            </View>
           )}
         </View>
-      </ScrollView>
+      </View>
+      <TouchableOpacity
+        className="bg-[#F97316] px-6 py-3 rounded-lg"
+        onPress={() => handleFlip(item.uid, item.displayName)}
+        disabled={flippingUserId === item.uid}
+      >
+        {flippingUserId === item.uid ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text className="text-white font-bold text-lg">FLIP</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}>
+        <ActivityIndicator size="large" color="#F97316" />
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }} edges={['top']}>
+      <View className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-3xl font-bold text-gray-900 dark:text-white">Friends</Text>
+          <TouchableOpacity onPress={() => router.push('/modal')} className="bg-[#F97316] w-10 h-10 rounded-full items-center justify-center">
+            <Ionicons name="person-add" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+        {userDoc && <Text className="text-gray-600 dark:text-gray-400 mt-2">Hey {userDoc.displayName}! 👋</Text>}
+      </View>
+      {friends.length === 0 ? (
+        <View className="flex-1 justify-center items-center px-6">
+          <Text className="text-6xl mb-4">👋</Text>
+          <Text className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-2">No Friends Yet</Text>
+          <Text className="text-gray-600 dark:text-gray-400 text-center mb-6">Add friends to start flipping!</Text>
+          <TouchableOpacity onPress={() => router.push('/modal')} className="bg-[#F97316] px-6 py-3 rounded-lg">
+            <Text className="text-white font-semibold text-lg">Add Friend</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={friends}
+          renderItem={renderFriendItem}
+          keyExtractor={(item) => item.uid}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        />
+      )}
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 24,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-  },
-  card: {
-    marginBottom: 24,
-  },
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    height: 50,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  tipContainer: {
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  tipLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  tipText: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  infoCard: {
-    marginTop: 8,
-  },
-  infoTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    marginBottom: 8,
-    alignItems: 'flex-start',
-  },
-  infoBullet: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginRight: 8,
-  },
-  infoText: {
-    fontSize: 14,
-    flex: 1,
-    lineHeight: 20,
-  },
-  loadingContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  warningContainer: {
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 16,
-  },
-  warningText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  warningSubtext: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-});

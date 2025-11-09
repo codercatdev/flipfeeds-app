@@ -1,88 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    ScrollView,
-    Alert,
-    ActivityIndicator,
-} from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import storage from '@react-native-firebase/storage';
+import ml from '@react-native-firebase/ml';
+import { launchImageLibrary } from 'react-native-image-picker';
 import firestore from '@react-native-firebase/firestore';
 
-type UserProfile = {
-    name: string;
-    fitnessGoal: string;
-    dietaryPreference: string;
-};
-
-const FITNESS_GOALS = [
-    'Weight Loss',
-    'Muscle Gain',
-    'General Fitness',
-    'Endurance',
-    'Flexibility',
-];
-
-const DIETARY_PREFERENCES = [
-    'No Restrictions',
-    'Vegetarian',
-    'Vegan',
-    'Keto',
-    'Paleo',
-    'Gluten-Free',
-];
-
 export default function ProfileScreen() {
-    const { user, signOut } = useAuth();
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === 'dark';
+    const { user, userDoc, signOut } = useAuth();
+    const [uploading, setUploading] = useState(false);
+    const [labels, setLabels] = useState<string[]>([]);
 
-    const [profile, setProfile] = useState<UserProfile>({
-        name: '',
-        fitnessGoal: '',
-        dietaryPreference: '',
-    });
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-
-    useEffect(() => {
-        loadProfile();
-    }, []);
-
-    const loadProfile = async () => {
-        if (!user) return;
-
+    const handlePickImage = async () => {
         try {
-            const doc = await firestore().collection('users').doc(user.uid).get();
-            if (doc.exists()) {
-                const data = doc.data() as UserProfile;
-                setProfile(data);
+            const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+            if (result.didCancel || !result.assets || !result.assets[0]) return;
+            
+            const asset = result.assets[0];
+            const uri = asset.uri;
+            if (!uri) return;
+
+            setUploading(true);
+            
+            // ML Kit Image Labeling Demo
+            try {
+                const detectedLabels = await ml().cloudImageLabelerProcessImage(uri);
+                const topLabels = detectedLabels.slice(0, 3).map(label => label.text);
+                setLabels(topLabels);
+                Alert.alert('Image Analysis', `Detected: ${topLabels.join(', ')}`);
+            } catch (mlError) {
+                console.error('ML Kit error:', mlError);
             }
-        } catch (error) {
-            console.error('Error loading profile:', error);
-            Alert.alert('Error', 'Failed to load profile');
-        } finally {
-            setLoading(false);
-        }
-    };
 
-    const saveProfile = async () => {
-        if (!user) return;
+            // Upload to Firebase Storage
+            const filename = `profile-pictures/${user?.uid}.jpg`;
+            const ref = storage().ref(filename);
+            await ref.putFile(uri);
+            const downloadURL = await ref.getDownloadURL();
 
-        setSaving(true);
-        try {
-            await firestore().collection('users').doc(user.uid).set(profile);
-            Alert.alert('Success', 'Profile updated successfully');
+            // Update Firestore
+            await firestore().collection('users').doc(user?.uid).update({ photoURL: downloadURL });
+            
+            Alert.alert('Success', 'Profile picture updated!');
         } catch (error) {
-            console.error('Error saving profile:', error);
-            Alert.alert('Error', 'Failed to save profile');
+            console.error('Error uploading image:', error);
+            Alert.alert('Error', 'Failed to upload image');
         } finally {
-            setSaving(false);
+            setUploading(false);
         }
     };
 
@@ -90,221 +55,61 @@ export default function ProfileScreen() {
         try {
             await signOut();
         } catch (error) {
-            Alert.alert('Error', 'Failed to sign out');
+            console.error('Sign out error:', error);
         }
     };
 
-    if (loading) {
-        return (
-            <View style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}>
-                <ActivityIndicator size="large" />
-            </View>
-        );
-    }
-
     return (
-        <SafeAreaView
-            style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}
-            edges={['top', 'left', 'right']}
-        >
-            <ScrollView
-                contentContainerStyle={styles.content}
-            >
-                <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>Profile</Text>
-
-                <View style={styles.section}>
-                    <Text style={[styles.label, { color: isDark ? '#aaa' : '#666' }]}>Name</Text>
-                    <TextInput
-                        style={[
-                            styles.input,
-                            {
-                                backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
-                                color: isDark ? '#fff' : '#000',
-                                borderColor: isDark ? '#333' : '#ddd',
-                            },
-                        ]}
-                        value={profile.name}
-                        onChangeText={(text) => setProfile({ ...profile, name: text })}
-                        placeholder="Your name"
-                        placeholderTextColor={isDark ? '#666' : '#999'}
-                    />
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={[styles.label, { color: isDark ? '#aaa' : '#666' }]}>
-                        Fitness Goal
-                    </Text>
-                    <View style={styles.optionsContainer}>
-                        {FITNESS_GOALS.map((goal) => (
-                            <TouchableOpacity
-                                key={goal}
-                                style={[
-                                    styles.option,
-                                    {
-                                        backgroundColor:
-                                            profile.fitnessGoal === goal
-                                                ? '#007AFF'
-                                                : isDark
-                                                    ? '#1a1a1a'
-                                                    : '#f5f5f5',
-                                        borderColor: isDark ? '#333' : '#ddd',
-                                    },
-                                ]}
-                                onPress={() => setProfile({ ...profile, fitnessGoal: goal })}
-                            >
-                                <Text
-                                    style={[
-                                        styles.optionText,
-                                        {
-                                            color:
-                                                profile.fitnessGoal === goal
-                                                    ? '#fff'
-                                                    : isDark
-                                                        ? '#fff'
-                                                        : '#000',
-                                        },
-                                    ]}
-                                >
-                                    {goal}
+        <SafeAreaView className="flex-1 bg-white dark:bg-black" edges={['top']}>
+            <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+                <View className="flex-1 items-center px-6 pt-12">
+                    <TouchableOpacity onPress={handlePickImage} disabled={uploading}>
+                        {userDoc?.photoURL ? (
+                            <Image source={{ uri: userDoc.photoURL }} className="w-32 h-32 rounded-full mb-6" />
+                        ) : (
+                            <View className="w-32 h-32 rounded-full bg-[#F97316] items-center justify-center mb-6">
+                                <Text className="text-white text-5xl font-bold">
+                                    {userDoc?.displayName.charAt(0).toUpperCase()}
                                 </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={[styles.label, { color: isDark ? '#aaa' : '#666' }]}>
-                        Dietary Preference
+                            </View>
+                        )}
+                        {uploading && <ActivityIndicator className="absolute" color="#F97316" />}
+                    </TouchableOpacity>
+                    
+                    <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                        {userDoc?.displayName}
                     </Text>
-                    <View style={styles.optionsContainer}>
-                        {DIETARY_PREFERENCES.map((preference) => (
-                            <TouchableOpacity
-                                key={preference}
-                                style={[
-                                    styles.option,
-                                    {
-                                        backgroundColor:
-                                            profile.dietaryPreference === preference
-                                                ? '#007AFF'
-                                                : isDark
-                                                    ? '#1a1a1a'
-                                                    : '#f5f5f5',
-                                        borderColor: isDark ? '#333' : '#ddd',
-                                    },
-                                ]}
-                                onPress={() =>
-                                    setProfile({ ...profile, dietaryPreference: preference })
-                                }
-                            >
-                                <Text
-                                    style={[
-                                        styles.optionText,
-                                        {
-                                            color:
-                                                profile.dietaryPreference === preference
-                                                    ? '#fff'
-                                                    : isDark
-                                                        ? '#fff'
-                                                        : '#000',
-                                        },
-                                    ]}
-                                >
-                                    {preference}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-
-                <TouchableOpacity
-                    style={[styles.saveButton, saving && styles.buttonDisabled]}
-                    onPress={saveProfile}
-                    disabled={saving}
-                >
-                    {saving ? (
-                        <ActivityIndicator color="#fff" />
-                    ) : (
-                        <Text style={styles.saveButtonText}>Save Profile</Text>
+                    <Text className="text-gray-600 dark:text-gray-400 mb-8">{userDoc?.email}</Text>
+                    
+                    {labels.length > 0 && (
+                        <View className="mb-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                            <Text className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                                Image Labels (ML Kit):
+                            </Text>
+                            <Text className="text-sm text-gray-600 dark:text-gray-400">
+                                {labels.join(', ')}
+                            </Text>
+                        </View>
                     )}
-                </TouchableOpacity>
 
-                <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-                    <Text style={styles.signOutButtonText}>Sign Out</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={handlePickImage}
+                        className="bg-[#F97316] px-8 py-4 rounded-lg mb-4 w-full"
+                        disabled={uploading}
+                    >
+                        <Text className="text-white font-semibold text-center text-lg">
+                            {uploading ? 'Uploading...' : 'Change Profile Picture'}
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={handleSignOut}
+                        className="border border-red-500 px-8 py-4 rounded-lg w-full"
+                    >
+                        <Text className="text-red-500 font-semibold text-center text-lg">Sign Out</Text>
+                    </TouchableOpacity>
+                </View>
             </ScrollView>
         </SafeAreaView>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    content: {
-        padding: 24,
-    },
-    title: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        marginBottom: 24,
-    },
-    section: {
-        marginBottom: 24,
-    },
-    label: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 8,
-    },
-    input: {
-        height: 50,
-        borderWidth: 1,
-        borderRadius: 8,
-        paddingHorizontal: 16,
-        fontSize: 16,
-    },
-    optionsContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    option: {
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        borderWidth: 1,
-    },
-    optionText: {
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    saveButton: {
-        backgroundColor: '#007AFF',
-        height: 50,
-        borderRadius: 8,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    buttonDisabled: {
-        opacity: 0.6,
-    },
-    saveButtonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '600',
-    },
-    signOutButton: {
-        backgroundColor: '#FF3B30',
-        height: 50,
-        borderRadius: 8,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 16,
-    },
-    signOutButtonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '600',
-    },
-});

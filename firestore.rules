@@ -2,13 +2,45 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Users collection - users can only read/write their own document
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    function isAuthenticated() {
+      return request.auth != null;
     }
-    
-    // Default deny all other access
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isAuthenticated() && isOwner(userId);
+      allow delete: if false;
+    }
+
+    match /friendships/{friendshipId} {
+      // Allow reading individual friendship documents if user is a participant
+      allow get: if isAuthenticated() && 
+      request.auth.uid in resource.data.users;
+
+      // Allow listing friendships - the query uses .where('users', 'array-contains', user.uid)
+      // which means only friendships containing the user will be returned
+      allow list: if isAuthenticated();
+
+      // Allow creating friendships if the user is the requester and one of the participants
+      allow create: if isAuthenticated() && 
+      request.auth.uid == request.resource.data.requesterId && 
+      request.auth.uid in request.resource.data.users;
+
+      // Allow updating friendships if the user is one of the participants
+      allow update: if isAuthenticated() && 
+      request.auth.uid in resource.data.users;
+
+      // Allow deleting friendships if the user is one of the participants
+      allow delete: if isAuthenticated() && 
+      request.auth.uid in resource.data.users;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

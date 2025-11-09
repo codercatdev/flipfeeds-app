@@ -3,7 +3,6 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
@@ -12,18 +11,19 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: '#F97316',
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
           paddingBottom: 0,
+          backgroundColor: colorScheme === 'dark' ? '#000' : '#fff',
         },
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color }) => <Ionicons name="home" size={28} color={color} />,
+          title: 'Friends',
+          tabBarIcon: ({ color }) => <Ionicons name="people" size={28} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -42,3 +42,4 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+

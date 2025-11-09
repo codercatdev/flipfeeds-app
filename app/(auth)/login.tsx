@@ -2,28 +2,52 @@ import React, { useState } from 'react';
 import {
     View,
     Text,
+    TextInput,
     TouchableOpacity,
-    StyleSheet,
     Alert,
     ActivityIndicator,
-    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function LoginScreen() {
+    const [isSignUp, setIsSignUp] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [displayName, setDisplayName] = useState('');
     const [loading, setLoading] = useState(false);
-    const { signInWithGoogle } = useAuth();
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === 'dark';
+    const { signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
+
+    const handleEmailAuth = async () => {
+        if (!email || !password || (isSignUp && !displayName)) {
+            Alert.alert('Error', 'Please fill in all fields');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            if (isSignUp) {
+                await signUpWithEmail(email, password, displayName);
+            } else {
+                await signInWithEmail(email, password);
+            }
+        } catch (error: any) {
+            console.error('Auth error:', error);
+            Alert.alert('Authentication Error', error.message || 'Failed to authenticate');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleGoogleSignIn = async () => {
         setLoading(true);
         try {
             await signInWithGoogle();
         } catch (error: any) {
-            console.error('Sign-in error:', error);
+            console.error('Google Sign-in error:', error);
             Alert.alert('Sign-In Error', error.message || 'Failed to sign in with Google');
         } finally {
             setLoading(false);
@@ -31,109 +55,105 @@ export default function LoginScreen() {
     };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]} edges={['top', 'left', 'right', 'bottom']}>
-            <View style={styles.content}>
-                <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>
-                    FlipFeeds
-                </Text>
-                <Text style={[styles.subtitle, { color: isDark ? '#aaa' : '#666' }]}>
-                    Your AI-Powered Fitness & Nutrition Companion
-                </Text>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ScrollView
+                    contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24 }}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {/* Logo and Title */}
+                    <View className="items-center mb-12">
+                        <Text className="text-6xl mb-4">🔄</Text>
+                        <Text className="text-4xl font-bold text-gray-900 mb-2">
+                            FlipFeeds
+                        </Text>
+                        <Text className="text-base text-gray-600 text-center">
+                            Social feeds are noise. FlipFeeds is a ping.
+                        </Text>
+                    </View>
 
-                <View style={styles.buttonContainer}>
+                    {/* Email/Password Form */}
+                    <View className="mb-6">
+                        {isSignUp && (
+                            <TextInput
+                                className="bg-gray-100 text-gray-900 px-4 py-3 rounded-lg mb-4"
+                                placeholder="Display Name"
+                                placeholderTextColor="#9CA3AF"
+                                value={displayName}
+                                onChangeText={setDisplayName}
+                                autoCapitalize="words"
+                            />
+                        )}
+                        <TextInput
+                            className="bg-gray-100 text-gray-900 px-4 py-3 rounded-lg mb-4"
+                            placeholder="Email"
+                            placeholderTextColor="#9CA3AF"
+                            value={email}
+                            onChangeText={setEmail}
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                        />
+                        <TextInput
+                            className="bg-gray-100 text-gray-900 px-4 py-3 rounded-lg"
+                            placeholder="Password"
+                            placeholderTextColor="#9CA3AF"
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry
+                        />
+                    </View>
+
+                    {/* Sign In/Up Button */}
                     <TouchableOpacity
-                        style={[styles.googleButton, loading && styles.buttonDisabled]}
-                        onPress={handleGoogleSignIn}
+                        className="bg-orange-600 py-4 rounded-lg mb-4"
+                        onPress={handleEmailAuth}
                         disabled={loading}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#000" />
+                            <ActivityIndicator color="#fff" />
                         ) : (
-                            <>
-                                <View style={styles.googleIconContainer}>
-                                    <Text style={styles.googleIcon}>G</Text>
-                                </View>
-                                <Text style={styles.googleButtonText}>Sign in with Google</Text>
-                            </>
+                            <Text className="text-white text-center font-semibold text-lg">
+                                {isSignUp ? 'Sign Up' : 'Sign In'}
+                            </Text>
                         )}
                     </TouchableOpacity>
 
-                    <Text style={[styles.infoText, { color: isDark ? '#666' : '#999' }]}>
-                        Sign in to get personalized fitness and nutrition tips powered by AI
-                    </Text>
-                </View>
-            </View>
+                    {/* Toggle Sign In/Up */}
+                    <TouchableOpacity
+                        className="mb-6"
+                        onPress={() => setIsSignUp(!isSignUp)}
+                        disabled={loading}
+                    >
+                        <Text className="text-orange-600 text-center">
+                            {isSignUp
+                                ? 'Already have an account? Sign In'
+                                : "Don't have an account? Sign Up"}
+                        </Text>
+                    </TouchableOpacity>
+
+                    {/* Divider */}
+                    <View className="flex-row items-center mb-6">
+                        <View className="flex-1 h-px bg-gray-300" />
+                        <Text className="mx-4 text-gray-500">OR</Text>
+                        <View className="flex-1 h-px bg-gray-300" />
+                    </View>
+
+                    {/* Google Sign In */}
+                    <TouchableOpacity
+                        className="bg-white border border-gray-300 py-4 rounded-lg flex-row items-center justify-center"
+                        onPress={handleGoogleSignIn}
+                        disabled={loading}
+                    >
+                        <Text className="text-xl mr-3">G</Text>
+                        <Text className="text-gray-900 font-semibold text-lg">
+                            Sign in with Google
+                        </Text>
+                    </TouchableOpacity>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    content: {
-        flex: 1,
-        justifyContent: 'center',
-        paddingHorizontal: 24,
-    },
-    title: {
-        fontSize: 36,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 16,
-        textAlign: 'center',
-        marginBottom: 48,
-    },
-    buttonContainer: {
-        width: '100%',
-    },
-    googleButton: {
-        backgroundColor: '#fff',
-        height: 50,
-        borderRadius: 8,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#ddd',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        elevation: 3,
-    },
-    buttonDisabled: {
-        opacity: 0.6,
-    },
-    googleIconContainer: {
-        width: 24,
-        height: 24,
-        marginRight: 12,
-        backgroundColor: '#fff',
-        borderRadius: 2,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    googleIcon: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#4285F4',
-    },
-    googleButtonText: {
-        color: '#000',
-        fontSize: 16,
-        fontWeight: '500',
-    },
-    infoText: {
-        fontSize: 12,
-        textAlign: 'center',
-        marginTop: 24,
-        paddingHorizontal: 20,
-    },
-});

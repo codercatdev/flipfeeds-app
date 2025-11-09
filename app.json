@@ -22,8 +22,12 @@
       [
         "expo-build-properties",
         {
+          "android": {
+            "minSdkVersion": 23
+          },
           "ios": {
             "useFrameworks": "static",
+            "deploymentTarget": "15.1",
             "forceStaticLinking": [
               "RNFBApp",
               "RNFBAppCheck",

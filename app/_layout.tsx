@@ -61,8 +61,14 @@ function RootLayoutNav() {
             } else {
                 console.log('Already in auth group, segments:', segments);
             }
-        } else if (user && userDoc) {
-            // User authenticated - check onboarding status
+        } else if (user) {
+            // User is authenticated - wait for userDoc to load before redirecting
+            if (!userDoc) {
+                console.log('User authenticated but userDoc still loading...');
+                return;
+            }
+
+            // User authenticated and userDoc loaded - check onboarding status
             if (!userDoc.hasCompletedOnboarding) {
                 // User needs to complete onboarding
                 if (!currentRoute.includes('onboarding')) {
@@ -77,7 +83,7 @@ function RootLayoutNav() {
                 console.log('User logged in and in correct location, segments:', segments);
             }
         }
-    }, [user, loading]);
+    }, [user, userDoc, loading, segments]);
 
     // Show loading screen until auth is checked
     if (loading) {

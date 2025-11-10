@@ -1,4 +1,4 @@
-import * as admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 import { z } from 'genkit';
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
@@ -26,7 +26,8 @@ export const getYouTubeChannelTool = ai.defineTool(
     },
     async ({ uid }) => {
         try {
-            const userDoc = await admin.firestore().collection('users').doc(uid).get();
+            const db = getFirestore();
+            const userDoc = await db.collection('users').doc(uid).get();
 
             if (!userDoc.exists) {
                 return { found: false };

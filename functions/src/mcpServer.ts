@@ -1,5 +1,5 @@
-import * as admin from 'firebase-admin';
-import * as functions from 'firebase-functions';
+import { getAuth } from 'firebase-admin/auth';
+import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -47,7 +47,7 @@ const firebaseAuthMiddleware = async (
 
         try {
             // Verify the ID token
-            const decodedToken = await admin.auth().verifyIdToken(idToken);
+            const decodedToken = await getAuth().verifyIdToken(idToken);
 
             // Inject user info into request
             req.user = {
@@ -305,16 +305,26 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 // ============================================================================
 
 /**
- * Firebase HTTP Function that exposes the MCP server
+ * Firebase HTTP Function (v2) that exposes the MCP server
  * 
  * Usage:
- * POST https://your-region-your-project.cloudfunctions.net/mcp
+ * POST https://your-region-your-project.cloudfunctions.net/mcpServer
  * Headers:
  *   Authorization: Bearer <firebase-id-token>
  *   Content-Type: application/json
+ *   Accept: application/json, text/event-stream
  * Body:
  *   {
- *     "prompt": "Create an eye-catching thumbnail with bold colors"
+ *     "jsonrpc": "2.0",
+ *     "id": 1,
+ *     "method": "tools/list",
+ *     "params": {}
  *   }
  */
-export const mcpServer = functions.https.onRequest(app);
+export const mcpServer = onRequest(
+    {
+        cors: true,
+        maxInstances: 10,
+    },
+    app
+);

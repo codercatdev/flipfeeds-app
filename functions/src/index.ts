@@ -1,8 +1,8 @@
 import * as admin from 'firebase-admin';
-import { sendFlip } from './sendFlip';
+import { generatePoem } from './genkit';
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
 // Export Cloud Functions
-export { sendFlip };
+export { generatePoem };

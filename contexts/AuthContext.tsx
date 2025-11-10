@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithCredential, updateProfile, signOut as firebaseSignOut, GoogleAuthProvider } from '@react-native-firebase/auth';
+import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import firestore from '@react-native-firebase/firestore';
-import messaging from '@react-native-firebase/messaging';
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, query, where, getDocs, getDoc, addDoc } from '@react-native-firebase/firestore';
+import { getMessaging, requestPermission, getToken, AuthorizationStatus } from '@react-native-firebase/messaging';
 import { User } from '@/types';
 
 type AuthContextType = {
@@ -32,7 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             webClientId: '361402949529-g9a9tjuciarclra19mraq2hfe7jeongn.apps.googleusercontent.com',
         });
 
-        const unsubscribe = auth().onAuthStateChanged((authUser) => {
+        const auth = getAuth();
+        const unsubscribe = onAuthStateChanged(auth, (authUser) => {
             setUser(authUser);
             setLoading(false);
         });
@@ -46,53 +48,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        const unsubscribe = firestore()
-            .collection('users')
-            .doc(user.uid)
-            .onSnapshot(
-                (doc) => {
-                    if (doc.exists()) {
-                        const data = doc.data();
-                        setUserDoc({
-                            uid: user.uid,
-                            username: data?.username,
-                            displayName: data?.displayName || user.displayName || '',
-                            email: data?.email || user.email || '',
-                            photoURL: data?.photoURL || user.photoURL || '',
-                            fcmToken: data?.fcmToken || '',
-                            createdAt: data?.createdAt || Date.now(),
-                            hasCompletedOnboarding: data?.hasCompletedOnboarding || false,
-                            usernameLastChanged: data?.usernameLastChanged,
-                        });
-                    } else {
-                        setUserDoc(null);
-                    }
-                },
-                (error) => {
-                    console.error('Error listening to user profile:', error);
+        const db = getFirestore();
+        const userRef = doc(db, 'users', user.uid);
+        const unsubscribe = onSnapshot(
+            userRef,
+            (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    setUserDoc({
+                        uid: user.uid,
+                        username: data?.username,
+                        displayName: data?.displayName || user.displayName || '',
+                        email: data?.email || user.email || '',
+                        photoURL: data?.photoURL || user.photoURL || '',
+                        fcmToken: data?.fcmToken || '',
+                        createdAt: data?.createdAt || Date.now(),
+                        hasCompletedOnboarding: data?.hasCompletedOnboarding || false,
+                        usernameLastChanged: data?.usernameLastChanged,
+                    });
+                } else {
                     setUserDoc(null);
                 }
-            );
+            },
+            (error) => {
+                console.error('Error listening to user profile:', error);
+                setUserDoc(null);
+            }
+        );
 
         return () => unsubscribe();
     }, [user]);
 
     const updateFCMToken = async () => {
         try {
-            const currentUser = auth().currentUser;
+            const auth = getAuth();
+            const currentUser = auth.currentUser;
             if (!currentUser) return;
 
-            const authStatus = await messaging().requestPermission();
+            const messaging = getMessaging();
+            const authStatus = await requestPermission(messaging);
             const enabled =
-                authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-                authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+                authStatus === AuthorizationStatus.AUTHORIZED ||
+                authStatus === AuthorizationStatus.PROVISIONAL;
 
             if (enabled) {
-                const fcmToken = await messaging().getToken();
-                await firestore()
-                    .collection('users')
-                    .doc(currentUser.uid)
-                    .update({ fcmToken });
+                const fcmToken = await getToken(messaging);
+                const db = getFirestore();
+                const userRef = doc(db, 'users', currentUser.uid);
+                await updateDoc(userRef, { fcmToken });
                 console.log('✅ FCM token updated:', fcmToken);
             }
         } catch (error) {
@@ -107,7 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         username?: string,
         photoURL?: string
     ) => {
-        const fcmToken = await messaging().getToken().catch(() => '');
+        const messaging = getMessaging();
+        const fcmToken = await getToken(messaging).catch(() => '');
         const userProfile: Partial<User> = {
             uid,
             displayName,
@@ -126,19 +130,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userProfile.hasCompletedOnboarding = false;
         }
 
-        await firestore().collection('users').doc(uid).set(userProfile);
+        const db = getFirestore();
+        const userRef = doc(db, 'users', uid);
+        await setDoc(userRef, userProfile);
 
         // Track username change in history if username provided
         if (username) {
-            await firestore()
-                .collection('users')
-                .doc(uid)
-                .collection('usernameHistory')
-                .add({
-                    oldUsername: null,
-                    newUsername: username.toLowerCase(),
-                    timestamp: Date.now(),
-                });
+            const historyRef = collection(db, 'users', uid, 'usernameHistory');
+            await addDoc(historyRef, {
+                oldUsername: null,
+                newUsername: username.toLowerCase(),
+                timestamp: Date.now(),
+            });
         }
     };
 
@@ -147,17 +150,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Note: This is the old signup flow - keeping for backward compatibility
             // New users should go through onboarding instead
             // Check if username is already taken
-            const usernameCheck = await firestore()
-                .collection('users')
-                .where('username', '==', username.toLowerCase())
-                .get();
+            const db = getFirestore();
+            const usersRef = collection(db, 'users');
+            const q = query(usersRef, where('username', '==', username.toLowerCase()));
+            const usernameCheck = await getDocs(q);
 
             if (!usernameCheck.empty) {
                 throw new Error('Username already taken');
             }
 
-            const userCredential = await auth().createUserWithEmailAndPassword(email, password);
-            await userCredential.user.updateProfile({ displayName });
+            const auth = getAuth();
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            await updateProfile(userCredential.user, { displayName });
             await createUserProfile(userCredential.user.uid, email, displayName, username.toLowerCase());
         } catch (error) {
             console.error('Email Sign-Up Error:', error);
@@ -167,7 +171,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signInWithEmail = async (email: string, password: string) => {
         try {
-            await auth().signInWithEmailAndPassword(email, password);
+            const auth = getAuth();
+            await signInWithEmailAndPassword(auth, email, password);
         } catch (error) {
             console.error('Email Sign-In Error:', error);
             throw error;
@@ -182,9 +187,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 throw new Error('Google Sign-In failed to provide user data');
             }
             const { idToken } = data;
-            const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-            const userCredential = await auth().signInWithCredential(googleCredential);
-            const userDocSnap = await firestore().collection('users').doc(userCredential.user.uid).get();
+            const googleCredential = GoogleAuthProvider.credential(idToken);
+            const auth = getAuth();
+            const userCredential = await signInWithCredential(auth, googleCredential);
+
+            const db = getFirestore();
+            const userRef = doc(db, 'users', userCredential.user.uid);
+            const userDocSnap = await getDoc(userRef);
+
             if (!userDocSnap.exists()) {
                 // Create user profile without username - they'll go through onboarding
                 await createUserProfile(
@@ -204,7 +214,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signOut = async () => {
         try {
             await GoogleSignin.signOut();
-            await auth().signOut();
+            const auth = getAuth();
+            await firebaseSignOut(auth);
         } catch (error) {
             console.error('Sign Out Error:', error);
             throw error;
@@ -212,7 +223,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const completeOnboarding = async (username: string) => {
-        const currentUser = auth().currentUser;
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
         if (!currentUser) {
             throw new Error('No user logged in');
         }
@@ -220,10 +232,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const sanitizedUsername = username.toLowerCase();
 
         // Check if username is already taken
-        const usernameCheck = await firestore()
-            .collection('users')
-            .where('username', '==', sanitizedUsername)
-            .get();
+        const db = getFirestore();
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('username', '==', sanitizedUsername));
+        const usernameCheck = await getDocs(q);
 
         if (!usernameCheck.empty) {
             throw new Error('Username already taken');
@@ -232,22 +244,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const now = Date.now();
 
         // Update user profile with username and mark onboarding complete
-        await firestore().collection('users').doc(currentUser.uid).update({
+        const userRef = doc(db, 'users', currentUser.uid);
+        await updateDoc(userRef, {
             username: sanitizedUsername,
             hasCompletedOnboarding: true,
             usernameLastChanged: now,
         });
 
         // Track username change in history
-        await firestore()
-            .collection('users')
-            .doc(currentUser.uid)
-            .collection('usernameHistory')
-            .add({
-                oldUsername: null,
-                newUsername: sanitizedUsername,
-                timestamp: now,
-            });
+        const historyRef = collection(db, 'users', currentUser.uid, 'usernameHistory');
+        await addDoc(historyRef, {
+            oldUsername: null,
+            newUsername: sanitizedUsername,
+            timestamp: now,
+        });
     };
 
     const canChangeUsername = (): { canChange: boolean; daysRemaining: number } => {
@@ -265,7 +275,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const updateUsername = async (newUsername: string) => {
-        const currentUser = auth().currentUser;
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
         if (!currentUser || !userDoc) {
             throw new Error('No user logged in');
         }
@@ -278,10 +289,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const sanitizedUsername = newUsername.toLowerCase();
 
         // Check if username is already taken
-        const usernameCheck = await firestore()
-            .collection('users')
-            .where('username', '==', sanitizedUsername)
-            .get();
+        const db = getFirestore();
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('username', '==', sanitizedUsername));
+        const usernameCheck = await getDocs(q);
 
         if (!usernameCheck.empty) {
             throw new Error('Username already taken');
@@ -291,21 +302,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const oldUsername = userDoc.username;
 
         // Update user profile with new username
-        await firestore().collection('users').doc(currentUser.uid).update({
+        const userRef = doc(db, 'users', currentUser.uid);
+        await updateDoc(userRef, {
             username: sanitizedUsername,
             usernameLastChanged: now,
         });
 
         // Track username change in history
-        await firestore()
-            .collection('users')
-            .doc(currentUser.uid)
-            .collection('usernameHistory')
-            .add({
-                oldUsername: oldUsername || null,
-                newUsername: sanitizedUsername,
-                timestamp: now,
-            });
+        const historyRef = collection(db, 'users', currentUser.uid, 'usernameHistory');
+        await addDoc(historyRef, {
+            oldUsername: oldUsername || null,
+            newUsername: sanitizedUsername,
+            timestamp: now,
+        });
     };
 
     return (

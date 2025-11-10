@@ -1,6 +1,5 @@
 // Firebase configuration
-// React Native Firebase v23+ - Using current stable API
-// Note: Deprecation warnings are expected and will be addressed in future v24+ release
+// React Native Firebase v23+ - Using modular API where available
 
 import { Platform } from 'react-native';
 import { getApp } from '@react-native-firebase/app';

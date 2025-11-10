@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { router } from 'expo-router';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, query, where, getDocs } from '@react-native-firebase/firestore';
 
 export default function OnboardingScreen() {
     const [username, setUsername] = useState('');
@@ -31,10 +31,10 @@ export default function OnboardingScreen() {
 
         setIsChecking(true);
         try {
-            const snapshot = await firestore()
-                .collection('users')
-                .where('username', '==', username)
-                .get();
+            const db = getFirestore();
+            const usersRef = collection(db, 'users');
+            const q = query(usersRef, where('username', '==', username));
+            const snapshot = await getDocs(q);
 
             setIsAvailable(snapshot.empty);
 
@@ -87,14 +87,14 @@ export default function OnboardingScreen() {
                 <Text className="text-sm font-semibold mb-2 text-black dark:text-white">
                     Username
                 </Text>
-                <View className="flex-row mb-4">
-                    <View className="bg-white dark:bg-black px-4 py-3 rounded-l-lg border border-r-0 border-black/20 dark:border-white/20">
+                <View className="flex-row mb-4 border border-black/20 dark:border-white/20 rounded-lg overflow-hidden">
+                    <View className="bg-white dark:bg-black px-4 py-3 justify-center">
                         <Text className="text-base text-black/60 dark:text-white/60">
                             @
                         </Text>
                     </View>
                     <TextInput
-                        className="flex-1 h-12 bg-white dark:bg-black px-4 text-base text-black dark:text-white border border-l-0 border-black/20 dark:border-white/20 rounded-r-lg"
+                        className="flex-1 h-12 bg-white dark:bg-black px-4 text-base text-black dark:text-white"
                         placeholder="username"
                         placeholderTextColor="rgba(0,0,0,0.4)"
                         value={username}
@@ -111,12 +111,12 @@ export default function OnboardingScreen() {
 
                 <TouchableOpacity
                     className="bg-primary p-4 rounded-lg items-center mb-3"
-                    style={{ opacity: username.length < 3 || isChecking ? 0.5 : 1 }}
+                    // style={{ opacity: username.length < 3 || isChecking ? 0.5 : 1 }}
                     onPress={checkUsernameAvailability}
                     disabled={username.length < 3 || isChecking}
                 >
                     {isChecking ? (
-                        <ActivityIndicator color="#ffffff" />
+                        <ActivityIndicator className='text-primary' />
                     ) : (
                         <Text className="text-white text-base font-semibold">
                             Check Availability
@@ -148,7 +148,7 @@ export default function OnboardingScreen() {
                     onPress={handleContinue}
                     disabled={isAvailable !== true}
                 >
-                    <Text className="text-white text-base font-semibold">
+                    <Text className="text-base font-semibold">
                         Continue
                     </Text>
                 </TouchableOpacity>

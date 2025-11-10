@@ -3,10 +3,10 @@ import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollVi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
-import storage from '@react-native-firebase/storage';
+import { getStorage, ref, putFile, getDownloadURL } from '@react-native-firebase/storage';
 import ml from '@react-native-firebase/ml';
 import { launchImageLibrary } from 'react-native-image-picker';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, doc, updateDoc, collection, query, where, getDocs } from '@react-native-firebase/firestore';
 
 export default function ProfileScreen() {
     const { user, userDoc, signOut, updateUsername, canChangeUsername } = useAuth();
@@ -40,13 +40,16 @@ export default function ProfileScreen() {
             // }
 
             // Upload to Firebase Storage
+            const storage = getStorage();
             const filename = `profile-pictures/${user?.uid}.jpg`;
-            const ref = storage().ref(filename);
-            await ref.putFile(uri);
-            const downloadURL = await ref.getDownloadURL();
+            const storageRef = ref(storage, filename);
+            await putFile(storageRef, uri);
+            const downloadURL = await getDownloadURL(storageRef);
 
             // Update Firestore
-            await firestore().collection('users').doc(user?.uid).update({ photoURL: downloadURL });
+            const db = getFirestore();
+            const userRef = doc(db, 'users', user?.uid || '');
+            await updateDoc(userRef, { photoURL: downloadURL });
 
             Alert.alert('Success', 'Profile picture updated!');
         } catch (error) {
@@ -87,10 +90,10 @@ export default function ProfileScreen() {
 
         setIsCheckingUsername(true);
         try {
-            const snapshot = await firestore()
-                .collection('users')
-                .where('username', '==', newUsername)
-                .get();
+            const db = getFirestore();
+            const usersRef = collection(db, 'users');
+            const q = query(usersRef, where('username', '==', newUsername));
+            const snapshot = await getDocs(q);
 
             if (!snapshot.empty) {
                 Alert.alert('Username taken', 'This username is already in use. Please choose another.');
@@ -248,14 +251,14 @@ export default function ProfileScreen() {
                         <Text className="text-sm font-semibold mb-2 text-black dark:text-white">
                             New Username
                         </Text>
-                        <View className="flex-row mb-4">
-                            <View className="bg-white dark:bg-black px-4 py-3 rounded-l-lg border border-r-0 border-black/20 dark:border-white/20">
+                        <View className="flex-row mb-4 border border-black/20 dark:border-white/20 rounded-lg overflow-hidden">
+                            <View className="bg-white dark:bg-black px-4 py-3 justify-center">
                                 <Text className="text-base text-black/60 dark:text-white/60">
                                     @
                                 </Text>
                             </View>
                             <TextInput
-                                className="flex-1 h-12 bg-white dark:bg-black px-4 text-base text-black dark:text-white border border-l-0 border-black/20 dark:border-white/20 rounded-r-lg"
+                                className="flex-1 h-12 bg-white dark:bg-black px-4 text-base text-black dark:text-white"
                                 placeholder="username"
                                 placeholderTextColor="rgba(0,0,0,0.4)"
                                 value={newUsername}
@@ -263,6 +266,7 @@ export default function ProfileScreen() {
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 maxLength={20}
+                                editable={canChangeUsername().canChange}
                             />
                         </View>
 

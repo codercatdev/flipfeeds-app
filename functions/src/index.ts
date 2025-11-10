@@ -6,3 +6,6 @@ admin.initializeApp();
 
 // Export Cloud Functions
 export { generatePoem };
+
+// Export MCP Server
+export { mcpServer } from './mcpServer';

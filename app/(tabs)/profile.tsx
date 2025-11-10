@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView, TextInput, Modal, useColorScheme } from 'react-native';
+import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView, TextInput, Modal, useColorScheme, Clipboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { getAuth } from '@react-native-firebase/auth';
 import { getStorage, ref, putFile, getDownloadURL } from '@react-native-firebase/storage';
 import ml from '@react-native-firebase/ml';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -17,6 +18,47 @@ export default function ProfileScreen() {
     const [newUsername, setNewUsername] = useState('');
     const [isCheckingUsername, setIsCheckingUsername] = useState(false);
     const [isUpdatingUsername, setIsUpdatingUsername] = useState(false);
+    const [gettingToken, setGettingToken] = useState(false);
+
+    const getIdToken = async () => {
+        setGettingToken(true);
+        try {
+            const auth = getAuth();
+            const currentUser = auth.currentUser;
+
+            if (!currentUser) {
+                Alert.alert('Error', 'No user is currently signed in');
+                return;
+            }
+
+            const token = await currentUser.getIdToken(/* forceRefresh */ true);
+
+            // Copy to clipboard
+            Clipboard.setString(token);
+
+            Alert.alert(
+                'ID Token Retrieved',
+                'Your Firebase ID token has been copied to the clipboard!\n\nNote: This token expires after 1 hour.',
+                [
+                    {
+                        text: 'Show Token',
+                        onPress: () => {
+                            Alert.alert('ID Token', token);
+                        }
+                    },
+                    {
+                        text: 'OK',
+                        style: 'cancel'
+                    }
+                ]
+            );
+        } catch (error) {
+            console.error('Error getting ID token:', error);
+            Alert.alert('Error', 'Failed to retrieve ID token');
+        } finally {
+            setGettingToken(false);
+        }
+    };
 
     const handlePickImage = async () => {
         try {
@@ -205,6 +247,25 @@ export default function ProfileScreen() {
                         <Text className="text-white font-semibold text-center text-lg">
                             {uploading ? 'Uploading...' : 'Change Profile Picture'}
                         </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={getIdToken}
+                        className="bg-blue-500 px-8 py-4 rounded-lg mb-4 w-full"
+                        disabled={gettingToken}
+                    >
+                        <View className="flex-row items-center justify-center">
+                            {gettingToken ? (
+                                <ActivityIndicator color="#ffffff" size="small" />
+                            ) : (
+                                <>
+                                    <Ionicons name="key" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+                                    <Text className="text-white font-semibold text-center text-lg">
+                                        Get Firebase ID Token
+                                    </Text>
+                                </>
+                            )}
+                        </View>
                     </TouchableOpacity>
 
                     <TouchableOpacity

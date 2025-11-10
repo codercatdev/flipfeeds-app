@@ -11,12 +11,14 @@ import { getYouTubeChannelTool } from './tools/getYouTubeChannelTool';
 import { listLatestVideosTool } from './tools/listLatestVideosTool';
 import { createThumbnailsTool } from './tools/createThumbnailsTool';
 import { youtubeThumbnailFlow } from './flows/youtubeThumbnailFlow';
+import { jwtSecret, getMcpServerUrl, getAuthServerUrl } from './auth/config';
+import { verifyAccessToken } from './auth/tokens';
 
 // Initialize the flow
 const thumbnailFlow = youtubeThumbnailFlow();
 
 // ============================================================================
-// FIREBASE AUTHENTICATION MIDDLEWARE
+// FIREBASE AUTHENTICATION MIDDLEWARE (Dual Mode)
 // ============================================================================
 
 interface AuthenticatedRequest extends Request {
@@ -27,10 +29,11 @@ interface AuthenticatedRequest extends Request {
 }
 
 /**
- * Middleware to verify Firebase Authentication ID Token
- * Stores the authenticated user UID for later use
+ * Flexible authentication middleware that supports both:
+ * 1. OAuth 2.1 access tokens (for MCP clients)
+ * 2. Firebase ID tokens (for mobile app and direct access)
  */
-const firebaseAuthMiddleware = async (
+const flexibleAuthMiddleware = async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
@@ -43,24 +46,42 @@ const firebaseAuthMiddleware = async (
             return;
         }
 
-        const idToken = authHeader.split('Bearer ')[1];
+        const token = authHeader.split('Bearer ')[1];
 
+        // Try OAuth access token first (if JWT_SECRET is configured)
+        const secret = jwtSecret.value();
+        if (secret) {
+            try {
+                const payload = await verifyAccessToken(token, secret);
+                req.user = {
+                    uid: payload.uid,
+                    email: payload.email,
+                };
+                console.log('Authenticated via OAuth access token');
+                next();
+                return;
+            } catch (oauthError) {
+                // Not a valid OAuth token, try Firebase ID token
+                console.log('Not an OAuth token, trying Firebase ID token...');
+            }
+        }
+
+        // Fall back to Firebase ID token
         try {
-            // Verify the ID token
-            const decodedToken = await getAuth().verifyIdToken(idToken);
-
-            // Inject user info into request
+            const decodedToken = await getAuth().verifyIdToken(token);
             req.user = {
                 uid: decodedToken.uid,
                 email: decodedToken.email,
             };
-
+            console.log('Authenticated via Firebase ID token');
             next();
-        } catch (error) {
-            console.error('Token verification failed:', error);
+            return;
+        } catch (firebaseError) {
+            console.error('Firebase token verification failed:', firebaseError);
             res.status(401).json({ error: 'Unauthorized: Invalid token' });
             return;
         }
+
     } catch (error) {
         console.error('Authentication middleware error:', error);
         res.status(500).json({ error: 'Internal server error during authentication' });
@@ -247,13 +268,51 @@ const app = express();
 // Parse JSON bodies
 app.use(express.json());
 
+// ============================================================================
+// METADATA ENDPOINT (OAuth Protected Resource)
+// ============================================================================
+
+/**
+ * OAuth 2.0 Protected Resource Metadata
+ * https://datatracker.ietf.org/doc/html/rfc9728#section-4.1
+ * 
+ * This endpoint describes the protected resource (MCP server) and its
+ * authorization requirements. Required by MCP specification.
+ */
+app.get('/.well-known/oauth-protected-resource', (req, res) => {
+    const mcpServerUrl = getMcpServerUrl();
+    const authServerUrl = getAuthServerUrl();
+
+    res.json({
+        resource: mcpServerUrl,
+        authorization_servers: [authServerUrl],
+        scopes_supported: ['openid', 'profile', 'email'],
+        bearer_methods_supported: ['header'],
+        resource_signing_alg_values_supported: ['RS256'],
+        resource_documentation: `${mcpServerUrl}/docs`,
+        resource_policy_uri: `${mcpServerUrl}/policy`,
+    });
+});
+
+/**
+ * CORS preflight handler for OAuth metadata endpoint
+ * Required for browser-based MCP clients
+ */
+app.options('/.well-known/oauth-protected-resource', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+    res.status(204).send();
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
 // Apply authentication middleware and transport handler to root endpoint
-app.post('/', firebaseAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+app.post('/', flexibleAuthMiddleware, async (req: AuthenticatedRequest, res) => {
     if (!req.user?.uid) {
         res.status(401).json({ error: 'Unauthorized: No user ID' });
         return;
@@ -274,7 +333,7 @@ app.post('/', firebaseAuthMiddleware, async (req: AuthenticatedRequest, res) => 
 });
 
 // Also support /mcp path for backwards compatibility
-app.post('/mcp', firebaseAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+app.post('/mcp', flexibleAuthMiddleware, async (req: AuthenticatedRequest, res) => {
     if (!req.user?.uid) {
         res.status(401).json({ error: 'Unauthorized: No user ID' });
         return;
@@ -307,24 +366,29 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 /**
  * Firebase HTTP Function (v2) that exposes the MCP server
  * 
- * Usage:
+ * Supports dual authentication modes:
+ * 1. OAuth 2.1 access tokens (from mcpAuthServer)
+ * 2. Firebase ID tokens (from mobile app or direct access)
+ * 
+ * Usage with Firebase ID Token:
  * POST https://your-region-your-project.cloudfunctions.net/mcpServer
  * Headers:
  *   Authorization: Bearer <firebase-id-token>
  *   Content-Type: application/json
  *   Accept: application/json, text/event-stream
- * Body:
- *   {
- *     "jsonrpc": "2.0",
- *     "id": 1,
- *     "method": "tools/list",
- *     "params": {}
- *   }
+ * 
+ * Usage with OAuth Access Token:
+ * POST https://your-region-your-project.cloudfunctions.net/mcpServer
+ * Headers:
+ *   Authorization: Bearer <oauth-access-token>
+ *   Content-Type: application/json
+ *   Accept: application/json, text/event-stream
  */
 export const mcpServer = onRequest(
     {
         cors: true,
         maxInstances: 10,
+        secrets: [jwtSecret], // Optional - only needed for OAuth support
     },
     app
 );

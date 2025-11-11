@@ -1,0 +1,36 @@
+{
+    "name": "@flip-feeds/firebase-config",
+    "version": "1.0.0",
+    "description": "Firebase configuration and initialization for FlipFeeds",
+    "main": "./dist/index.js",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js"
+        }
+    },
+    "scripts": {
+        "build": "tsup src/index.ts --format cjs,esm --dts",
+        "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+        "typecheck": "tsc --noEmit",
+        "clean": "rm -rf dist node_modules"
+    },
+    "dependencies": {
+        "firebase": "^10.8.0"
+    },
+    "devDependencies": {
+        "tsup": "^8.0.0",
+        "typescript": "^5.3.3"
+    },
+    "peerDependencies": {
+        "@react-native-firebase/app": ">=20.0.0"
+    },
+    "peerDependenciesMeta": {
+        "@react-native-firebase/app": {
+            "optional": true
+        }
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "$schema": "https://ui.shadcn.com/schema.json",
+    "style": "new-york",
+    "rsc": true,
+    "tsx": true,
+    "tailwind": {
+        "config": "",
+        "css": "../../apps/web/app/globals.css",
+        "baseColor": "zinc",
+        "cssVariables": true
+    },
+    "iconLibrary": "lucide",
+    "aliases": {
+        "components": "@flip-feeds/ui/components",
+        "utils": "@flip-feeds/ui/lib/utils",
+        "hooks": "@flip-feeds/ui/hooks",
+        "lib": "@flip-feeds/ui/lib",
+        "ui": "@flip-feeds/ui/components"
+    }
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { generateVersion } = require('./generate-version');
 
 // Generate version info with branch awareness
@@ -22,16 +22,10 @@ if (!fs.existsSync(buildGradlePath)) {
 let buildGradle = fs.readFileSync(buildGradlePath, 'utf8');
 
 // Update versionCode
-buildGradle = buildGradle.replace(
-    /versionCode\s+\d+/,
-    `versionCode ${versionCode}`
-);
+buildGradle = buildGradle.replace(/versionCode\s+\d+/, `versionCode ${versionCode}`);
 
 // Update versionName
-buildGradle = buildGradle.replace(
-    /versionName\s+"[^"]*"/,
-    `versionName "${version}"`
-);
+buildGradle = buildGradle.replace(/versionName\s+"[^"]*"/, `versionName "${version}"`);
 
 fs.writeFileSync(buildGradlePath, buildGradle, 'utf8');
 
@@ -40,4 +34,3 @@ console.log(`   Version: ${version}`);
 console.log(`   Version Code: ${versionCode}`);
 console.log(`   Branch: ${versionInfo.branch}`);
 console.log(`   Is Release: ${versionInfo.isRelease}`);
-

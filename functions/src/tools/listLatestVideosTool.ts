@@ -1,6 +1,5 @@
-import { z } from 'genkit';
-import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { genkit, z } from 'genkit';
 
 // Initialize Genkit with Google AI plugin
 const ai = genkit({
@@ -20,12 +19,14 @@ export const listLatestVideosTool = ai.defineTool(
             maxResults: z.number().default(10).describe('Maximum number of videos to return'),
         }),
         outputSchema: z.object({
-            videos: z.array(z.object({
-                videoId: z.string(),
-                title: z.string(),
-                description: z.string(),
-                publishedAt: z.string(),
-            })),
+            videos: z.array(
+                z.object({
+                    videoId: z.string(),
+                    title: z.string(),
+                    description: z.string(),
+                    publishedAt: z.string(),
+                })
+            ),
         }),
     },
     async ({ channelId, maxResults }) => {

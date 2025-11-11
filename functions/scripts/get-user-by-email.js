@@ -5,7 +5,7 @@ const admin = require('firebase-admin');
 // Initialize Firebase Admin SDK
 try {
     admin.initializeApp({
-        credential: admin.credential.applicationDefault()
+        credential: admin.credential.applicationDefault(),
     });
 } catch (error) {
     console.error('Error initializing Firebase Admin:', error.message);

@@ -1,6 +1,5 @@
-import { z } from 'genkit';
-import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { genkit, z } from 'genkit';
 
 // Define the flip generation flow
 export const generateFlipFlow = () => {
@@ -27,9 +26,7 @@ export const generateFlipFlow = () => {
     );
 };
 
-
 // export const sendFlip = onCall(async (request) => {
-
 
 //     const senderUid = request.auth.uid;
 //     const { recipientUid } = request.data;

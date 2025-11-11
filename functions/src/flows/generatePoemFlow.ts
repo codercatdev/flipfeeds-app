@@ -1,6 +1,5 @@
-import { z } from 'genkit';
-import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { genkit, z } from 'genkit';
 export const generatePoemFlow = () => {
     const ai = genkit({
         plugins: [googleAI()],
@@ -14,7 +13,7 @@ export const generatePoemFlow = () => {
         },
         async ({ subject }, { sendChunk }) => {
             const { stream, response } = ai.generateStream({
-                prompt: `Compose a poem about ${subject}.`
+                prompt: `Compose a poem about ${subject}.`,
             });
             for await (const chunk of stream) {
                 // Here, you could process the chunk in some way before sending it to
@@ -27,6 +26,6 @@ export const generatePoemFlow = () => {
             return {
                 poem: text,
             };
-        },
+        }
     );
 };

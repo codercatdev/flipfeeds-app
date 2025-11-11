@@ -1,19 +1,22 @@
 #!/usr/bin/env node
 
 const admin = require('firebase-admin');
-const path = require('path');
+const path = require('node:path');
 
 // Initialize Firebase Admin SDK
-const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+const _serviceAccountPath =
+    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
     path.join(__dirname, '../../serviceAccountKey.json');
 
 try {
     admin.initializeApp({
-        credential: admin.credential.applicationDefault()
+        credential: admin.credential.applicationDefault(),
     });
 } catch (error) {
     console.error('Error initializing Firebase Admin:', error.message);
-    console.log('\nMake sure you have set GOOGLE_APPLICATION_CREDENTIALS or have gcloud configured.');
+    console.log(
+        '\nMake sure you have set GOOGLE_APPLICATION_CREDENTIALS or have gcloud configured.'
+    );
     process.exit(1);
 }
 
@@ -31,7 +34,7 @@ async function setUserClaims(uid, allowedFunctions) {
         // Create claims object with allowed functions
         const claims = {
             allowedFunctions: allowedFunctions,
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
         };
 
         // Set the custom claims
@@ -39,12 +42,13 @@ async function setUserClaims(uid, allowedFunctions) {
 
         console.log(`\n✅ Successfully set custom claims for user ${uid}`);
         console.log('Allowed functions:', allowedFunctions);
-        console.log('\nNote: The user will need to sign out and sign back in for claims to take effect.');
+        console.log(
+            '\nNote: The user will need to sign out and sign back in for claims to take effect.'
+        );
 
         // Display the updated user record
         const updatedUser = await admin.auth().getUser(uid);
         console.log('\nCurrent custom claims:', JSON.stringify(updatedUser.customClaims, null, 2));
-
     } catch (error) {
         console.error('❌ Error setting custom claims:', error.message);
         throw error;
@@ -112,7 +116,7 @@ if (functionNames.length === 0) {
 // Run the script
 setUserClaims(uid, functionNames)
     .then(() => process.exit(0))
-    .catch(error => {
+    .catch((error) => {
         console.error('\n❌ Script failed:', error.message);
         process.exit(1);
     });

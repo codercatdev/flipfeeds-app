@@ -1,6 +1,5 @@
-import { z } from 'genkit';
-import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { genkit, z } from 'genkit';
 
 // Initialize Genkit with Google AI plugin
 const ai = genkit({
@@ -21,11 +20,13 @@ export const createThumbnailsTool = ai.defineTool(
             videoTitle: z.string().describe('The video title'),
         }),
         outputSchema: z.object({
-            thumbnailIdeas: z.array(z.object({
-                concept: z.string(),
-                description: z.string(),
-                colorScheme: z.string(),
-            })),
+            thumbnailIdeas: z.array(
+                z.object({
+                    concept: z.string(),
+                    description: z.string(),
+                    colorScheme: z.string(),
+                })
+            ),
         }),
     },
     async ({ videoId, prompt, videoTitle }) => {

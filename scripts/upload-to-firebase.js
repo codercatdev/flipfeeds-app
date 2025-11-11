@@ -2,9 +2,9 @@
 
 require('dotenv').config();
 
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+const { execSync } = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
 const { generateVersion } = require('./generate-version');
 
 const platform = process.argv[2]; // 'android' or 'ios'
@@ -40,7 +40,7 @@ if (platform === 'ios' && !iosAppId) {
 
 // Determine file path
 let appPath;
-let releaseNotes = `Version: ${versionInfo.version}\nBranch: ${versionInfo.branch}\nCommit: ${versionInfo.commitHash}`;
+const releaseNotes = `Version: ${versionInfo.version}\nBranch: ${versionInfo.branch}\nCommit: ${versionInfo.commitHash}`;
 
 if (platform === 'android') {
     appPath = path.join(__dirname, '../android/app/build/outputs/apk/release/app-release.apk');
@@ -54,7 +54,9 @@ if (platform === 'android') {
     appPath = path.join(__dirname, '../ios/build/flipfeedsapp.ipa');
 
     if (!fs.existsSync(appPath)) {
-        console.error('❌ IPA not found. Build and export the release first with: npm run ios:export');
+        console.error(
+            '❌ IPA not found. Build and export the release first with: npm run ios:export'
+        );
         process.exit(1);
     }
 }
@@ -84,7 +86,7 @@ try {
     execSync(command, { stdio: 'inherit' });
     console.log('\n✅ Successfully uploaded to Firebase App Distribution!');
     console.log(`   Testers in "${groups}" group will receive a notification.`);
-} catch (error) {
+} catch (_error) {
     console.error('\n❌ Failed to upload to Firebase App Distribution');
     console.error('\nTroubleshooting:');
     console.error('  1. Ensure Firebase CLI is installed: npm install -g firebase-tools');

@@ -1,9 +1,8 @@
-import { z } from 'genkit';
-import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { genkit, z } from 'genkit';
+import { createThumbnailsTool } from '../tools/createThumbnailsTool';
 import { getYouTubeChannelTool } from '../tools/getYouTubeChannelTool';
 import { listLatestVideosTool } from '../tools/listLatestVideosTool';
-import { createThumbnailsTool } from '../tools/createThumbnailsTool';
 
 /**
  * Main flow for YouTube thumbnail generation

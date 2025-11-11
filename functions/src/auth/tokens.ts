@@ -1,6 +1,6 @@
-import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
+import * as crypto from 'node:crypto';
+import { type JWTPayload, jwtVerify, SignJWT } from 'jose';
 import { v4 as uuidv4 } from 'uuid';
-import * as crypto from 'crypto';
 import { OAuth2Config } from './config';
 
 /**
@@ -87,10 +87,7 @@ export async function generateAccessToken(
 /**
  * Generate a refresh token JWT
  */
-export async function generateRefreshToken(
-    uid: string,
-    secret: string
-): Promise<string> {
+export async function generateRefreshToken(uid: string, secret: string): Promise<string> {
     const key = getJwtSecret(secret);
 
     const token = await new SignJWT({
@@ -173,10 +170,7 @@ export function verifyCodeChallenge(
         return false;
     }
 
-    const hash = crypto
-        .createHash('sha256')
-        .update(codeVerifier)
-        .digest('base64url');
+    const hash = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
 
     return hash === codeChallenge;
 }

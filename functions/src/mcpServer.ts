@@ -1,18 +1,15 @@
-import { getAuth } from 'firebase-admin/auth';
-import { onRequest } from 'firebase-functions/v2/https';
-import express, { Request, Response, NextFunction } from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import {
-    CallToolRequestSchema,
-    ListToolsRequestSchema
-} from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import express, { type NextFunction, type Request, type Response } from 'express';
+import { getAuth } from 'firebase-admin/auth';
+import { onRequest } from 'firebase-functions/v2/https';
+import { getAuthServerUrl, getMcpServerUrl, jwtSecret } from './auth/config';
+import { verifyAccessToken } from './auth/tokens';
+import { youtubeThumbnailFlow } from './flows/youtubeThumbnailFlow';
+import { createThumbnailsTool } from './tools/createThumbnailsTool';
 import { getYouTubeChannelTool } from './tools/getYouTubeChannelTool';
 import { listLatestVideosTool } from './tools/listLatestVideosTool';
-import { createThumbnailsTool } from './tools/createThumbnailsTool';
-import { youtubeThumbnailFlow } from './flows/youtubeThumbnailFlow';
-import { jwtSecret, getMcpServerUrl, getAuthServerUrl } from './auth/config';
-import { verifyAccessToken } from './auth/tokens';
 
 // Initialize the flow
 const thumbnailFlow = youtubeThumbnailFlow();
@@ -42,7 +39,9 @@ const flexibleAuthMiddleware = async (
         const authHeader = req.headers.authorization;
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            res.status(401).json({ error: 'Unauthorized: Missing or invalid authorization header' });
+            res.status(401).json({
+                error: 'Unauthorized: Missing or invalid authorization header',
+            });
             return;
         }
 
@@ -60,7 +59,7 @@ const flexibleAuthMiddleware = async (
                 console.log('Authenticated via OAuth access token');
                 next();
                 return;
-            } catch (oauthError) {
+            } catch (_oauthError) {
                 // Not a valid OAuth token, try Firebase ID token
                 console.log('Not an OAuth token, trying Firebase ID token...');
             }
@@ -81,7 +80,6 @@ const flexibleAuthMiddleware = async (
             res.status(401).json({ error: 'Unauthorized: Invalid token' });
             return;
         }
-
     } catch (error) {
         console.error('Authentication middleware error:', error);
         res.status(500).json({ error: 'Internal server error during authentication' });
@@ -115,7 +113,8 @@ function createMCPServer(uid: string): Server {
             tools: [
                 {
                     name: 'getYouTubeChannel',
-                    description: 'Retrieves the YouTube channel ID for the authenticated user from Firestore',
+                    description:
+                        'Retrieves the YouTube channel ID for the authenticated user from Firestore',
                     inputSchema: {
                         type: 'object',
                         properties: {},
@@ -143,7 +142,8 @@ function createMCPServer(uid: string): Server {
                 },
                 {
                     name: 'createThumbnails',
-                    description: 'Generates thumbnail design ideas based on video content and prompt',
+                    description:
+                        'Generates thumbnail design ideas based on video content and prompt',
                     inputSchema: {
                         type: 'object',
                         properties: {
@@ -165,7 +165,8 @@ function createMCPServer(uid: string): Server {
                 },
                 {
                     name: 'youtubeThumbnailFlow',
-                    description: 'Complete workflow to generate YouTube thumbnails for the authenticated user',
+                    description:
+                        'Complete workflow to generate YouTube thumbnails for the authenticated user',
                     inputSchema: {
                         type: 'object',
                         properties: {
@@ -201,7 +202,10 @@ function createMCPServer(uid: string): Server {
                 }
 
                 case 'listLatestVideos': {
-                    const { channelId, maxResults = 10 } = args as { channelId: string; maxResults?: number };
+                    const { channelId, maxResults = 10 } = args as {
+                        channelId: string;
+                        maxResults?: number;
+                    };
                     const result = await listLatestVideosTool({ channelId, maxResults });
                     return {
                         content: [
@@ -214,7 +218,9 @@ function createMCPServer(uid: string): Server {
                 }
 
                 case 'createThumbnails': {
-                    const result = await createThumbnailsTool(args as { videoId: string; prompt: string; videoTitle: string });
+                    const result = await createThumbnailsTool(
+                        args as { videoId: string; prompt: string; videoTitle: string }
+                    );
                     return {
                         content: [
                             {
@@ -275,11 +281,11 @@ app.use(express.json());
 /**
  * OAuth 2.0 Protected Resource Metadata
  * https://datatracker.ietf.org/doc/html/rfc9728#section-4.1
- * 
+ *
  * This endpoint describes the protected resource (MCP server) and its
  * authorization requirements. Required by MCP specification.
  */
-app.get('/.well-known/oauth-protected-resource', (req, res) => {
+app.get('/.well-known/oauth-protected-resource', (_req, res) => {
     const mcpServerUrl = getMcpServerUrl();
     const authServerUrl = getAuthServerUrl();
 
@@ -298,7 +304,7 @@ app.get('/.well-known/oauth-protected-resource', (req, res) => {
  * CORS preflight handler for OAuth metadata endpoint
  * Required for browser-based MCP clients
  */
-app.options('/.well-known/oauth-protected-resource', (req, res) => {
+app.options('/.well-known/oauth-protected-resource', (_req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -307,7 +313,7 @@ app.options('/.well-known/oauth-protected-resource', (req, res) => {
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
@@ -354,7 +360,7 @@ app.post('/mcp', flexibleAuthMiddleware, async (req: AuthenticatedRequest, res) 
 });
 
 // Error handling middleware
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Express error:', err);
     res.status(500).json({ error: 'Internal server error' });
 });
@@ -365,18 +371,18 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 /**
  * Firebase HTTP Function (v2) that exposes the MCP server
- * 
+ *
  * Supports dual authentication modes:
  * 1. OAuth 2.1 access tokens (from mcpAuthServer)
  * 2. Firebase ID tokens (from mobile app or direct access)
- * 
+ *
  * Usage with Firebase ID Token:
  * POST https://your-region-your-project.cloudfunctions.net/mcpServer
  * Headers:
  *   Authorization: Bearer <firebase-id-token>
  *   Content-Type: application/json
  *   Accept: application/json, text/event-stream
- * 
+ *
  * Usage with OAuth Access Token:
  * POST https://your-region-your-project.cloudfunctions.net/mcpServer
  * Headers:

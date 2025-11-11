@@ -1,0 +1,55 @@
+{
+    "project_info": {
+        "project_number": "361402949529",
+        "firebase_url": "https://flipfeeds-app-default-rtdb.firebaseio.com",
+        "project_id": "flipfeeds-app",
+        "storage_bucket": "flipfeeds-app.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:361402949529:android:3369676e3acc9158ef3d08",
+                "android_client_info": {
+                    "package_name": "com.flipfeeds.app"
+                }
+            },
+            "oauth_client": [
+                {
+                    "client_id": "361402949529-rod8piir1naer2isqfhre3en71eauge1.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "com.flipfeeds.app",
+                        "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+                    }
+                },
+                {
+                    "client_id": "361402949529-g9a9tjuciarclra19mraq2hfe7jeongn.apps.googleusercontent.com",
+                    "client_type": 3
+                }
+            ],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyCv--k-UWc-5Opw988V7HUeLD1lrO0uSko"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": [
+                        {
+                            "client_id": "361402949529-g9a9tjuciarclra19mraq2hfe7jeongn.apps.googleusercontent.com",
+                            "client_type": 3
+                        },
+                        {
+                            "client_id": "361402949529-r2043klm9rhlffk8hiutftkj6keh9th6.apps.googleusercontent.com",
+                            "client_type": 2,
+                            "ios_info": {
+                                "bundle_id": "com.flipfeeds.app"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}

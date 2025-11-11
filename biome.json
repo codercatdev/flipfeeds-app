@@ -1,0 +1,80 @@
+{
+    "$schema": "https://biomejs.dev/schemas/2.3.5/schema.json",
+    "assist": { "actions": { "source": { "organizeImports": "on" } } },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "recommended": true,
+            "correctness": {
+                "noUnusedVariables": "warn",
+                "useExhaustiveDependencies": "warn"
+            },
+            "suspicious": {
+                "noExplicitAny": "off"
+            },
+            "style": {
+                "noNonNullAssertion": "off"
+            }
+        }
+    },
+    "formatter": {
+        "enabled": true,
+        "formatWithErrors": false,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineEnding": "lf",
+        "lineWidth": 100
+    },
+    "javascript": {
+        "formatter": {
+            "jsxQuoteStyle": "double",
+            "quoteProperties": "asNeeded",
+            "trailingCommas": "es5",
+            "semicolons": "always",
+            "arrowParentheses": "always",
+            "bracketSpacing": true,
+            "bracketSameLine": false,
+            "quoteStyle": "single",
+            "attributePosition": "auto"
+        }
+    },
+    "json": {
+        "formatter": {
+            "enabled": true,
+            "indentWidth": 4
+        },
+        "parser": {
+            "allowComments": true,
+            "allowTrailingCommas": false
+        }
+    },
+    "css": {
+        "parser": {
+            "cssModules": false,
+            "allowWrongLineComments": true
+        },
+        "formatter": {
+            "enabled": true
+        }
+    },
+    "files": {
+        "ignoreUnknown": false,
+        "includes": [
+            "**",
+            "!**/node_modules",
+            "!**/dist",
+            "!**/build",
+            "!**/.next",
+            "!**/.expo",
+            "!**/coverage",
+            "!**/*.log",
+            "!**/.DS_Store",
+            "!**/android/build",
+            "!**/ios/build",
+            "!**/.next",
+            "!**/.expo",
+            "!**/dist",
+            "!**/build"
+        ]
+    }
+}

@@ -1,7 +1,6 @@
-import { getFirestore } from 'firebase-admin/firestore';
-import { z } from 'genkit';
-import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { getFirestore } from 'firebase-admin/firestore';
+import { genkit, z } from 'genkit';
 
 // Initialize Genkit with Google AI plugin
 const ai = genkit({

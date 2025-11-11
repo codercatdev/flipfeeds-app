@@ -1,6 +1,6 @@
 import express from 'express';
 import { onRequest } from 'firebase-functions/v2/https';
-import { getMcpServerUrl, getAuthServerUrl } from './config';
+import { getAuthServerUrl, getMcpServerUrl } from './config';
 
 const app = express();
 
@@ -11,11 +11,11 @@ const app = express();
 /**
  * OAuth 2.0 Protected Resource Metadata
  * https://datatracker.ietf.org/doc/html/rfc9728#section-4.1
- * 
+ *
  * This endpoint describes the protected resource (MCP server) and its
  * authorization requirements. Required by MCP specification.
  */
-app.get('/.well-known/oauth-protected-resource', (req, res) => {
+app.get('/.well-known/oauth-protected-resource', (_req, res) => {
     const mcpServerUrl = getMcpServerUrl();
     const authServerUrl = getAuthServerUrl();
 
@@ -34,7 +34,7 @@ app.get('/.well-known/oauth-protected-resource', (req, res) => {
  * CORS preflight handler for OAuth metadata endpoints
  * Required for browser-based MCP clients
  */
-app.options('/.well-known/oauth-protected-resource', (req, res) => {
+app.options('/.well-known/oauth-protected-resource', (_req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -43,7 +43,4 @@ app.options('/.well-known/oauth-protected-resource', (req, res) => {
 });
 
 // Export as Firebase Function
-export const mcpProtectedResource = onRequest(
-    { cors: true },
-    app
-);
+export const mcpProtectedResource = onRequest({ cors: true }, app);

@@ -1,26 +1,26 @@
 import express from 'express';
-import { onRequest } from 'firebase-functions/v2/https';
 import { getAuth } from 'firebase-admin/auth';
-import { OAuth2Config, getAuthServerUrl, jwtSecret } from './config';
+import { onRequest } from 'firebase-functions/v2/https';
+import { getAuthServerUrl, jwtSecret, OAuth2Config } from './config';
 import {
+    consumeAuthorizationCode,
+    getClient,
+    isTokenRevoked,
+    revokeToken,
+    storeAuthorizationCode,
+    storeClient,
+} from './storage';
+import {
+    type AuthorizationCode as AuthCodeData,
     generateAccessToken,
-    generateRefreshToken,
-    verifyRefreshToken,
     generateAuthorizationCode,
     generateClientId,
-    verifyCodeChallenge,
+    generateRefreshToken,
     isValidRedirectUri,
     type RegisteredClient,
-    type AuthorizationCode as AuthCodeData,
+    verifyCodeChallenge,
+    verifyRefreshToken,
 } from './tokens';
-import {
-    storeClient,
-    getClient,
-    storeAuthorizationCode,
-    consumeAuthorizationCode,
-    revokeToken,
-    isTokenRevoked,
-} from './storage';
 
 const app = express();
 app.use(express.json());
@@ -34,7 +34,7 @@ app.use(express.urlencoded({ extended: true }));
  * OAuth 2.1 Authorization Server Metadata
  * https://datatracker.ietf.org/doc/html/rfc8414
  */
-app.get('/.well-known/oauth-authorization-server', (req, res) => {
+app.get('/.well-known/oauth-authorization-server', (_req, res) => {
     const baseUrl = getAuthServerUrl();
 
     res.json({
@@ -55,7 +55,7 @@ app.get('/.well-known/oauth-authorization-server', (req, res) => {
  * CORS preflight handler for OAuth authorization server metadata
  * Required for browser-based MCP clients
  */
-app.options('/.well-known/oauth-authorization-server', (req, res) => {
+app.options('/.well-known/oauth-authorization-server', (_req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -66,7 +66,7 @@ app.options('/.well-known/oauth-authorization-server', (req, res) => {
 /**
  * MCP-specific metadata endpoint
  */
-app.get('/.well-known/mcp-authorization-server', (req, res) => {
+app.get('/.well-known/mcp-authorization-server', (_req, res) => {
     const baseUrl = getAuthServerUrl();
 
     res.json({
@@ -84,7 +84,7 @@ app.get('/.well-known/mcp-authorization-server', (req, res) => {
  * OpenID Configuration endpoint (alias for oauth-authorization-server)
  * Some OAuth clients look for this endpoint
  */
-app.get('/.well-known/openid-configuration', (req, res) => {
+app.get('/.well-known/openid-configuration', (_req, res) => {
     const baseUrl = getAuthServerUrl();
 
     res.json({
@@ -104,7 +104,7 @@ app.get('/.well-known/openid-configuration', (req, res) => {
 /**
  * CORS preflight handler for OpenID configuration
  */
-app.options('/.well-known/openid-configuration', (req, res) => {
+app.options('/.well-known/openid-configuration', (_req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -182,7 +182,9 @@ app.get('/authorize', async (req, res) => {
 
     // Validate required parameters
     if (!client_id || !redirect_uri || !response_type) {
-        return res.status(400).send('Missing required parameters: client_id, redirect_uri, or response_type');
+        return res
+            .status(400)
+            .send('Missing required parameters: client_id, redirect_uri, or response_type');
     }
 
     if (response_type !== 'code') {
@@ -202,7 +204,9 @@ app.get('/authorize', async (req, res) => {
 
     // PKCE is required
     if (!code_challenge || !code_challenge_method) {
-        return res.status(400).send('PKCE is required: code_challenge and code_challenge_method must be provided');
+        return res
+            .status(400)
+            .send('PKCE is required: code_challenge and code_challenge_method must be provided');
     }
 
     if (code_challenge_method !== 'S256') {
@@ -268,7 +272,7 @@ app.post('/auth-callback', async (req, res) => {
             codeChallenge: code_challenge,
             codeChallengeMethod: code_challenge_method,
             scope: scope || 'mcp:access',
-            expiresAt: Date.now() + (OAuth2Config.AUTHORIZATION_CODE_EXPIRY * 1000),
+            expiresAt: Date.now() + OAuth2Config.AUTHORIZATION_CODE_EXPIRY * 1000,
         };
 
         await storeAuthorizationCode(authCode);
@@ -296,14 +300,8 @@ app.post('/auth-callback', async (req, res) => {
  */
 app.post('/token', async (req, res) => {
     try {
-        const {
-            grant_type,
-            code,
-            redirect_uri,
-            client_id,
-            code_verifier,
-            refresh_token,
-        } = req.body;
+        const { grant_type, code, redirect_uri, client_id, code_verifier, refresh_token } =
+            req.body;
 
         if (!grant_type) {
             return res.status(400).json({
@@ -346,7 +344,13 @@ app.post('/token', async (req, res) => {
 
             // Verify PKCE code verifier
             if (authCode.codeChallenge && authCode.codeChallengeMethod) {
-                if (!verifyCodeChallenge(code_verifier, authCode.codeChallenge, authCode.codeChallengeMethod)) {
+                if (
+                    !verifyCodeChallenge(
+                        code_verifier,
+                        authCode.codeChallenge,
+                        authCode.codeChallengeMethod
+                    )
+                ) {
                     return res.status(400).json({
                         error: 'invalid_grant',
                         error_description: 'Invalid code_verifier',
@@ -383,7 +387,7 @@ app.post('/token', async (req, res) => {
             const payload = await verifyRefreshToken(refresh_token, secret);
 
             // Check if token is revoked
-            if (payload.jti && await isTokenRevoked(payload.jti)) {
+            if (payload.jti && (await isTokenRevoked(payload.jti))) {
                 return res.status(400).json({
                     error: 'invalid_grant',
                     error_description: 'Token has been revoked',
@@ -448,7 +452,7 @@ app.post('/revoke', async (req, res) => {
             if (payload.jti && payload.exp) {
                 await revokeToken(payload.jti, payload.exp * 1000);
             }
-        } catch (error) {
+        } catch (_error) {
             // Token might be invalid or already expired, which is fine
             console.log('Token revocation attempted for invalid/expired token');
         }

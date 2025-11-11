@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+const { execSync } = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
 
 /**
  * Get the current git branch name
@@ -10,7 +10,7 @@ const path = require('path');
 function getCurrentBranch() {
     try {
         return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
-    } catch (error) {
+    } catch (_error) {
         console.warn('Warning: Could not determine git branch, defaulting to "main"');
         return 'main';
     }
@@ -22,7 +22,7 @@ function getCurrentBranch() {
 function getCommitHash() {
     try {
         return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
-    } catch (error) {
+    } catch (_error) {
         return 'unknown';
     }
 }
@@ -33,7 +33,7 @@ function getCommitHash() {
 function getCommitCount() {
     try {
         return parseInt(execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim(), 10);
-    } catch (error) {
+    } catch (_error) {
         return 0;
     }
 }
@@ -54,7 +54,7 @@ function getVersionCode(versionName) {
     const minor = parseInt(semverMatch[2], 10);
     const patch = parseInt(semverMatch[3], 10);
 
-    return (major * 10000) + (minor * 100) + patch;
+    return major * 10000 + minor * 100 + patch;
 }
 
 /**

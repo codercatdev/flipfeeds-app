@@ -1,0 +1,22 @@
+{
+    "users": [
+        {
+            "localId": "jbN3fWUAKZbPDbF5z2dKre08uGn2",
+            "email": "alex.patterson@gmail.com",
+            "emailVerified": true,
+            "displayName": "Alex Patterson",
+            "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJV4X7arUd14wfFYacX_9nK1xeOYnjUK-17GjwVC0mQAzfoEBojzg=s96-c",
+            "lastSignedInAt": "1762784738821",
+            "createdAt": "1762624504309",
+            "providerUserInfo": [
+                {
+                    "providerId": "google.com",
+                    "rawId": "112023182771506278465",
+                    "email": "alex.patterson@gmail.com",
+                    "displayName": "Alex Patterson",
+                    "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJV4X7arUd14wfFYacX_9nK1xeOYnjUK-17GjwVC0mQAzfoEBojzg=s96-c"
+                }
+            ]
+        }
+    ]
+}

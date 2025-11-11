@@ -1,0 +1,56 @@
+{
+    "name": "@flip-feeds/firebase-config",
+    "version": "1.0.0",
+    "description": "Firebase configuration and initialization for FlipFeeds",
+    "main": "./dist/index.js",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js"
+        },
+        "./native": {
+            "types": "./src/native.ts",
+            "default": "./src/native.ts"
+        }
+    },
+    "scripts": {
+        "build": "tsup src/index.ts --format cjs,esm",
+        "dev": "tsup src/index.ts --format cjs,esm --watch",
+        "typecheck": "tsc --noEmit",
+        "clean": "rm -rf dist node_modules"
+    },
+    "dependencies": {
+        "firebase": "^10.8.0"
+    },
+    "devDependencies": {
+        "tsup": "^8.0.0",
+        "typescript": "^5.3.3"
+    },
+    "peerDependencies": {
+        "@react-native-firebase/app": ">=20.0.0",
+        "@react-native-firebase/functions": ">=20.0.0",
+        "@react-native-firebase/firestore": ">=20.0.0",
+        "@react-native-firebase/database": ">=20.0.0",
+        "react-native": ">=0.70.0"
+    },
+    "peerDependenciesMeta": {
+        "@react-native-firebase/app": {
+            "optional": true
+        },
+        "@react-native-firebase/functions": {
+            "optional": true
+        },
+        "@react-native-firebase/firestore": {
+            "optional": true
+        },
+        "@react-native-firebase/database": {
+            "optional": true
+        },
+        "react-native": {
+            "optional": true
+        }
+    }
+}

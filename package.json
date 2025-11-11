@@ -9,12 +9,12 @@
         "functions"
     ],
     "scripts": {
-        "dev": "concurrently \"pnpm --filter web dev\" \"pnpm --filter mobile dev\"",
-        "dev:web": "pnpm --filter web dev",
-        "dev:mobile": "pnpm --filter mobile dev",
+        "dev": "concurrently \"pnpm --filter flipfeeds dev\" \"pnpm --filter flipfeeds-app dev\"",
+        "dev:web": "pnpm --filter flipfeeds dev",
+        "dev:mobile": "pnpm --filter flipfeeds-app dev",
         "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",
-        "build:web": "pnpm --filter web build",
-        "build:mobile": "pnpm --filter mobile build",
+        "build:web": "pnpm --filter flipfeeds build",
+        "build:mobile": "pnpm --filter flipfeeds-app build",
         "build:packages": "pnpm --filter \"./packages/*\" build",
         "lint": "biome lint .",
         "lint:fix": "biome lint --write .",

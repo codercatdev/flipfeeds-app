@@ -7,16 +7,14 @@
         "module": "esnext",
         "moduleResolution": "bundler",
         "incremental": true,
+        "baseUrl": ".",
         "plugins": [
             {
                 "name": "next"
             }
         ],
         "paths": {
-            "@/*": ["./*"],
-            "@flip-feeds/ui/components/*": ["../../packages/ui/src/components/*"],
-            "@flip-feeds/ui/lib/*": ["../../packages/ui/src/lib/*"],
-            "@flip-feeds/ui/hooks/*": ["../../packages/ui/src/hooks/*"]
+            "@/*": ["./*"]
         }
     },
     "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

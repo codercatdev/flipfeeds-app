@@ -1,0 +1,1640 @@
+# FlipFeeds: Comprehensive Implementation Plan
+
+
+**Status:** Phase 7 Implementation  **Created:** November 11, 2025  
+
+**Target Platforms:** ChatGPT, Claude Desktop, Gemini (future)  **Status:** Draft  
+
+**Based on:** [mcpui.dev](https://mcpui.dev/)**Version:** 1.0
+
+
+
+------
+
+
+
+## 🎯 Vision## 🎯 Executive Summary
+
+
+
+FlipFeeds should be **fully functional** inside AI chat applications. Users should be able to:This plan integrates the FlipFeeds philosophy (Circles, AI-first, intentional feeds) into your existing monorepo architecture with **mobile (React Native/Expo)** and **web (Next.js)** applications. We'll leverage your current Firebase Functions + Genkit setup and extend it to support the full FlipFeeds vision.
+
+- Browse their Circles
+
+- Create new Circles---
+
+- Generate and share Flip Links
+
+- View video feeds with AI summaries## 📐 Current Architecture Analysis
+
+- Search public Circles
+
+- Manage their profile### ✅ What We Have
+
+- **Monorepo Structure**: pnpm workspaces with apps/mobile, apps/web, packages/*, functions
+
+All through **natural language commands**, with **rich UI cards** for visual feedback.- **Backend**: Firebase Functions with Genkit flows (generateFlip, generatePoem, youtubeThumbnail)
+
+- **Auth**: Dual OAuth 2.1 + Firebase ID token authentication via MCP server
+
+---- **Mobile**: React Native + Expo with full Firebase SDK (@react-native-firebase/*)
+
+- **Web**: Next.js 16 with App Router, Radix UI, Tailwind
+
+## 🏗️ Architecture- **Shared Packages**: firebase-config, shared-logic, ui-components
+
+- **MCP Server**: Already implemented with OAuth auth and streaming support
+
+```- **AI-Native Ready**: MCP server can be consumed by ChatGPT, Claude, Gemini
+
+┌─────────────────────────────────────────────────┐
+
+│  ChatGPT / Claude Desktop / Gemini              │### 🔧 What Needs Adjustment
+
+│  ┌───────────────────────────────────────────┐  │- **Data Schema**: No Firestore collections for users, circles, posts yet
+
+│  │  User: "Show me my Circles"               │  │- **Flows**: Current flows are demos; need core business logic flows
+
+│  └───────────────────────────────────────────┘  │- **Tools**: Need user/circle/post management tools
+
+│                     │                            │- **Security Rules**: firestore.rules needs implementation
+
+│                     │ MCP Protocol               │- **Client SDKs**: Need shared logic for circle/post CRUD in packages/shared-logic
+
+│                     ▼                            │- **UI Components**: Need Circle and Post components in packages/ui-components
+
+│  ┌───────────────────────────────────────────┐  │- **MCP UI Package**: Need dedicated UI components for AI chat interfaces (ChatGPT, Claude, Gemini)
+
+│  │  AI Model (GPT-4, Claude 3.5, Gemini)    │  │- **MCP Tools Expansion**: Expose all FlipFeeds operations as MCP tools
+
+│  │  - Understands intent                     │  │
+
+│  │  - Selects MCP tool: "list_my_feeds"   │  │---
+
+│  └───────────────────────────────────────────┘  │
+
+│                     │                            │## 🏗️ Architecture Overview
+
+└─────────────────────┼────────────────────────────┘
+
+                      │ HTTPS + OAuth 2.1```
+
+                      ▼┌─────────────────────────────────────────────────────────────────────────────┐
+
+┌─────────────────────────────────────────────────┐│                         CLIENT PLATFORMS                                     │
+
+│  FlipFeeds MCP Server (Firebase Functions)      │├──────────────────┬─────────────────────┬──────────────────────────────────┤
+
+│  https://us-central1-PROJECT.cloudfunctions.net ││  Mobile          │  Web                │  AI Chat (NEW!)                   │
+
+│                  /mcpServer                      ││  (React Native)  │  (Next.js)          │  (ChatGPT/Claude/Gemini)          │
+
+│                                                  │├──────────────────┼─────────────────────┼──────────────────────────────────┤
+
+│  ┌────────────────────────────────────────────┐ ││ - Video Record   │ - Video Upload      │ - Text Commands                   │
+
+│  │  OAuth Middleware                          │ ││ - Push Notifs    │ - Desktop UI        │ - MCP Tool Calls                  │
+
+│  │  - Verify access token (JWT)              │ ││ - Deep Links     │ - Keyboard Nav      │ - Rich Card UIs (mcpui.dev)      │
+
+│  │  - Extract user UID                       │ ││ - Share Sheet    │ - Copy Links        │ - No Auth Required (OAuth flow)   │
+
+│  └────────────────────────────────────────────┘ ││ - Camera         │ - File System       │ - Natural Language Interface      │
+
+│                     │                            │└──────────────────┴─────────────────────┴──────────────────────────────────┘
+
+│  ┌────────────────────────────────────────────┐ │                              │
+
+│  │  MCP Tool Handler                          │ │                    ┌─────────▼──────────┐
+
+│  │  - Call Genkit Flow                       │ │                    │  Shared Packages   │
+
+│  │  - Format response as MCP UI card         │ │                    │  - firebase-config │
+
+│  └────────────────────────────────────────────┘ │                    │  - shared-logic    │
+
+│                     │                            │                    │  - ui-components   │
+
+└─────────────────────┼────────────────────────────┘                    │  - mcp-ui (NEW!)   │  ← AI-native UI components
+
+                      │                    └─────────┬──────────┘
+
+                      ▼                              │
+
+          ┌───────────────────────┐            ┌─────────────────▼──────────────────┐
+
+          │  Firestore Database   │            │     Firebase Services              │
+
+          │  - v1/users           │            ├────────────────────────────────────┤
+
+          │  - v1/circles         │            │  - Auth (Phone + Google)           │
+
+          │  - v1/posts           │            │  - Firestore (v1/users, circles...)│
+
+          └───────────────────────┘            │  - Storage (videos, thumbnails)    │
+
+```            │  - Functions (Genkit Flows)        │
+
+            │  - Remote Config (feature flags)   │
+
+---            │  - App Check (abuse prevention)    │
+
+            └────────────────────────────────────┘
+
+## 🛠️ MCP Tools Specification                              │
+
+            ┌─────────────────▼──────────────────┐
+
+### Circle Management            │   Genkit Backend (functions/)      │
+
+            ├────────────────────────────────────┤
+
+#### `list_my_feeds`            │  TOOLS (Data Access)               │
+
+**Description:** List all Circles the user belongs to              │  - getUserProfile                  │
+
+**Input:** None (uses authenticated user UID)              │  - getFeedData                   │
+
+**Output:**            │  - checkFeedMembership           │
+
+```json            │  - processVideo (AI)               │
+
+{            │                                    │
+
+  "circles": [            │  FLOWS (Business Logic)            │
+
+    {            │  - createFeedFlow                │
+
+      "id": "circle123",            │  - joinFeedFlow                  │
+
+      "name": "Family",            │  - createPostFlow                  │
+
+      "logoURL": "https://...",            │  - generateFlipLinkFlow            │
+
+      "memberCount": 12,            │                                    │
+
+      "postCount": 45,            │  MCP SERVER (Extensibility)        │
+
+      "role": "admin"            │  - Exposes ALL tools as MCP        │
+
+    }            │  - OAuth 2.1 + Firebase ID auth    │
+
+  ]            │  - Feed Apps platform            │
+
+}            │  - AI Chat integration             │
+
+```            └────────────────────────────────────┘
+
+**UI Card:** `FeedListCard` (grid of circles with thumbnails)                              │
+
+            ┌─────────────────▼──────────────────┐
+
+#### `create_feed`            │   External AI Services             │
+
+**Description:** Create a new Circle              ├────────────────────────────────────┤
+
+**Input:**            │  - Vertex AI / Gemini 2.0          │
+
+```json            │  - Video summarization             │
+
+{            │  - Content moderation              │
+
+  "name": "My New Circle",            │  - Title generation                │
+
+  "description": "A place for...",            └────────────────────────────────────┘
+
+  "visibility": "private",```
+
+  "tags": ["tag1", "tag2"]
+
+}---
+
+```
+
+**Output:**## 📱 Platform-Specific Considerations
+
+```json
+
+{### Mobile App (React Native/Expo)
+
+  "feedId": "circle456",**Core Features:**
+
+  "flipLink": "https://flip.to/abc123",1. **Video Recording**: Native camera with in-app recording
+
+  "qrCode": "data:image/png;base64,..."2. **Push Notifications**: FCM for flip notifications and circle updates
+
+}3. **Deep Linking**: Handle `flipfeeds://` URLs for Flip Links
+
+```4. **Offline Support**: Local caching with AsyncStorage
+
+**UI Card:** `FlipLinkCard` (shareable link + QR code)5. **Share Sheet**: Native sharing for Flip Links
+
+6. **Biometric Auth**: Face ID / Fingerprint for quick login
+
+#### `get_feed_details`
+
+**Description:** Get detailed info about a Circle  **Key Flows:**
+
+**Input:** `{ "feedId": "circle123" }`  - Onboarding: Phone verification → First Circle creation → Generate Flip Link
+
+**Output:**- Record & Post: Camera → AI title suggestion → Select Circle → Post
+
+```json- Receive Flip: Push notification → Deep link → Auto-join Circle → See content
+
+{
+
+  "id": "circle123",**UI Priorities:**
+
+  "name": "Family",- Vertical video feed (TikTok-style)
+
+  "description": "Our family Circle",- Bottom tab navigation (Feed, Circles, Profile)
+
+  "visibility": "private",- Camera button prominently placed
+
+  "ownerId": "user123",- Quick "Flip" button on each Circle
+
+  "memberCount": 12,
+
+  "postCount": 45,### Web App (Next.js)
+
+  "tags": ["family"],**Core Features:**
+
+  "createdAt": "2025-01-15T10:00:00Z"1. **Video Upload**: Drag-and-drop with progress indicators
+
+}2. **Desktop Optimized**: Multi-column layouts, keyboard shortcuts
+
+```3. **Discovery Mode**: Browse public Circles with rich search
+
+**UI Card:** `FeedDetailCard`4. **Analytics Dashboard**: For Circle owners (Pro tier)
+
+5. **Circle Management**: Advanced admin tools
+
+#### `join_feed`
+
+**Description:** Join a public Circle or redeem a Flip Link  **Key Flows:**
+
+**Input:** `{ "feedId": "circle789" }` OR `{ "flipLinkId": "link123" }`  - Onboarding: Google Sign-In → Browse public Circles → Create first Circle
+
+**Output:**- Upload & Post: Drag video → AI processing → Add metadata → Post
+
+```json- Circle Admin: Manage members, view analytics, configure Feed Apps
+
+{
+
+  "success": true,**UI Priorities:**
+
+  "message": "Joined 'Cooking Tips' Circle",- Sidebar navigation (Circles list, Discovery, Profile)
+
+  "feedId": "circle789"- Grid/List toggle for video feed
+
+}- Rich text editor for posts
+
+```- Flip Link generator with QR code
+
+
+
+---### AI Chat Interface (ChatGPT/Claude/Gemini) **NEW!**
+
+**Core Features:**
+
+### Post & Feed Management1. **Natural Language Commands**: "Create a Circle about cooking", "Post my video to my friends Circle"
+
+2. **MCP Tool Integration**: All FlipFeeds operations exposed as tools
+
+#### `list_feed_posts`3. **Rich UI Cards**: Leverage mcpui.dev for embedded UIs
+
+**Description:** Get recent posts from a specific Circle  4. **OAuth Flow**: Seamless authentication via MCP OAuth 2.1
+
+**Input:**5. **Context Awareness**: AI understands user's Circles and recent activity
+
+```json
+
+{**Key Flows:**
+
+  "feedId": "circle123",```
+
+  "limit": 10User: "Show me my Circles"
+
+}AI: [Calls listMyCircles tool]
+
+```    [Renders FeedListCard with thumbnails]
+
+**Output:**    "You have 3 Circles: Family (12 members), Work Team (8 members), Book Club (5 members)"
+
+```json
+
+{User: "Create a new Circle for my hiking group"
+
+  "posts": [AI: [Calls createFeed tool with name="Hiking Group"]
+
+    {    [Renders FlipLinkCard with QR code and share URL]
+
+      "id": "post123",    "I've created your Hiking Group Circle! Here's your Flip Link to invite members."
+
+      "feedId": "circle123",
+
+      "authorId": "user456",User: "What are the latest videos in my Family Circle?"
+
+      "authorName": "John Doe",AI: [Calls listCirclePosts tool with feedId]
+
+      "title": "My first video!",    [Renders VideoFeedCard with thumbnails and AI summaries]
+
+      "aiSummary": "This video shows how to use Genkit...",    "Here are the 5 most recent videos in Family..."
+
+      "thumbnailURL": "https://...",```
+
+      "videoURL": "https://...",
+
+      "createdAt": "2025-11-10T14:30:00Z",**UI Components (mcpui.dev):**
+
+      "stats": { "likeCount": 10, "commentCount": 3 }- **FeedListCard**: Grid of Circles with member counts
+
+    }- **VideoFeedCard**: Video thumbnails with AI summaries
+
+  ]- **FlipLinkCard**: Shareable link + QR code
+
+}- **PostComposerCard**: Upload video directly from chat
+
+```- **AnalyticsCard**: Circle stats for owners
+
+**UI Card:** `VideoFeedCard` (scrollable list with thumbnails and summaries)
+
+**Why This Matters:**
+
+#### `get_my_feed`- **Distribution**: Users already in ChatGPT/Claude > installing new app
+
+**Description:** Get aggregated feed from all user's Circles  - **Natural UX**: Talk to FlipFeeds instead of navigating menus
+
+**Input:** `{ "limit": 20 }`  - **Viral Loop**: "Share this Flip Link" button in AI chat → Direct share
+
+**Output:** Same as `list_feed_posts` but aggregated  - **Power Users**: Advanced commands like "Find public Circles about AI"
+
+**UI Card:** `VideoFeedCard`- **Future-Proof**: As AI chat becomes default interface, we're native there
+
+
+
+------
+
+
+
+### Flip Links### Platform Comparison Matrix
+
+
+
+#### `generate_flip_link`| Feature | Mobile | Web | AI Chat |
+
+**Description:** Generate a shareable Flip Link for inviting members  |---------|--------|-----|---------|
+
+**Input:**| **Video Capture** | ✅ Native Camera | ❌ Upload Only | ❌ Link Only |
+
+```json| **Video Upload** | ✅ From Gallery | ✅ Drag & Drop | ⚠️ Via Link/Future |
+
+{| **Authentication** | Phone + Biometric | Google/Email | OAuth 2.1 Auto |
+
+  "feedId": "circle123",| **Flip Link Sharing** | Native Share Sheet | Copy + QR Code | Direct Link in Chat |
+
+  "expiresInHours": 168,| **Circle Discovery** | Vertical Scroll | Grid View + Search | Natural Language Query |
+
+  "singleUse": false| **Notifications** | Push (FCM) | Browser + Email | In-Chat Mentions |
+
+}| **Offline Mode** | ✅ Full | ⚠️ Partial | ❌ None |
+
+```| **Admin Dashboard** | ❌ Basic | ✅ Advanced | ✅ Text + Cards |
+
+**Output:**| **Feed Apps Config** | ❌ Not Available | ✅ Full UI | ⚠️ Read-Only |
+
+```json| **Onboarding Time** | 2-3 minutes | 1-2 minutes | **10 seconds** |
+
+{| **Install Required** | ✅ Yes | ❌ No | ❌ No |
+
+  "linkId": "link789",| **Primary Use Case** | Content Creation | Management + Discovery | Quick Actions + Browse |
+
+  "shortUrl": "https://flip.to/xyz789",| **User Persona** | Creators, Active Users | Admins, Power Users | Casual Users, Lurkers |
+
+  "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+
+  "deepLink": "flipfeeds://circle/link789",**Strategic Insight:** 
+
+  "expiresAt": "2025-11-18T10:00:00Z"- **Mobile** = Creation engine (record and post)
+
+}- **Web** = Command center (manage and analyze)
+
+```- **AI Chat** = Gateway drug (discover and join)
+
+**UI Card:** `FlipLinkCard` with:
+
+- Clickable short URLThe AI chat interface solves the cold-start problem: Users can explore FlipFeeds, join Circles, and see content WITHOUT installing anything. Once engaged, they'll want the mobile app for video creation.
+
+- Embedded QR code image
+
+- Copy button---
+
+- Expiration countdown
+
+## 🗂️ Firestore Schema (Production-Ready)
+
+---
+
+### Collection Structure
+
+### Discovery```
+
+v1/
+
+#### `search_public_feeds`├── users/{userId}
+
+**Description:** Search for public Circles by name or tags  │   ├── circles/{feedId}  (reverse lookup)
+
+**Input:**│   └── notifications/{notificationId}
+
+```json├── circles/{feedId}
+
+{│   ├── members/{userId}
+
+  "query": "cooking",│   ├── invites/{inviteId}
+
+  "tags": ["food", "recipes"],│   └── apps/{appId}  (Feed Apps - Pro tier)
+
+  "limit": 20├── posts/{postId}
+
+}│   └── comments/{commentId}
+
+```├── flipLinks/{linkId}  (for tracking Flip Links)
+
+**Output:**└── moderation/{itemId}  (flagged content queue)
+
+```json```
+
+{
+
+  "circles": [### Key Indexes Required
+
+    {```javascript
+
+      "id": "circle999",// Firestore Indexes (firestore.indexes.json)
+
+      "name": "Cooking Tips",[
+
+      "description": "Learn to cook!",  {
+
+      "logoURL": "https://...",    "collectionGroup": "posts",
+
+      "memberCount": 342,    "queryScope": "COLLECTION",
+
+      "postCount": 1250,    "fields": [
+
+      "tags": ["food", "cooking", "recipes"],      { "fieldPath": "feedId", "order": "ASCENDING" },
+
+      "visibility": "public"      { "fieldPath": "createdAt", "order": "DESCENDING" }
+
+    }    ]
+
+  ]  },
+
+}  {
+
+```    "collectionGroup": "members",
+
+**UI Card:** `DiscoveryGridCard`    "queryScope": "COLLECTION_GROUP",
+
+    "fields": [
+
+---      { "fieldPath": "userId", "order": "ASCENDING" },
+
+      { "fieldPath": "joinedAt", "order": "DESCENDING" }
+
+### User Profile    ]
+
+  }
+
+#### `get_my_profile`]
+
+**Description:** Get the authenticated user's profile  ```
+
+**Input:** None  
+
+**Output:**---
+
+```json
+
+{## 🛠️ Implementation Phases
+
+  "uid": "user123",
+
+  "displayName": "John Doe",### Phase 1: Foundation (Week 1-2)
+
+  "username": "johndoe",**Goal:** Set up core data models and basic CRUD operations
+
+  "photoURL": "https://...",
+
+  "bio": "I love making videos!",#### 1.1 Backend - Genkit Tools
+
+  "circleCount": 5,📂 Location: `functions/src/tools/`
+
+  "createdAt": "2025-01-01T00:00:00Z"
+
+}Create:
+
+```- `userTools.ts` - getUserProfile, updateUserProfile, getUserCircles
+
+**UI Card:** `ProfileCard`- `feedTools.ts` - getFeedData, checkFeedMembership, listPublicCircles
+
+- `postTools.ts` - getPost, listCirclePosts, deletePost
+
+#### `update_my_profile`- `videoTools.ts` - processVideo (AI summarization + moderation)
+
+**Description:** Update user profile  
+
+**Input:**#### 1.2 Backend - Genkit Flows
+
+```json📂 Location: `functions/src/flows/`
+
+{
+
+  "displayName": "Jane Doe",Create:
+
+  "bio": "Updated bio",- `userFlows.ts` - createUserFlow (on signup)
+
+  "photoURL": "https://..."- `feedFlows.ts` - createFeedFlow, joinFeedFlow, leaveCircleFlow
+
+}- `postFlows.ts` - createPostFlow (with AI processing)
+
+```- `flipLinkFlows.ts` - generateFlipLinkFlow, redeemFlipLinkFlow
+
+**Output:**
+
+```json#### 1.3 Shared Logic Package
+
+{📂 Location: `packages/shared-logic/src/`
+
+  "success": true,
+
+  "message": "Profile updated"Create:
+
+}- `hooks/useAuth.ts` - Unified auth hook for both platforms
+
+```- `hooks/useCircles.ts` - Circle CRUD operations
+
+- `hooks/usePosts.ts` - Post CRUD operations
+
+---- `services/api.ts` - Genkit flow callers
+
+- `types/index.ts` - Shared TypeScript types
+
+## 🎨 MCP UI Card Components
+
+#### 1.4 Security Rules
+
+Based on **mcpui.dev** patterns, we'll create reusable card schemas.📂 Location: `firestore.rules`
+
+
+
+### FeedListCardImplement the rules from `firestore.md`:
+
+```typescript- User can only edit their own profile
+
+{- Circle member checks for post visibility
+
+  type: 'card',- Public vs private Circle logic
+
+  title: 'Your Circles',
+
+  content: {**Deliverable:** Users can sign up, create Circles, and basic posts work
+
+    type: 'grid',
+
+    columns: 2,---
+
+    items: [
+
+      {### Phase 2: AI-First Features (Week 3-4)
+
+        type: 'item',**Goal:** Implement the "magic" that differentiates FlipFeeds
+
+        image: 'https://...',
+
+        title: 'Family',#### 2.1 Video Processing Flow
+
+        subtitle: '12 members · 45 posts',📂 Location: `functions/src/flows/videoProcessing.ts`
+
+        badge: 'Admin',
+
+        actions: [```typescript
+
+          { type: 'button', label: 'View', action: 'list_feed_posts circle123' },// Enhanced version of genkit-3-setup.md
+
+          { type: 'button', label: 'Invite', action: 'generate_flip_link circle123' }export const processVideoFlow = ai.defineFlow({
+
+        ]  name: 'processVideoFlow',
+
+      }  inputSchema: z.object({
+
+    ]    gcsUri: z.string(),
+
+  }    feedId: z.string(),
+
+}    authorId: z.string(),
+
+```  }),
+
+  outputSchema: z.object({
+
+### FlipLinkCard    summary: z.string(),
+
+```typescript    suggestedTitle: z.string(),
+
+{    tags: z.array(z.string()),
+
+  type: 'card',    moderation: z.object({
+
+  title: 'Flip Link Created!',      isSafe: z.boolean(),
+
+  description: 'Share this link to invite people to your Circle',      flags: z.array(z.string()),
+
+  content: {    }),
+
+    type: 'stack',  }),
+
+    items: [}, async ({ gcsUri, feedId, authorId }) => {
+
+      {  // 1. Video summarization
+
+        type: 'image',  // 2. Title generation
+
+        src: 'data:image/png;base64,...',  // QR code  // 3. Auto-tagging
+
+        alt: 'QR Code',  // 4. Content moderation
+
+        width: 200,  // 5. Store in Firestore v1/posts/{postId}
+
+        height: 200});
+
+      },```
+
+      {
+
+        type: 'text',#### 2.2 AI Prompts Library
+
+        text: 'https://flip.to/xyz789',📂 Location: `functions/src/prompts/`
+
+        copyable: true,
+
+        style: 'monospace'Create:
+
+      },- `videoPrompts.ts` - summarizeVideo, moderateVideo, suggestTitle
+
+      {- `feedPrompts.ts` - suggestCircleName, generateWelcomeMessage
+
+        type: 'button',- `contentPrompts.ts` - generateFlipMessage (for the "Yo" experience)
+
+        label: 'Copy Link',
+
+        action: 'copy_to_clipboard https://flip.to/xyz789'#### 2.3 Client Integration
+
+      },Update `packages/shared-logic/src/hooks/usePosts.ts`:
+
+      {
+
+        type: 'text',```typescript
+
+        text: 'Expires: Nov 18, 2025',export function useCreatePost() {
+
+        style: 'caption'  const [aiSuggestions, setAiSuggestions] = useState(null);
+
+      }  
+
+    ]  const uploadVideo = async (videoUri: string, feedId: string) => {
+
+  }    // 1. Upload to Storage
+
+}    // 2. Call processVideoFlow
+
+```    // 3. Return AI suggestions to UI
+
+    // 4. User can edit or accept
+
+### VideoFeedCard  };
+
+```typescript}
+
+{```
+
+  type: 'card',
+
+  title: 'Recent Videos in Family',**Deliverable:** Video uploads get AI summaries, titles, and moderation
+
+  content: {
+
+    type: 'list',---
+
+    items: [
+
+      {### Phase 3: The Flip Link (Viral Loop) (Week 5)
+
+        type: 'item',**Goal:** Implement the core growth mechanic
+
+        image: 'https://.../thumbnail.jpg',
+
+        title: 'My first video!',#### 3.1 Flip Link Generation
+
+        subtitle: 'by John Doe · 2 hours ago',📂 Location: `functions/src/flows/flipLinkFlows.ts`
+
+        description: 'AI Summary: This video shows how to use Genkit...',
+
+        badge: '10 ❤️',```typescript
+
+        actions: [export const generateFlipLinkFlow = ai.defineFlow({
+
+          { type: 'button', label: 'Watch', action: 'open_url https://...' }  name: 'generateFlipLink',
+
+        ]  inputSchema: z.object({
+
+      }    feedId: z.string(),
+
+    ]    userId: z.string(),
+
+  }    expiresInHours: z.number().default(168), // 7 days
+
+}    singleUse: z.boolean().default(false),
+
+```  }),
+
+  outputSchema: z.object({
+
+---    linkId: z.string(),
+
+    shortUrl: z.string(),
+
+## 💬 Example Conversations    qrCode: z.string(), // Base64 QR code image
+
+    deepLink: z.string(), // flipfeeds://circle/{linkId}
+
+### Scenario 1: First-Time User  }),
+
+```}, async (input) => {
+
+User: What is FlipFeeds?  // 1. Create record in v1/flipLinks/{linkId}
+
+  // 2. Generate short URL (Firebase Dynamic Links or custom)
+
+AI: FlipFeeds is a video-first social network organized around "Circles" -   // 3. Generate QR code
+
+intentional content groups you join. Unlike algorithmic feeds, your feed is   // 4. Return data
+
+empty by default and only shows content from Circles you explicitly join.});
+
+```
+
+Would you like to:
+
+1. Browse public Circles#### 3.2 Deep Link Handling
+
+2. Create your own private Circle
+
+3. Learn more about how it works**Mobile** (`apps/mobile/app/_layout.tsx`):
+
+```typescript
+
+User: Create a private Circle for my book club// React Navigation linking config
+
+const linking = {
+
+AI: [Calls create_feed tool with name="Book Club", visibility="private"]  prefixes: ['flipfeeds://', 'https://flipfeeds.app'],
+
+    [Renders FlipLinkCard]  config: {
+
+    screens: {
+
+Great! I've created your "Book Club" Circle. Here's your Flip Link to invite       CircleInvite: 'circle/:linkId',
+
+members:    },
+
+  },
+
+https://flip.to/abc123};
+
+```
+
+[Shows QR code]
+
+**Web** (`apps/web/app/circle/[linkId]/page.tsx`):
+
+Anyone with this link can join your Circle. The link expires in 7 days. ```typescript
+
+Would you like to adjust the expiration or make it single-use?// Next.js dynamic route
+
+```export default async function FlipLinkPage({ params }: { params: { linkId: string } }) {
+
+  // 1. Verify link validity
+
+### Scenario 2: Power User  // 2. Check if user is authenticated
+
+```  // 3. Auto-join Circle
+
+User: Show me my Circles  // 4. Redirect to Circle feed
+
+}
+
+AI: [Calls list_my_feeds tool]```
+
+    [Renders FeedListCard with 5 circles]
+
+#### 3.3 Onboarding Flow
+
+You have 5 Circles:
+
+- Family (12 members, Admin)**Mobile-First Flow:**
+
+- Work Team (8 members, Member)1. User installs app
+
+- Book Club (5 members, Admin)2. Phone verification
+
+- Cooking Tips (342 members, Member)3. "Create Your First Circle" prompt
+
+- FlipFeeds Beta (1250 members, Member)4. **Big "Flip Your Friends" button**
+
+5. Generate Flip Link → Native share sheet
+
+Which one would you like to explore?6. Friend taps link → Deep link → Auto-install if needed → Join Circle
+
+
+
+User: What are the latest videos in Family?**Web-First Flow:**
+
+1. User signs in with Google
+
+AI: [Calls list_feed_posts tool with feedId="family123"]2. "Browse Public Circles" or "Create Private Circle"
+
+    [Renders VideoFeedCard]3. Generate Flip Link → Copy + QR code
+
+4. Friend visits link → Sign in → Join Circle
+
+Here are the 5 most recent videos in your Family Circle:
+
+**Deliverable:** Flip Links work end-to-end, growth loop is functional
+
+1. "Trip to the beach" by Mom (3 hours ago)
+
+   AI Summary: Beach vacation with sunset shots and kids playing...---
+
+   10 likes, 3 comments
+
+### Phase 4: Discovery & Social Features (Week 6-7)
+
+2. "Dad's new BBQ" by Dad (yesterday)**Goal:** Allow users to find public Circles and engage
+
+   AI Summary: Demonstration of new grill features...
+
+   5 likes, 1 comment#### 4.1 Discovery Flow
+
+📂 Location: `functions/src/flows/discoveryFlows.ts`
+
+[More videos...]
+
+```typescript
+
+Would you like to watch any of these?export const searchPublicCirclesFlow = ai.defineFlow({
+
+  name: 'searchPublicCircles',
+
+User: Generate a Flip Link for my Book Club  inputSchema: z.object({
+
+    query: z.string().optional(),
+
+AI: [Calls generate_flip_link tool]    tags: z.array(z.string()).optional(),
+
+    [Renders FlipLinkCard]    limit: z.number().default(20),
+
+  }),
+
+Here's your Flip Link for Book Club:  outputSchema: z.object({
+
+https://flip.to/xyz789    circles: z.array(CircleSchema),
+
+[QR code shown]  }),
+
+}, async ({ query, tags, limit }) => {
+
+This link will work for 7 days and can be used unlimited times.   // Firestore query with Algolia or native search
+
+Want to change that?});
+
+``````
+
+
+
+### Scenario 3: Discovery#### 4.2 UI Components
+
+```📂 Location: `packages/ui-components/src/`
+
+User: Find public Circles about AI and technology
+
+Create platform-agnostic components:
+
+AI: [Calls search_public_feeds with query="AI technology"]- `FeedCard` - Display circle preview
+
+    [Renders DiscoveryGridCard]- `PostCard` - Video post with AI summary
+
+- `FlipButton` - Generate Flip Link
+
+I found 15 public Circles about AI and technology:- `DiscoveryFeed` - Grid of public Circles
+
+
+
+1. AI Enthusiasts (2.3K members)#### 4.3 Engagement Features
+
+   "Discussing the latest in artificial intelligence"- Like/Comment on posts
+
+   Tags: AI, ML, tech- Circle member list
+
+- User profiles with bio
+
+2. Genkit Developers (450 members)- Follow users (optional, not required for MVP)
+
+   "Building AI-first apps with Firebase Genkit"
+
+   Tags: genkit, firebase, AI**Deliverable:** Users can discover and join public Circles
+
+
+
+3. Tech News Daily (5.1K members)---
+
+   "Daily curated tech news videos"
+
+   Tags: tech, news, innovation### Phase 5: Monetization & Feed Apps (Week 8-10)
+
+**Goal:** Enable Pro tier and extensible Feed Apps
+
+Would you like to join any of these? Just say "join [circle name]"
+
+#### 5.1 Subscription Flow
+
+User: Join Genkit DevelopersUse **Firebase Extensions** for Stripe integration:
+
+- Install `firestore-stripe-payments` extension
+
+AI: [Calls join_feed tool]- Create Pro tier ($10/mo)
+
+- Gate Feed Apps behind Pro tier
+
+Perfect! You've joined "Genkit Developers" Circle. You'll now see their 
+
+posts in your main feed. Want to see the latest posts from this Circle?#### 5.2 Feed Apps Platform
+
+```📂 Location: `functions/src/flows/circleAppsFlows.ts`
+
+
+
+---```typescript
+
+export const registerCircleAppFlow = ai.defineFlow({
+
+## 🔐 OAuth Flow  name: 'registerCircleApp',
+
+  inputSchema: z.object({
+
+### Initial Setup (One-Time)    feedId: z.string(),
+
+```    appName: z.string(),
+
+User: (First time using FlipFeeds in ChatGPT)    triggerCommand: z.string(), // e.g., "/summarize"
+
+    mcpEndpoint: z.string(),
+
+AI: To access FlipFeeds, I need to connect to your account.    apiKey: z.string(),
+
+  }),
+
+[Displays OAuth authorization URL]  outputSchema: z.object({
+
+    appId: z.string(),
+
+Please click this link to authorize:    success: z.boolean(),
+
+https://us-central1-PROJECT.cloudfunctions.net/mcpAuthServer/authorize?...  }),
+
+}, async (input) => {
+
+After authorizing, you'll be redirected back here and I'll have access to   // 1. Verify user is Circle owner
+
+your FlipFeeds account.  // 2. Verify Pro tier subscription
+
+  // 3. Store in v1/circles/{feedId}/apps/{appId}
+
+User: [Clicks link, completes OAuth flow]  // 4. Set up trigger webhook
+
+});
+
+AI: ✅ Connected! I can now access your FlipFeeds account.```
+
+
+
+What would you like to do?#### 5.3 Sandbox Execution
+
+- View your CirclesWhen a post triggers a Circle App:
+
+- Create a new Circle1. Call the registered MCP endpoint
+
+- Browse public Circles2. Pass only the post data (not full Circle access)
+
+- Generate a Flip Link3. Run response through AI moderation
+
+```4. Post result if safe
+
+
+
+### Subsequent Uses**Deliverable:** Pro users can add custom AI bots to their Circles
+
+```
+
+User: Show me my Circles---
+
+
+
+AI: [Uses stored access token automatically]### Phase 6: Abuse Prevention (Week 11)
+
+    [Calls list_my_feeds]**Goal:** Implement security measures from business_plan.md
+
+    
+
+[Works seamlessly without re-auth]#### 6.1 Phone Verification
+
+```**Mobile**: Use Firebase Auth Phone
+
+**Web**: Use Firebase Auth Phone (requires SMS provider)
+
+---
+
+#### 6.2 Content Moderation
+
+## 🚀 Implementation ChecklistAlready in Phase 2, but enhance:
+
+- Auto-flag content with high toxicity scores
+
+### Backend (MCP Server)- Create moderation queue for Circle admins
+
+- [x] OAuth 2.1 server already exists (`mcpAuthServer`)- Global ban system (blacklist phone numbers)
+
+- [x] Protected resource metadata endpoint exists
+
+- [ ] Expand `mcpServer.ts` with all 10+ tools#### 6.3 Rate Limiting
+
+- [ ] Create response formatters for MCP UI cardsUse Firebase App Check + Cloud Armor:
+
+- [ ] Add error handling for natural language errors- Limit Flip Link creation (10 per day for free tier)
+
+- [ ] Implement rate limiting per user- Limit post uploads (20 per day for free tier)
+
+- [ ] Add logging for MCP tool calls- Limit Circle App API calls (1000 per day)
+
+
+
+### MCP UI Package**Deliverable:** Platform is resilient to abuse
+
+- [ ] Create `packages/mcp-ui/` package
+
+- [ ] Define card schemas (FeedListCard, FlipLinkCard, etc.)---
+
+- [ ] Create render functions for each card type
+
+- [ ] Export TypeScript types for AI chat platforms### Phase 7: AI Chat Interface (Week 12-13) **NEW!**
+
+- [ ] Write tests for card rendering**Goal:** Make FlipFeeds fully accessible inside ChatGPT, Claude, and Gemini
+
+- [ ] Document card usage
+
+#### 7.1 MCP Tools Expansion
+
+### Testing📂 Location: `functions/src/mcpServer.ts`
+
+- [ ] Test in ChatGPT Desktop app
+
+- [ ] Test in Claude Desktop appExpose ALL FlipFeeds operations as MCP tools:
+
+- [ ] Test OAuth flow end-to-end
+
+- [ ] Verify UI cards render correctly```typescript
+
+- [ ] Test error scenarios (expired tokens, invalid Circle IDs)// Existing tools in mcpServer.ts
+
+- [ ] Load testing (many concurrent users)server.setRequestHandler(ListToolsRequestSchema, async () => {
+
+  return {
+
+### Documentation    tools: [
+
+- [ ] User guide: "How to use FlipFeeds in ChatGPT"      // Circle Management
+
+- [ ] Developer docs: MCP tool reference      {
+
+- [ ] Video tutorial: Setting up MCP server        name: 'list_my_feeds',
+
+- [ ] FAQ: Common issues and solutions        description: 'List all Circles the authenticated user belongs to',
+
+        inputSchema: { type: 'object', properties: {} },
+
+### Deployment      },
+
+- [ ] Deploy enhanced `mcpServer` function      {
+
+- [ ] Set up monitoring for MCP tool calls        name: 'create_feed',
+
+- [ ] Create marketing page showing AI chat features        description: 'Create a new Circle (public or private)',
+
+- [ ] Announce in FlipFeeds blog/social media        inputSchema: {
+
+          type: 'object',
+
+---          properties: {
+
+            name: { type: 'string', description: 'Circle name' },
+
+## 📈 Success Metrics            description: { type: 'string' },
+
+            visibility: { type: 'string', enum: ['public', 'private'] },
+
+**Week 1:**            tags: { type: 'array', items: { type: 'string' } },
+
+- 100 MCP tool calls          },
+
+- 10 OAuth completions          required: ['name', 'visibility'],
+
+        },
+
+**Month 1:**      },
+
+- 1,000 daily MCP tool calls      {
+
+- 100 active AI chat users        name: 'join_feed',
+
+- 60% OAuth completion rate        description: 'Join a public Circle or redeem a Flip Link',
+
+        inputSchema: {
+
+**Month 3:**          type: 'object',
+
+- 10,000 daily MCP tool calls          properties: {
+
+- 1,000 active AI chat users            feedId: { type: 'string' },
+
+- 30% of all Flip Links created via AI chat            flipLinkId: { type: 'string' },
+
+          },
+
+---        },
+
+      },
+
+## 🎯 Future Enhancements      {
+
+        name: 'get_feed_details',
+
+1. **Video Upload via AI Chat**: "Upload this video to my Circle" (with file attachment)        description: 'Get detailed information about a specific Circle',
+
+2. **AI Circle Suggestions**: "You might like these public Circles based on your interests"        inputSchema: {
+
+3. **Proactive Notifications**: AI messages user in ChatGPT when new posts arrive          type: 'object',
+
+4. **Voice Integration**: Use voice commands in ChatGPT to control FlipFeeds          properties: { feedId: { type: 'string' } },
+
+5. **Multi-Modal**: AI analyzes video thumbnails and suggests which to watch first          required: ['feedId'],
+
+6. **Feed Apps in AI Chat**: Configure Feed Apps via natural language        },
+
+      },
+
+---      // Post Management
+
+      {
+
+**Ready to build the future of AI-native social media!** 🚀        name: 'list_feed_posts',
+
+        description: 'Get recent posts from a Circle',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            feedId: { type: 'string' },
+            limit: { type: 'number', default: 10 },
+          },
+          required: ['feedId'],
+        },
+      },
+      {
+        name: 'get_my_feed',
+        description: 'Get aggregated feed from all user\'s Circles',
+        inputSchema: {
+          type: 'object',
+          properties: { limit: { type: 'number', default: 20 } },
+        },
+      },
+      // Flip Links
+      {
+        name: 'generate_flip_link',
+        description: 'Generate a shareable Flip Link for a Circle',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            feedId: { type: 'string' },
+            expiresInHours: { type: 'number', default: 168 },
+            singleUse: { type: 'boolean', default: false },
+          },
+          required: ['feedId'],
+        },
+      },
+      // Discovery
+      {
+        name: 'search_public_feeds',
+        description: 'Search for public Circles by name or tags',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string' },
+            tags: { type: 'array', items: { type: 'string' } },
+            limit: { type: 'number', default: 20 },
+          },
+        },
+      },
+      // User Profile
+      {
+        name: 'get_my_profile',
+        description: 'Get the authenticated user\'s profile',
+        inputSchema: { type: 'object', properties: {} },
+      },
+      {
+        name: 'update_my_profile',
+        description: 'Update user profile (displayName, bio, avatar)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            displayName: { type: 'string' },
+            bio: { type: 'string' },
+            photoURL: { type: 'string' },
+          },
+        },
+      },
+    ],
+  };
+});
+```
+
+#### 7.2 MCP UI Package
+📂 Location: `packages/mcp-ui/`
+
+Create a new package for AI chat UI components using **mcpui.dev** patterns:
+
+```bash
+pnpm create package mcp-ui
+```
+
+**Package Structure:**
+```
+packages/mcp-ui/
+├── package.json
+├── tsconfig.json
+└── src/
+    ├── index.ts
+    ├── components/
+    │   ├── FeedListCard.tsx
+    │   ├── VideoFeedCard.tsx
+    │   ├── FlipLinkCard.tsx
+    │   ├── PostComposerCard.tsx
+    │   └── AnalyticsCard.tsx
+    ├── schemas/
+    │   └── mcp-ui-schemas.ts  # Define MCP UI card schemas
+    └── utils/
+        └── format-for-ai.ts   # Format data for AI chat display
+```
+
+**Example Component (FeedListCard.tsx):**
+```typescript
+import { z } from 'zod';
+
+// MCP UI Schema for Circle List
+export const FeedListCardSchema = z.object({
+  type: z.literal('circle_list'),
+  circles: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    logoURL: z.string(),
+    memberCount: z.number(),
+    postCount: z.number(),
+    role: z.enum(['admin', 'moderator', 'member']),
+  })),
+});
+
+// Render function for AI chat
+export function renderFeedListCard(circles: Circle[]): MCPUICard {
+  return {
+    type: 'card',
+    title: 'Your Circles',
+    content: {
+      type: 'grid',
+      items: circles.map(circle => ({
+        type: 'item',
+        image: circle.logoURL,
+        title: circle.name,
+        subtitle: `${circle.memberCount} members · ${circle.postCount} posts`,
+        badge: circle.role === 'admin' ? 'Admin' : null,
+        actions: [
+          {
+            type: 'button',
+            label: 'View',
+            action: `list_feed_posts ${circle.id}`,
+          },
+          {
+            type: 'button',
+            label: 'Invite',
+            action: `generate_flip_link ${circle.id}`,
+          },
+        ],
+      })),
+    },
+  };
+}
+```
+
+#### 7.3 Update MCP Server to Return UI Cards
+📂 Location: `functions/src/mcpServer.ts`
+
+Modify tool responses to include mcpui.dev card data:
+
+```typescript
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+  
+  switch (name) {
+    case 'list_my_feeds': {
+      const circles = await listMyCirclesFlow({ uid });
+      
+      // Return both raw data AND UI card
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `You have ${circles.length} Circles.`,
+          },
+          {
+            type: 'resource',
+            resource: {
+              uri: 'flipfeeds://circles/list',
+              mimeType: 'application/vnd.flipfeeds.circle-list+json',
+              text: JSON.stringify(renderFeedListCard(circles)),
+            },
+          },
+        ],
+      };
+    }
+    
+    case 'generate_flip_link': {
+      const result = await generateFlipLinkFlow({
+        uid,
+        feedId: args.feedId,
+        expiresInHours: args.expiresInHours,
+        singleUse: args.singleUse,
+      });
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Flip Link created! Share this link: ${result.shortUrl}`,
+          },
+          {
+            type: 'resource',
+            resource: {
+              uri: `flipfeeds://fliplink/${result.linkId}`,
+              mimeType: 'application/vnd.flipfeeds.flip-link+json',
+              text: JSON.stringify({
+                type: 'flip_link_card',
+                linkId: result.linkId,
+                shortUrl: result.shortUrl,
+                qrCode: result.qrCode,  // Base64 image
+                deepLink: result.deepLink,
+                expiresAt: result.expiresAt,
+              }),
+            },
+          },
+        ],
+      };
+    }
+    
+    // ... more tools
+  }
+});
+```
+
+#### 7.4 Test AI Chat Integration
+
+**ChatGPT Integration:**
+1. Add MCP server to ChatGPT desktop app
+2. Test OAuth flow
+3. Test natural language commands
+4. Verify UI cards render correctly
+
+**Claude Desktop Integration:**
+1. Add to `claude_desktop_config.json`
+2. Test tool discovery
+3. Test rich UI rendering
+
+**Gemini Integration:**
+1. Wait for MCP support (coming soon)
+2. Prepare server for Gemini-specific features
+
+#### 7.5 Documentation
+📂 Location: `documents/AI_CHAT_GUIDE.md`
+
+Create user guide:
+- How to connect FlipFeeds to ChatGPT
+- Example commands
+- Available tools
+- Troubleshooting OAuth
+
+**Deliverable:** Full FlipFeeds experience in AI chat apps
+
+---
+
+## 🔧 Technical Implementation Details
+
+### File Structure
+```
+flipfeeds-app/
+├── apps/
+│   ├── mobile/
+│   │   ├── app/
+│   │   │   ├── (auth)/
+│   │   │   │   ├── sign-in.tsx
+│   │   │   │   └── phone-verify.tsx
+│   │   │   ├── (tabs)/
+│   │   │   │   ├── feed.tsx
+│   │   │   │   ├── circles.tsx
+│   │   │   │   ├── discovery.tsx
+│   │   │   │   └── profile.tsx
+│   │   │   ├── circle/
+│   │   │   │   └── [linkId].tsx  (Deep link handler)
+│   │   │   ├── _layout.tsx
+│   │   │   └── modal.tsx
+│   │   └── components/
+│   │       ├── VideoRecorder.tsx
+│   │       ├── FlipButton.tsx
+│   │       └── FeedView.tsx
+│   └── web/
+│       ├── app/
+│       │   ├── (auth)/
+│       │   │   └── sign-in/
+│       │   ├── dashboard/
+│       │   │   ├── feed/
+│       │   │   ├── circles/
+│       │   │   ├── discovery/
+│       │   │   └── profile/
+│       │   ├── circle/
+│       │   │   └── [linkId]/
+│       │   ├── layout.tsx
+│       │   └── page.tsx
+│       └── components/
+│           ├── VideoUploader.tsx
+│           ├── FlipLinkGenerator.tsx
+│           └── FeedGrid.tsx
+├── functions/
+│   └── src/
+│       ├── tools/
+│       │   ├── userTools.ts
+│       │   ├── feedTools.ts
+│       │   ├── postTools.ts
+│       │   └── videoTools.ts
+│       ├── flows/
+│       │   ├── userFlows.ts
+│       │   ├── feedFlows.ts
+│       │   ├── postFlows.ts
+│       │   ├── flipLinkFlows.ts
+│       │   ├── videoProcessing.ts
+│       │   └── discoveryFlows.ts
+│       ├── prompts/
+│       │   ├── videoPrompts.ts
+│       │   ├── feedPrompts.ts
+│       │   └── contentPrompts.ts
+│       ├── index.ts
+│       ├── genkit.ts
+│       └── mcpServer.ts  (Already exists - enhance for AI chat)
+└── packages/
+    ├── shared-logic/
+    │   └── src/
+    │       ├── hooks/
+    │       │   ├── useAuth.ts
+    │       │   ├── useCircles.ts
+    │       │   ├── usePosts.ts
+    │       │   └── useFlipLinks.ts
+    │       ├── services/
+    │       │   ├── api.ts
+    │       │   └── storage.ts
+    │       └── types/
+    │           ├── User.ts
+    │           ├── Circle.ts
+    │           ├── Post.ts
+    │           └── FlipLink.ts
+    ├── ui-components/
+    │   └── src/
+    │       ├── FeedCard.tsx
+    │       ├── PostCard.tsx
+    │       ├── FlipButton.tsx
+    │       └── DiscoveryFeed.tsx
+    └── mcp-ui/  ← NEW! AI Chat UI Package
+        ├── package.json
+        ├── tsconfig.json
+        └── src/
+            ├── index.ts
+            ├── components/
+            │   ├── FeedListCard.tsx
+            │   ├── VideoFeedCard.tsx
+            │   ├── FlipLinkCard.tsx
+            │   ├── PostComposerCard.tsx
+            │   └── AnalyticsCard.tsx
+            ├── schemas/
+            │   └── mcp-ui-schemas.ts
+            └── utils/
+                └── format-for-ai.ts
+```
+
+---
+
+## 🚀 Development Workflow
+
+### Local Development
+```bash
+# Terminal 1: Start Firebase Emulators
+pnpm emulators
+
+# Terminal 2: Watch Genkit Functions
+cd functions && pnpm build:watch
+
+# Terminal 3: Mobile Dev
+pnpm dev:mobile
+
+# Terminal 4: Web Dev
+pnpm dev:web
+```
+
+### Testing Strategy
+1. **Unit Tests**: Tools and utilities
+2. **Integration Tests**: Flows with emulator
+3. **E2E Tests**: Flip Link flow (mobile → web)
+4. **Security Rules Tests**: firestore-rules-unit-testing
+
+### Deployment
+```bash
+# Deploy functions only
+pnpm deploy:functions
+
+# Deploy everything
+pnpm deploy:all
+```
+
+---
+
+## 📊 Success Metrics
+
+### Phase 1-2 (MVP)
+- Users can create Circles ✅
+- Users can post videos ✅
+- AI summaries work ✅
+
+### Phase 3 (Growth)
+- Flip Link redemption rate > 40%
+- Average Circles per user > 2
+- Daily active users growing
+
+### Phase 4-5 (Monetization)
+- Pro tier conversion > 5%
+- Feed Apps usage > 20% of Pro users
+- Revenue > $1000/month
+
+### Phase 6 (Security)
+- Content moderation accuracy > 95%
+- Abuse reports < 1% of posts
+- Zero CSAM incidents
+
+### Phase 7 (AI Chat) **NEW!**
+- **MCP Tool Calls**: > 1000 tool invocations per day
+- **AI Chat User Retention**: > 60% weekly retention
+- **Cross-Platform Users**: > 30% use both mobile/web AND AI chat
+- **Flip Link Generation via AI**: > 20% of all Flip Links created via ChatGPT/Claude
+- **Natural Language Success Rate**: > 85% of commands understood correctly
+- **OAuth Completion Rate**: > 70% of users complete OAuth flow
+
+**Key Insight**: AI chat users may have HIGHER engagement than app users because:
+- Lower friction (no app install required)
+- Natural language is easier than UI navigation
+- AI can proactively suggest actions ("Want to share this with your Circle?")
+- Users already in ChatGPT/Claude daily
+
+---
+
+## 🎯 Next Steps
+
+1. **Review this plan** - Confirm alignment with vision
+2. **Set up dev environment** - Ensure emulators work
+3. **Start Phase 1** - Create first tool (userTools.ts)
+4. **Iterate** - Build one flow at a time, test, deploy
+
+---
+
+**Ready to start building?** Let's begin with Phase 1.1 - creating the user tools! 🚀

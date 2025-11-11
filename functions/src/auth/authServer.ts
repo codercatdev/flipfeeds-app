@@ -518,15 +518,16 @@ function getLoginPageHtml(params: Record<string, string>): string {
   </div>
   
   <script>
-    // Firebase configuration - replace with your actual config
-    const firebaseConfig = {
-      apiKey: "AIzaSyBcW8vZqT8K4YqN6XZ0T0BN7xZ8P_7cQ4Y",
-      authDomain: "flipfeeds-app.firebaseapp.com",
-      projectId: "flipfeeds-app",
-      storageBucket: "flipfeeds-app.firebasestorage.app",
-      messagingSenderId: "361402949529",
-      appId: "1:361402949529:web:c9b71a6e8e7f8b9e7c8e9f"
-    };
+    // Firebase configuration for web
+const firebaseConfig = {
+  apiKey: "AIzaSyD1573e-6QA1z7pzcCVZS8FJjYb3Kywcy0",
+  authDomain: "flipfeeds-app.firebaseapp.com",
+  databaseURL: "https://flipfeeds-app-default-rtdb.firebaseio.com",
+  projectId: "flipfeeds-app",
+  storageBucket: "flipfeeds-app.firebasestorage.app",
+  messagingSenderId: "361402949529",
+  appId: "1:361402949529:web:25b7fc17fde9148cef3d08"
+};
     
     firebase.initializeApp(firebaseConfig);
     

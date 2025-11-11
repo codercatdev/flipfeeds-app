@@ -10,8 +10,8 @@ echo "🌐 Using Firebase Hosting URL (with rewrites)"
 echo "   The .well-known endpoints are now at the ROOT level"
 echo ""
 
-# Use the hosting emulator port (5002) instead of functions port (5001)
-BASE_URL="http://127.0.0.1:5002"
+# Use the hosting emulator port (5002) with localhost (not 127.0.0.1)
+BASE_URL="http://localhost:5002"
 
 echo "1️⃣  Testing Protected Resource Metadata (at root)"
 echo "URL: ${BASE_URL}/.well-known/oauth-protected-resource"

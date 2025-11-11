@@ -41,8 +41,8 @@ export const OAuth2Config = {
  */
 export function getHostingBaseUrl(): string {
     if (process.env.FUNCTIONS_EMULATOR === 'true') {
-        // Local emulator - use hosting emulator URL
-        return 'http://127.0.0.1:5002';
+        // Local emulator - use localhost (not 127.0.0.1) for OAuth compatibility
+        return 'http://localhost:5002';
     }
     // Production - use your Firebase Hosting domain
     const projectId = process.env.GCLOUD_PROJECT || 'flipfeeds-app';

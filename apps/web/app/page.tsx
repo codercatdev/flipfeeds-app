@@ -1,4 +1,4 @@
-import { Button } from '@flip-feeds/ui/components/button';
+import { Button } from '@components/ui/components/button';
 
 export default function Home() {
     return (

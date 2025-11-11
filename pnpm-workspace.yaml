@@ -10,3 +10,4 @@ packages:
 
   # Firebase Cloud Functions
   - "functions"
+

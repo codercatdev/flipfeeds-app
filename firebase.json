@@ -1,40 +1,95 @@
 {
-    "hosting": {
-        "site": "flipfeeds-web",
-        "public": "apps/web/out",
-        "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-        "rewrites": [
-            {
-                "source": "**",
-                "destination": "/index.html"
-            }
-        ],
-        "headers": [
-            {
-                "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|js|css)",
-                "headers": [
-                    {
-                        "key": "Cache-Control",
-                        "value": "max-age=31536000"
-                    }
-                ]
-            }
-        ]
-    },
     "functions": [
         {
             "source": "functions",
             "codebase": "default",
-            "ignore": [
-                "node_modules",
-                ".git",
-                "firebase-debug.log",
-                "firebase-debug.*.log",
-                "*.local"
-            ],
-            "predeploy": ["pnpm --filter functions build"]
+            "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log"],
+            "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
         }
     ],
+    "hosting": {
+        "public": "public",
+        "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+        "rewrites": [
+            {
+                "source": "/.well-known/oauth-protected-resource",
+                "function": {
+                    "functionId": "mcpServer",
+                    "region": "us-central1"
+                }
+            },
+            {
+                "source": "/.well-known/oauth-authorization-server",
+                "function": {
+                    "functionId": "mcpAuthServer",
+                    "region": "us-central1"
+                }
+            },
+            {
+                "source": "/.well-known/openid-configuration",
+                "function": {
+                    "functionId": "mcpAuthServer",
+                    "region": "us-central1"
+                }
+            },
+            {
+                "source": "/register",
+                "function": {
+                    "functionId": "mcpAuthServer",
+                    "region": "us-central1"
+                }
+            },
+            {
+                "source": "/authorize",
+                "function": {
+                    "functionId": "mcpAuthServer",
+                    "region": "us-central1"
+                }
+            },
+            {
+                "source": "/login",
+                "function": {
+                    "functionId": "mcpAuthServer",
+                    "region": "us-central1"
+                }
+            },
+            {
+                "source": "/auth-callback",
+                "function": {
+                    "functionId": "mcpAuthServer",
+                    "region": "us-central1"
+                }
+            },
+            {
+                "source": "/token",
+                "function": {
+                    "functionId": "mcpAuthServer",
+                    "region": "us-central1"
+                }
+            },
+            {
+                "source": "/revoke",
+                "function": {
+                    "functionId": "mcpAuthServer",
+                    "region": "us-central1"
+                }
+            },
+            {
+                "source": "/mcp",
+                "function": {
+                    "functionId": "mcpServer",
+                    "region": "us-central1"
+                }
+            },
+            {
+                "source": "/mcp/**",
+                "function": {
+                    "functionId": "mcpServer",
+                    "region": "us-central1"
+                }
+            }
+        ]
+    },
     "firestore": {
         "rules": "firestore.rules",
         "indexes": "firestore.indexes.json"
@@ -42,21 +97,21 @@
     "storage": {
         "rules": "storage.rules"
     },
+    "database": {
+        "rules": "database.rules.json"
+    },
     "emulators": {
-        "auth": {
-            "port": 9099
-        },
         "functions": {
             "port": 5001
         },
         "firestore": {
             "port": 8080
         },
-        "storage": {
-            "port": 9199
+        "database": {
+            "port": 9000
         },
         "hosting": {
-            "port": 5000
+            "port": 5002
         },
         "ui": {
             "enabled": true,

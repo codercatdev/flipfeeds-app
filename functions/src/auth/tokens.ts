@@ -4,13 +4,38 @@ import { v4 as uuidv4 } from 'uuid';
 import { OAuth2Config } from './config';
 
 /**
- * Interface for access token payload
+ * Interface for access token payload - matches Firebase UserRecord structure
  */
 export interface AccessTokenPayload extends JWTPayload {
     uid: string;
     email?: string;
+    displayName?: string;
+    photoURL?: string;
+    emailVerified?: boolean;
+    phoneNumber?: string;
+    disabled?: boolean;
     scope: string;
     token_type: 'access_token';
+    firebase?: {
+        sign_in_provider?: string;
+        sign_in_second_factor?: string;
+        identities?: Record<string, unknown>;
+        tenant?: string;
+    };
+    metadata?: {
+        creationTime?: string;
+        lastSignInTime?: string;
+        lastRefreshTime?: string;
+    };
+    providerData?: Array<{
+        uid: string;
+        displayName?: string;
+        email?: string;
+        photoURL?: string;
+        providerId: string;
+        phoneNumber?: string;
+    }>;
+    customClaims?: Record<string, unknown>;
 }
 
 /**
@@ -23,12 +48,37 @@ export interface RefreshTokenPayload extends JWTPayload {
 }
 
 /**
- * Interface for authorization code data
+ * Interface for authorization code data - stores Firebase UserRecord data
  */
 export interface AuthorizationCode {
     code: string;
     uid: string;
     email?: string;
+    displayName?: string;
+    photoURL?: string;
+    emailVerified?: boolean;
+    phoneNumber?: string;
+    disabled?: boolean;
+    firebase?: {
+        sign_in_provider?: string;
+        sign_in_second_factor?: string;
+        identities?: Record<string, unknown>;
+        tenant?: string;
+    };
+    metadata?: {
+        creationTime?: string;
+        lastSignInTime?: string;
+        lastRefreshTime?: string;
+    };
+    providerData?: Array<{
+        uid: string;
+        displayName?: string;
+        email?: string;
+        photoURL?: string;
+        providerId: string;
+        phoneNumber?: string;
+    }>;
+    customClaims?: Record<string, unknown>;
     clientId: string;
     redirectUri: string;
     codeChallenge?: string;
@@ -58,22 +108,52 @@ export function getJwtSecret(secret: string): Uint8Array {
 }
 
 /**
- * Generate an access token JWT
+ * Generate an access token JWT with full UserRecord data
  */
 export async function generateAccessToken(
     uid: string,
     email: string | undefined,
     scope: string,
-    secret: string
+    secret: string,
+    profile?: {
+        displayName?: string;
+        photoURL?: string;
+        emailVerified?: boolean;
+        phoneNumber?: string;
+        disabled?: boolean;
+        firebase?: {
+            sign_in_provider?: string;
+            sign_in_second_factor?: string;
+            identities?: Record<string, unknown>;
+            tenant?: string;
+        };
+        metadata?: {
+            creationTime?: string;
+            lastSignInTime?: string;
+            lastRefreshTime?: string;
+        };
+        providerData?: Array<{
+            uid: string;
+            displayName?: string;
+            email?: string;
+            photoURL?: string;
+            providerId: string;
+            phoneNumber?: string;
+        }>;
+        customClaims?: Record<string, unknown>;
+    }
 ): Promise<string> {
     const key = getJwtSecret(secret);
 
-    const token = await new SignJWT({
+    const payload: AccessTokenPayload = {
         uid,
         email,
         scope,
         token_type: 'access_token',
-    } as AccessTokenPayload)
+        ...profile,
+    };
+
+    const token = await new SignJWT(payload)
         .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
         .setIssuedAt()
         .setIssuer(OAuth2Config.ISSUER)

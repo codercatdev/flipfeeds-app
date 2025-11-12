@@ -260,13 +260,40 @@ app.post('/auth-callback', async (req, res) => {
         // Verify the Firebase ID token
         const decodedToken = await getAuth().verifyIdToken(firebase_id_token);
 
+        // Fetch full user record to get complete profile data
+        const userRecord = await getAuth().getUser(decodedToken.uid);
+
+        // Extract Firebase-specific data from token
+        const firebase = {
+            sign_in_provider: decodedToken.firebase?.sign_in_provider,
+            sign_in_second_factor: decodedToken.firebase?.sign_in_second_factor,
+            identities: decodedToken.firebase?.identities,
+            tenant: decodedToken.firebase?.tenant,
+        };
+
+        // Extract metadata
+        const metadata = {
+            creationTime: userRecord.metadata.creationTime,
+            lastSignInTime: userRecord.metadata.lastSignInTime,
+            lastRefreshTime: userRecord.metadata.lastRefreshTime ?? undefined,
+        };
+
         // Generate authorization code
         const code = generateAuthorizationCode();
 
         const authCode: AuthCodeData = {
             code,
-            uid: decodedToken.uid,
-            email: decodedToken.email,
+            uid: userRecord.uid,
+            email: userRecord.email,
+            displayName: userRecord.displayName,
+            photoURL: userRecord.photoURL,
+            emailVerified: userRecord.emailVerified,
+            phoneNumber: userRecord.phoneNumber,
+            disabled: userRecord.disabled,
+            firebase,
+            metadata,
+            providerData: userRecord.providerData,
+            customClaims: userRecord.customClaims,
             clientId: client_id,
             redirectUri: redirect_uri,
             codeChallenge: code_challenge,
@@ -358,12 +385,23 @@ app.post('/token', async (req, res) => {
                 }
             }
 
-            // Generate tokens
+            // Generate tokens with profile data
             const accessToken = await generateAccessToken(
                 authCode.uid,
                 authCode.email,
                 authCode.scope,
-                secret
+                secret,
+                {
+                    displayName: authCode.displayName,
+                    photoURL: authCode.photoURL,
+                    emailVerified: authCode.emailVerified,
+                    phoneNumber: authCode.phoneNumber,
+                    disabled: authCode.disabled,
+                    firebase: authCode.firebase,
+                    metadata: authCode.metadata,
+                    providerData: authCode.providerData,
+                    customClaims: authCode.customClaims,
+                }
             );
 
             const refreshToken = await generateRefreshToken(authCode.uid, secret);
@@ -394,12 +432,68 @@ app.post('/token', async (req, res) => {
                 });
             }
 
-            // Generate new access token
+            // Fetch current user data from Firebase to get latest profile info
+            let userProfile:
+                | {
+                      displayName?: string;
+                      photoURL?: string;
+                      emailVerified?: boolean;
+                      phoneNumber?: string;
+                      disabled?: boolean;
+                      firebase?: {
+                          sign_in_provider?: string;
+                          sign_in_second_factor?: string;
+                          identities?: Record<string, unknown>;
+                          tenant?: string;
+                      };
+                      metadata?: {
+                          creationTime?: string;
+                          lastSignInTime?: string;
+                          lastRefreshTime?: string;
+                      };
+                      providerData?: Array<{
+                          uid: string;
+                          displayName?: string;
+                          email?: string;
+                          photoURL?: string;
+                          providerId: string;
+                          phoneNumber?: string;
+                      }>;
+                      customClaims?: Record<string, unknown>;
+                  }
+                | undefined;
+            try {
+                const userRecord = await getAuth().getUser(payload.uid);
+                userProfile = {
+                    displayName: userRecord.displayName,
+                    photoURL: userRecord.photoURL,
+                    emailVerified: userRecord.emailVerified,
+                    phoneNumber: userRecord.phoneNumber,
+                    disabled: userRecord.disabled,
+                    firebase: {
+                        sign_in_provider: userRecord.providerData[0]?.providerId,
+                    },
+                    metadata: {
+                        creationTime: userRecord.metadata.creationTime,
+                        lastSignInTime: userRecord.metadata.lastSignInTime,
+                        lastRefreshTime: userRecord.metadata.lastRefreshTime ?? undefined,
+                    },
+                    providerData: userRecord.providerData,
+                    customClaims: userRecord.customClaims,
+                };
+            } catch (error) {
+                console.error('Error fetching user profile:', error);
+                // Continue without profile data if user fetch fails
+                userProfile = undefined;
+            }
+
+            // Generate new access token with fresh profile data
             const accessToken = await generateAccessToken(
                 payload.uid,
                 undefined,
                 'mcp:access',
-                secret
+                secret,
+                userProfile
             );
 
             return res.json({

@@ -28,11 +28,44 @@ export async function getClient(clientId: string): Promise<RegisteredClient | nu
 }
 
 /**
+ * Remove undefined values from an object recursively
+ */
+function removeUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+    const result: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+        if (value === undefined) {
+            continue;
+        }
+
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            const cleaned = removeUndefined(value as Record<string, unknown>);
+            if (Object.keys(cleaned).length > 0) {
+                result[key] = cleaned;
+            }
+        } else if (Array.isArray(value)) {
+            const cleaned = value.map((item) =>
+                item && typeof item === 'object'
+                    ? removeUndefined(item as Record<string, unknown>)
+                    : item
+            );
+            result[key] = cleaned;
+        } else {
+            result[key] = value;
+        }
+    }
+
+    return result as Partial<T>;
+}
+
+/**
  * Store an authorization code
  */
 export async function storeAuthorizationCode(authCode: AuthorizationCode): Promise<void> {
     const db = getFirestore();
-    await db.collection(AUTH_CODES_COLLECTION).doc(authCode.code).set(authCode);
+    // Remove undefined values to comply with Firestore requirements
+    const cleanedAuthCode = removeUndefined(authCode as unknown as Record<string, unknown>);
+    await db.collection(AUTH_CODES_COLLECTION).doc(authCode.code).set(cleanedAuthCode);
 }
 
 /**

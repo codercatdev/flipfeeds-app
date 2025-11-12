@@ -1,9 +1,13 @@
 import * as admin from 'firebase-admin';
 import { z } from 'zod';
+import { ai } from '../genkit';
 
 const db = admin.firestore();
 
-// Schemas
+// ============================================================================
+// SCHEMAS
+// ============================================================================
+
 export const UserProfileSchema = z.object({
     uid: z.string(),
     displayName: z.string().optional(),
@@ -19,121 +23,205 @@ export const UserProfileSchema = z.object({
 
 export type UserProfile = z.infer<typeof UserProfileSchema>;
 
+// ============================================================================
+// GENKIT TOOLS
+// ============================================================================
+
 /**
  * Get user profile from Firestore
  */
-export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-    const userDoc = await db.collection('users').doc(uid).get();
+export const getUserProfileTool = ai.defineTool(
+    {
+        name: 'getUserProfile',
+        description: 'Retrieves a user profile from Firestore by user ID',
+        inputSchema: z.object({
+            uid: z.string().describe('The Firebase Auth user ID'),
+        }),
+        outputSchema: UserProfileSchema.nullable(),
+    },
+    async (input) => {
+        const userDoc = await db.collection('users').doc(input.uid).get();
 
-    if (!userDoc.exists) {
-        return null;
+        if (!userDoc.exists) {
+            return null;
+        }
+
+        const data = userDoc.data();
+        return {
+            uid: input.uid,
+            displayName: data?.displayName,
+            username: data?.username,
+            photoURL: data?.photoURL,
+            bio: data?.bio,
+            phoneNumber: data?.phoneNumber,
+            email: data?.email,
+            feedCount: data?.feedCount || 0,
+            createdAt: data?.createdAt?.toDate() || new Date(),
+            updatedAt: data?.updatedAt?.toDate() || new Date(),
+        };
     }
-
-    const data = userDoc.data();
-    return {
-        uid,
-        displayName: data?.displayName,
-        username: data?.username,
-        photoURL: data?.photoURL,
-        bio: data?.bio,
-        phoneNumber: data?.phoneNumber,
-        email: data?.email,
-        feedCount: data?.feedCount || 0,
-        createdAt: data?.createdAt?.toDate() || new Date(),
-        updatedAt: data?.updatedAt?.toDate() || new Date(),
-    };
-}
+);
 
 /**
  * Get all Feeds a user belongs to (reverse lookup)
  */
-export async function getUserFeeds(
-    uid: string
-): Promise<Array<{ feedId: string; role: string; joinedAt: Date }>> {
-    const feedsSnapshot = await db.collection(`users/${uid}/feeds`).get();
+export const getUserFeedsTool = ai.defineTool(
+    {
+        name: 'getUserFeeds',
+        description: 'Get all feeds that a user is a member of',
+        inputSchema: z.object({
+            uid: z.string().describe('The Firebase Auth user ID'),
+        }),
+        outputSchema: z.array(
+            z.object({
+                feedId: z.string(),
+                role: z.string(),
+                joinedAt: z.date(),
+            })
+        ),
+    },
+    async (input) => {
+        const feedsSnapshot = await db.collection(`users/${input.uid}/feeds`).get();
 
-    return feedsSnapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-            feedId: doc.id,
-            role: data.role || 'member',
-            joinedAt: data.joinedAt?.toDate() || new Date(),
-        };
-    });
-}
+        return feedsSnapshot.docs.map((doc) => {
+            const data = doc.data();
+            return {
+                feedId: doc.id,
+                role: data.role || 'member',
+                joinedAt: data.joinedAt?.toDate() || new Date(),
+            };
+        });
+    }
+);
 
 /**
  * Check if username is available
  */
-export async function isUsernameAvailable(username: string): Promise<boolean> {
-    const usernameDoc = await db.collection('usernames').doc(username.toLowerCase()).get();
-    return !usernameDoc.exists;
-}
+export const isUsernameAvailableTool = ai.defineTool(
+    {
+        name: 'isUsernameAvailable',
+        description: 'Check if a username is available for registration',
+        inputSchema: z.object({
+            username: z.string().min(3).max(20).describe('The username to check'),
+        }),
+        outputSchema: z.boolean(),
+    },
+    async (input) => {
+        const normalizedUsername = input.username.toLowerCase();
+        const usernameDoc = await db.collection('usernames').doc(normalizedUsername).get();
+        return !usernameDoc.exists;
+    }
+);
 
 /**
  * Claim a username (used during profile update)
  */
-export async function claimUsername(uid: string, username: string): Promise<boolean> {
-    const normalizedUsername = username.toLowerCase();
+export const claimUsernameTool = ai.defineTool(
+    {
+        name: 'claimUsername',
+        description: 'Claim a username for a user (registers it in the usernames collection)',
+        inputSchema: z.object({
+            uid: z.string().describe('The Firebase Auth user ID'),
+            username: z.string().min(3).max(20).describe('The username to claim'),
+        }),
+        outputSchema: z.boolean().describe('True if username was successfully claimed'),
+    },
+    async (input) => {
+        const normalizedUsername = input.username.toLowerCase();
 
-    try {
-        // Attempt to create the username document
-        await db.collection('usernames').doc(normalizedUsername).create({
-            userId: uid,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        return true;
-    } catch {
-        // Username already exists
-        return false;
+        try {
+            await db.collection('usernames').doc(normalizedUsername).create({
+                userId: input.uid,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            return true;
+        } catch {
+            // Username already exists
+            return false;
+        }
     }
-}
+);
 
 /**
  * Release a username (used when changing username)
  */
-export async function releaseUsername(username: string): Promise<void> {
-    await db.collection('usernames').doc(username.toLowerCase()).delete();
-}
+export const releaseUsernameTool = ai.defineTool(
+    {
+        name: 'releaseUsername',
+        description: 'Release a username (delete from usernames collection)',
+        inputSchema: z.object({
+            username: z.string().describe('The username to release'),
+        }),
+        outputSchema: z.void(),
+    },
+    async (input) => {
+        await db.collection('usernames').doc(input.username.toLowerCase()).delete();
+    }
+);
 
 /**
  * Update user profile
  */
-export async function updateUserProfile(
-    uid: string,
-    updates: Partial<Omit<UserProfile, 'uid' | 'createdAt' | 'updatedAt'>>
-): Promise<void> {
-    await db
-        .collection('users')
-        .doc(uid)
-        .update({
-            ...updates,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-}
+export const updateUserProfileTool = ai.defineTool(
+    {
+        name: 'updateUserProfile',
+        description: 'Update user profile fields in Firestore',
+        inputSchema: z.object({
+            uid: z.string().describe('The Firebase Auth user ID'),
+            updates: z
+                .object({
+                    displayName: z.string().optional(),
+                    username: z.string().optional(),
+                    bio: z.string().optional(),
+                    photoURL: z.string().url().optional(),
+                    phoneNumber: z.string().optional(),
+                    email: z.string().email().optional(),
+                })
+                .describe('The fields to update'),
+        }),
+        outputSchema: z.void(),
+    },
+    async (input) => {
+        await db
+            .collection('users')
+            .doc(input.uid)
+            .update({
+                ...input.updates,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+    }
+);
 
 /**
  * Create user profile (called on signup)
  */
-export async function createUserProfile(data: {
-    uid: string;
-    displayName?: string;
-    photoURL?: string;
-    phoneNumber?: string;
-    email?: string;
-}): Promise<void> {
-    await db
-        .collection('users')
-        .doc(data.uid)
-        .set({
-            displayName: data.displayName || null,
-            username: null,
-            photoURL: data.photoURL || null,
-            bio: null,
-            phoneNumber: data.phoneNumber || null,
-            email: data.email || null,
-            feedCount: 0,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-}
+export const createUserProfileTool = ai.defineTool(
+    {
+        name: 'createUserProfile',
+        description: 'Create a new user profile in Firestore during signup',
+        inputSchema: z.object({
+            uid: z.string().describe('The Firebase Auth user ID'),
+            displayName: z.string().optional().describe('User display name'),
+            photoURL: z.string().url().optional().describe('User profile photo URL'),
+            phoneNumber: z.string().optional().describe('User phone number'),
+            email: z.string().email().optional().describe('User email address'),
+        }),
+        outputSchema: z.void(),
+    },
+    async (input) => {
+        await db
+            .collection('users')
+            .doc(input.uid)
+            .set({
+                displayName: input.displayName || null,
+                username: null,
+                photoURL: input.photoURL || null,
+                bio: null,
+                phoneNumber: input.phoneNumber || null,
+                email: input.email || null,
+                feedCount: 0,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+    }
+);

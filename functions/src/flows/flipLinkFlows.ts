@@ -2,7 +2,8 @@ import * as admin from 'firebase-admin';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { z } from 'zod';
 import { ai } from '../genkit';
-import { checkFeedMembership, getFeedData } from '../tools/feedTools';
+import { addFeedMemberTool, checkFeedMembershipTool, getFeedDataTool } from '../tools/feedTools';
+import { getUserProfileTool } from '../tools/userTools';
 
 const db = admin.firestore();
 
@@ -86,13 +87,13 @@ export const generateFlipLinkFlow = ai.defineFlow(
         const { uid, feedId, expiresInHours, singleUse } = input;
 
         // Verify Feed exists
-        const feed = await getFeedData(feedId);
+        const feed = await getFeedDataTool({ feedId });
         if (!feed) {
             throw new HttpsError('not-found', 'Feed not found');
         }
 
         // Check user is a member
-        const membership = await checkFeedMembership(feedId, uid);
+        const membership = await checkFeedMembershipTool({ feedId, userId: uid });
         if (!membership) {
             throw new HttpsError(
                 'permission-denied',
@@ -201,7 +202,10 @@ export const redeemFlipLinkFlow = ai.defineFlow(
         }
 
         // Check if user is already a member
-        const existingMembership = await checkFeedMembership(linkData.feedId, uid);
+        const existingMembership = await checkFeedMembershipTool({
+            feedId: linkData.feedId,
+            userId: uid,
+        });
         if (existingMembership) {
             return {
                 success: true,
@@ -222,11 +226,10 @@ export const redeemFlipLinkFlow = ai.defineFlow(
             if (error instanceof HttpsError && error.code === 'permission-denied') {
                 // For Flip Links, we allow joining private Feeds
                 // This is handled by directly adding the member
-                const { addFeedMember } = await import('../tools/feedTools');
-                const { getUserProfile } = await import('../tools/userTools');
-
-                const userProfile = await getUserProfile(uid);
-                await addFeedMember(linkData.feedId, uid, {
+                const userProfile = await getUserProfileTool({ uid });
+                await addFeedMemberTool({
+                    feedId: linkData.feedId,
+                    userId: uid,
                     displayName: userProfile?.displayName,
                     photoURL: userProfile?.photoURL,
                     role: 'member',

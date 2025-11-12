@@ -3,14 +3,14 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { z } from 'zod';
 import { ai } from '../genkit';
 import {
-    addFeedMember,
-    checkFeedMembership,
-    getFeedData,
-    listPublicFeeds,
-    removeFeedMember,
-    updateMemberRole,
+    addFeedMemberTool,
+    checkFeedMembershipTool,
+    getFeedDataTool,
+    listPublicFeedsTool,
+    removeFeedMemberTool,
+    updateMemberRoleTool,
 } from '../tools/feedTools';
-import { getUserFeeds, getUserProfile } from '../tools/userTools';
+import { getUserFeedsTool, getUserProfileTool } from '../tools/userTools';
 
 const db = admin.firestore();
 
@@ -116,7 +116,7 @@ export const createFeedFlow = ai.defineFlow(
         const { uid, name, description, visibility, tags } = input;
 
         // Get user profile for denormalization
-        const userProfile = await getUserProfile(uid);
+        const userProfile = await getUserProfileTool({ uid });
         if (!userProfile) {
             throw new HttpsError('not-found', 'User profile not found');
         }
@@ -196,7 +196,7 @@ export const joinFeedFlow = ai.defineFlow(
         const { uid, feedId } = input;
 
         // Get Feed data
-        const feed = await getFeedData(feedId);
+        const feed = await getFeedDataTool({ feedId });
         if (!feed) {
             throw new HttpsError('not-found', 'Feed not found');
         }
@@ -211,19 +211,21 @@ export const joinFeedFlow = ai.defineFlow(
         }
 
         // Check if already a member
-        const existingMembership = await checkFeedMembership(feedId, uid);
+        const existingMembership = await checkFeedMembershipTool({ feedId, userId: uid });
         if (existingMembership) {
             throw new HttpsError('already-exists', 'Already a member of this Feed');
         }
 
         // Get user profile for denormalization
-        const userProfile = await getUserProfile(uid);
+        const userProfile = await getUserProfileTool({ uid });
         if (!userProfile) {
             throw new HttpsError('not-found', 'User profile not found');
         }
 
         // Add as member
-        await addFeedMember(feedId, uid, {
+        await addFeedMemberTool({
+            feedId,
+            userId: uid,
             displayName: userProfile.displayName,
             photoURL: userProfile.photoURL,
             role: 'member',
@@ -255,13 +257,13 @@ export const leaveFeedFlow = ai.defineFlow(
         const { uid, feedId } = input;
 
         // Get Feed data
-        const feed = await getFeedData(feedId);
+        const feed = await getFeedDataTool({ feedId });
         if (!feed) {
             throw new HttpsError('not-found', 'Feed not found');
         }
 
         // Check membership
-        const membership = await checkFeedMembership(feedId, uid);
+        const membership = await checkFeedMembershipTool({ feedId, userId: uid });
         if (!membership) {
             throw new HttpsError('not-found', 'Not a member of this Feed');
         }
@@ -275,7 +277,7 @@ export const leaveFeedFlow = ai.defineFlow(
         }
 
         // Remove membership
-        await removeFeedMember(feedId, uid);
+        await removeFeedMemberTool({ feedId, userId: uid });
 
         return {
             success: true,
@@ -297,25 +299,25 @@ export const kickMemberFlow = ai.defineFlow(
         const { callerUid, feedId, targetUserId } = input;
 
         // Check caller is admin
-        const callerMembership = await checkFeedMembership(feedId, callerUid);
+        const callerMembership = await checkFeedMembershipTool({ feedId, userId: callerUid });
         if (!callerMembership || callerMembership.role !== 'admin') {
             throw new HttpsError('permission-denied', 'Only admins can kick members');
         }
 
         // Check target is a member
-        const targetMembership = await checkFeedMembership(feedId, targetUserId);
+        const targetMembership = await checkFeedMembershipTool({ feedId, userId: targetUserId });
         if (!targetMembership) {
             throw new HttpsError('not-found', 'User is not a member of this Feed');
         }
 
         // Prevent kicking the owner
-        const feed = await getFeedData(feedId);
+        const feed = await getFeedDataTool({ feedId });
         if (feed?.ownerId === targetUserId) {
             throw new HttpsError('failed-precondition', 'Cannot kick the Feed owner');
         }
 
         // Remove member
-        await removeFeedMember(feedId, targetUserId);
+        await removeFeedMemberTool({ feedId, userId: targetUserId });
 
         return {
             success: true,
@@ -337,19 +339,19 @@ export const updateMemberRoleFlow = ai.defineFlow(
         const { callerUid, feedId, targetUserId, role } = input;
 
         // Check caller is admin
-        const callerMembership = await checkFeedMembership(feedId, callerUid);
+        const callerMembership = await checkFeedMembershipTool({ feedId, userId: callerUid });
         if (!callerMembership || callerMembership.role !== 'admin') {
             throw new HttpsError('permission-denied', 'Only admins can update member roles');
         }
 
         // Check target is a member
-        const targetMembership = await checkFeedMembership(feedId, targetUserId);
+        const targetMembership = await checkFeedMembershipTool({ feedId, userId: targetUserId });
         if (!targetMembership) {
             throw new HttpsError('not-found', 'User is not a member of this Feed');
         }
 
         // Update role
-        await updateMemberRole(feedId, targetUserId, role);
+        await updateMemberRoleTool({ feedId, userId: targetUserId, role });
 
         return {
             success: true,
@@ -370,14 +372,14 @@ export const getFeedDetailsFlow = ai.defineFlow(
     async (input: z.infer<typeof GetFeedDetailsInputSchema>) => {
         const { feedId, uid } = input;
 
-        const feed = await getFeedData(feedId);
+        const feed = await getFeedDataTool({ feedId });
         if (!feed) {
             throw new HttpsError('not-found', 'Feed not found');
         }
 
         let userRole: 'admin' | 'moderator' | 'member' | undefined;
         if (uid) {
-            const membership = await checkFeedMembership(feedId, uid);
+            const membership = await checkFeedMembershipTool({ feedId, userId: uid });
             userRole = membership?.role;
         }
 
@@ -409,11 +411,11 @@ export const listUserFeedsFlow = ai.defineFlow(
     async (input: z.infer<typeof ListUserFeedsInputSchema>) => {
         const { uid } = input;
 
-        const userFeeds = await getUserFeeds(uid);
+        const userFeeds = await getUserFeedsTool({ uid });
 
         const feeds = await Promise.all(
-            userFeeds.map(async (uf) => {
-                const feed = await getFeedData(uf.feedId);
+            userFeeds.map(async (uf: any) => {
+                const feed = await getFeedDataTool({ feedId: uf.feedId });
                 if (!feed) return null;
 
                 return {
@@ -433,7 +435,7 @@ export const listUserFeedsFlow = ai.defineFlow(
         );
 
         return {
-            feeds: feeds.filter((f): f is NonNullable<typeof f> => f !== null),
+            feeds: feeds.filter((f: any): f is NonNullable<typeof f> => f !== null),
         };
     }
 );
@@ -448,14 +450,14 @@ export const searchPublicFeedsFlow = ai.defineFlow(
         outputSchema: UserFeedListOutputSchema,
     },
     async (input: z.infer<typeof SearchPublicFeedsInputSchema>) => {
-        const feeds = await listPublicFeeds({
+        const feeds = await listPublicFeedsTool({
             query: input.query,
             tags: input.tags,
             limit: input.limit,
         });
 
         return {
-            feeds: feeds.map((feed) => ({
+            feeds: feeds.map((feed: any) => ({
                 id: feed.id,
                 name: feed.name,
                 description: feed.description,

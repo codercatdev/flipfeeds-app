@@ -2,12 +2,12 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { z } from 'zod';
 import { ai } from '../genkit';
 import {
-    claimUsername,
-    createUserProfile,
-    getUserProfile,
-    isUsernameAvailable,
-    releaseUsername,
-    updateUserProfile,
+    claimUsernameTool,
+    createUserProfileTool,
+    getUserProfileTool,
+    isUsernameAvailableTool,
+    releaseUsernameTool,
+    updateUserProfileTool,
 } from '../tools/userTools';
 
 // Input schemas
@@ -59,9 +59,9 @@ export const createUserFlow = ai.defineFlow(
         outputSchema: UserProfileOutputSchema,
     },
     async (input: z.infer<typeof CreateUserInputSchema>) => {
-        await createUserProfile(input);
+        await createUserProfileTool(input);
 
-        const profile = await getUserProfile(input.uid);
+        const profile = await getUserProfileTool({ uid: input.uid });
         if (!profile) {
             throw new HttpsError('internal', 'Failed to create user profile');
         }
@@ -92,41 +92,43 @@ export const updateUserProfileFlow = ai.defineFlow(
         const { uid, username, ...otherUpdates } = input;
 
         // Get current profile
-        const currentProfile = await getUserProfile(uid);
+        const currentProfile = await getUserProfileTool({ uid });
         if (!currentProfile) {
             throw new HttpsError('not-found', 'User profile not found');
         }
 
         // Handle username change
         if (username && username !== currentProfile.username) {
-            // Check if new username is available
-            const available = await isUsernameAvailable(username);
+            // Check availability
+            const available = await isUsernameAvailableTool({ username });
             if (!available) {
                 throw new HttpsError('already-exists', 'Username is already taken');
             }
 
             // Release old username if exists
             if (currentProfile.username) {
-                await releaseUsername(currentProfile.username);
+                await releaseUsernameTool({ username: currentProfile.username });
             }
 
-            // Claimed new username
-            const claimed = await claimUsername(uid, username);
+            // Claim new username
+            const claimed = await claimUsernameTool({ uid, username });
             if (!claimed) {
-                throw new HttpsError('already-exists', 'Username was just claimed by another user');
+                throw new HttpsError('already-exists', 'Failed to claim username');
             }
         }
 
         // Update profile
-        await updateUserProfile(uid, {
-            ...otherUpdates,
-            username: username || currentProfile.username,
+        await updateUserProfileTool({
+            uid,
+            updates: {
+                ...otherUpdates,
+                username,
+            },
         });
 
-        // Get updated profile
-        const updatedProfile = await getUserProfile(uid);
+        const updatedProfile = await getUserProfileTool({ uid });
         if (!updatedProfile) {
-            throw new HttpsError('internal', 'Failed to update user profile');
+            throw new HttpsError('internal', 'Failed to retrieve updated profile');
         }
 
         return {
@@ -152,7 +154,7 @@ export const checkUsernameFlow = ai.defineFlow(
         outputSchema: CheckUsernameOutputSchema,
     },
     async (input: z.infer<typeof CheckUsernameInputSchema>) => {
-        const available = await isUsernameAvailable(input.username);
+        const available = await isUsernameAvailableTool({ username: input.username });
         return {
             available,
             username: input.username,
@@ -170,7 +172,7 @@ export const getUserProfileFlow = ai.defineFlow(
         outputSchema: UserProfileOutputSchema,
     },
     async (input: { uid: string }) => {
-        const profile = await getUserProfile(input.uid);
+        const profile = await getUserProfileTool({ uid: input.uid });
         if (!profile) {
             throw new HttpsError('not-found', 'User profile not found');
         }

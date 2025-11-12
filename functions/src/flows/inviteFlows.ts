@@ -2,7 +2,8 @@ import * as admin from 'firebase-admin';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { z } from 'zod';
 import { ai } from '../genkit';
-import { checkFeedMembership, getFeedData } from '../tools/feedTools';
+import { addFeedMemberTool, checkFeedMembershipTool, getFeedDataTool } from '../tools/feedTools';
+import { getUserProfileTool } from '../tools/userTools';
 
 const db = admin.firestore();
 
@@ -78,7 +79,7 @@ export const generateInviteFlow = ai.defineFlow(
         const { uid, feedId, expiresInHours } = input;
 
         // Verify Feed exists and is private
-        const feed = await getFeedData(feedId);
+        const feed = await getFeedDataTool({ feedId });
         if (!feed) {
             throw new HttpsError('not-found', 'Feed not found');
         }
@@ -91,7 +92,7 @@ export const generateInviteFlow = ai.defineFlow(
         }
 
         // Check user is an admin
-        const membership = await checkFeedMembership(feedId, uid);
+        const membership = await checkFeedMembershipTool({ feedId, userId: uid });
         if (!membership || membership.role !== 'admin') {
             throw new HttpsError(
                 'permission-denied',
@@ -176,7 +177,10 @@ export const acceptInviteFlow = ai.defineFlow(
         }
 
         // Check if user is already a member
-        const existingMembership = await checkFeedMembership(inviteData.feedId, uid);
+        const existingMembership = await checkFeedMembershipTool({
+            feedId: inviteData.feedId,
+            userId: uid,
+        });
         if (existingMembership) {
             return {
                 success: true,
@@ -187,11 +191,10 @@ export const acceptInviteFlow = ai.defineFlow(
         }
 
         // Add user to the Feed
-        const { addFeedMember } = await import('../tools/feedTools');
-        const { getUserProfile } = await import('../tools/userTools');
-
-        const userProfile = await getUserProfile(uid);
-        await addFeedMember(inviteData.feedId, uid, {
+        const userProfile = await getUserProfileTool({ uid });
+        await addFeedMemberTool({
+            feedId: inviteData.feedId,
+            userId: uid,
             displayName: userProfile?.displayName,
             photoURL: userProfile?.photoURL,
             role: 'member',
@@ -267,7 +270,7 @@ export const listFeedInvitesFlow = ai.defineFlow(
         const { uid, feedId } = input;
 
         // Check user is an admin
-        const membership = await checkFeedMembership(feedId, uid);
+        const membership = await checkFeedMembershipTool({ feedId, userId: uid });
         if (!membership || membership.role !== 'admin') {
             throw new HttpsError('permission-denied', 'Only admins can view Feed invites');
         }

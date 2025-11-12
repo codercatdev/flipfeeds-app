@@ -1,17 +1,18 @@
 /**
  * Genkit Development Entry Point
  *
- * This file is specifically for testing flows and tools with the Genkit CLI.
- * It initializes Genkit with the same configuration as production but points
- * to Firebase Emulators for local development.
+ * This file is the entry point for the Genkit CLI Developer UI.
+ * It sets up Firebase Admin for emulator use, then imports from genkit.ts
+ * to avoid duplicating Genkit initialization and flow imports.
  *
  * Usage:
  *   pnpm genkit:dev
+ *   genkit start -- npx tsx --watch src/genkit-dev.ts
+ *
+ * The genkit.ts file handles Genkit initialization and flow registration.
  */
 
-import { googleAI } from '@genkit-ai/googleai';
 import * as admin from 'firebase-admin';
-import { genkit } from 'genkit';
 
 // Initialize Firebase Admin to point to emulators
 // This allows the same tools to work with emulated Firestore
@@ -28,23 +29,10 @@ if (!admin.apps.length) {
     }
 }
 
-// Initialize Genkit with the same configuration as production
-export const ai = genkit({
-    plugins: [
-        googleAI({
-            apiKey: process.env.GEMINI_API_KEY,
-        }),
-    ],
-    model: 'googleai/gemini-2.5-flash',
-});
-
-// Import all flows to register them with Genkit
-// These are the same flows used in production
-import './flows/userFlows';
-import './flows/feedFlows';
-import './flows/flipFlows';
-import './flows/flipLinkFlows';
-import './flows/inviteFlows';
+// Import and re-export the Genkit instance and all flows from genkit.ts
+// This ensures the CLI sees the same configuration as production
+export * from './genkit';
 
 console.log('✅ Genkit development server initialized');
-console.log('📊 All flows and tools registered');
+console.log('📊 All flows registered from genkit.ts');
+console.log('🔧 Utility functions available from tools/ (not Genkit AI tools)');

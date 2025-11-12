@@ -2,10 +2,15 @@ import * as admin from 'firebase-admin';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { z } from 'zod';
 import { ai } from '../genkit';
-import { checkFeedMembership, getFeedData } from '../tools/feedTools';
-import { deleteFlip, getFlip, listFeedFlips, listUserAggregatedFlips } from '../tools/flipTools';
-import { getUserProfile } from '../tools/userTools';
-import { generateThumbnail, processVideo } from '../tools/videoTools';
+import { checkFeedMembershipTool, getFeedDataTool } from '../tools/feedTools';
+import {
+    deleteFlipTool,
+    getFlipTool,
+    listFeedFlipsTool,
+    listUserAggregatedFlipsTool,
+} from '../tools/flipTools';
+import { getUserProfileTool } from '../tools/userTools';
+import { generateThumbnailTool, processVideoTool } from '../tools/videoTools';
 
 const db = admin.firestore();
 
@@ -96,7 +101,7 @@ export const createFlipFlow = ai.defineFlow(
         const { uid, feedId, title, gcsUri, videoURL } = input;
 
         // Check user is a member of the Feed
-        const membership = await checkFeedMembership(feedId, uid);
+        const membership = await checkFeedMembershipTool({ feedId, userId: uid });
         if (!membership) {
             throw new HttpsError(
                 'permission-denied',
@@ -105,16 +110,16 @@ export const createFlipFlow = ai.defineFlow(
         }
 
         // Get user profile for denormalization
-        const userProfile = await getUserProfile(uid);
+        const userProfile = await getUserProfileTool({ uid });
         if (!userProfile) {
             throw new HttpsError('not-found', 'User profile not found');
         }
 
         // Process video with AI (Phase 2 - currently returns mock data)
-        const aiResult = await processVideo(gcsUri, feedId, uid);
+        const aiResult = await processVideoTool({ gcsUri, feedId, authorId: uid });
 
         // Generate thumbnail (Phase 2 - currently returns null)
-        const thumbnailURL = await generateThumbnail(gcsUri);
+        const thumbnailURL = await generateThumbnailTool({ gcsUri });
 
         // Create Flip document
         const newFlipRef = db.collection('flips').doc();
@@ -182,16 +187,15 @@ export const deleteFlipFlow = ai.defineFlow(
         const { uid, flipId } = input;
 
         // Get the Flip
-        const flip = await getFlip(flipId);
+        const flip = await getFlipTool({ flipId });
         if (!flip) {
             throw new HttpsError('not-found', 'Flip not found');
         }
 
-        // Check permissions: author or Feed admin
+        // Check permissions (author or Feed admin)
         const isAuthor = flip.authorId === uid;
-        const membership = await checkFeedMembership(flip.feedId, uid);
+        const membership = await checkFeedMembershipTool({ feedId: flip.feedId, userId: uid });
         const isAdmin = membership?.role === 'admin';
-
         if (!isAuthor && !isAdmin) {
             throw new HttpsError(
                 'permission-denied',
@@ -200,7 +204,7 @@ export const deleteFlipFlow = ai.defineFlow(
         }
 
         // Delete the Flip
-        await deleteFlip(flipId, flip.feedId);
+        await deleteFlipTool({ flipId, feedId: flip.feedId });
 
         return {
             success: true,
@@ -225,16 +229,19 @@ export const getFlipFlow = ai.defineFlow(
     async (input: z.infer<typeof GetFlipInputSchema>) => {
         const { flipId, uid } = input;
 
-        const flip = await getFlip(flipId);
+        const flip = await getFlipTool({ flipId });
         if (!flip) {
             throw new HttpsError('not-found', 'Flip not found');
         }
 
         // Check access: member of the Feed or public Feed
         if (uid) {
-            const feed = await getFeedData(flip.feedId);
+            const feed = await getFeedDataTool({ feedId: flip.feedId });
             if (feed?.visibility === 'private' || feed?.visibility === 'personal') {
-                const membership = await checkFeedMembership(flip.feedId, uid);
+                const membership = await checkFeedMembershipTool({
+                    feedId: flip.feedId,
+                    userId: uid,
+                });
                 if (!membership) {
                     throw new HttpsError(
                         'permission-denied',
@@ -275,9 +282,9 @@ export const listFeedFlipsFlow = ai.defineFlow(
         const { feedId, uid, limit } = input;
 
         // Check membership for private/personal Feeds
-        const feed = await getFeedData(feedId);
+        const feed = await getFeedDataTool({ feedId });
         if (feed?.visibility === 'private' || feed?.visibility === 'personal') {
-            const membership = await checkFeedMembership(feedId, uid);
+            const membership = await checkFeedMembershipTool({ feedId, userId: uid });
             if (!membership) {
                 throw new HttpsError(
                     'permission-denied',
@@ -286,10 +293,10 @@ export const listFeedFlipsFlow = ai.defineFlow(
             }
         }
 
-        const flips = await listFeedFlips(feedId, limit);
+        const flips = await listFeedFlipsTool({ feedId, limit });
 
         return {
-            flips: flips.map((flip) => ({
+            flips: flips.map((flip: any) => ({
                 id: flip.id,
                 feedId: flip.feedId,
                 authorId: flip.authorId,
@@ -320,10 +327,10 @@ export const listUserFlipsFlow = ai.defineFlow(
     async (input: z.infer<typeof ListUserFlipsInputSchema>) => {
         const { uid, limit } = input;
 
-        const flips = await listUserAggregatedFlips(uid, limit);
+        const flips = await listUserAggregatedFlipsTool({ userId: uid, limit });
 
         return {
-            flips: flips.map((flip) => ({
+            flips: flips.map((flip: any) => ({
                 id: flip.id,
                 feedId: flip.feedId,
                 authorId: flip.authorId,

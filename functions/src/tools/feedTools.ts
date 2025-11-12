@@ -35,7 +35,7 @@ export type Member = z.infer<typeof MemberSchema>;
  * Get Feed data from Firestore
  */
 export async function getFeedData(feedId: string): Promise<Feed | null> {
-    const feedDoc = await db.collection('v1/feeds').doc(feedId).get();
+    const feedDoc = await db.collection('feeds').doc(feedId).get();
 
     if (!feedDoc.exists) {
         return null;
@@ -64,7 +64,7 @@ export async function getFeedData(feedId: string): Promise<Feed | null> {
  */
 export async function checkFeedMembership(feedId: string, userId: string): Promise<Member | null> {
     const memberDoc = await db
-        .collection('v1/feeds')
+        .collection('feeds')
         .doc(feedId)
         .collection('members')
         .doc(userId)
@@ -89,7 +89,7 @@ export async function checkFeedMembership(feedId: string, userId: string): Promi
  */
 export async function listFeedMembers(feedId: string, limit = 100): Promise<Member[]> {
     const membersSnapshot = await db
-        .collection('v1/feeds')
+        .collection('feeds')
         .doc(feedId)
         .collection('members')
         .limit(limit)
@@ -117,7 +117,7 @@ export async function listPublicFeeds(options: {
 }): Promise<Feed[]> {
     const { limit = 20 } = options;
 
-    const query = db.collection('v1/feeds').where('visibility', '==', 'public').limit(limit);
+    const query = db.collection('feeds').where('visibility', '==', 'public').limit(limit);
 
     // Note: For production, implement full-text search with Algolia or similar
     // This is a basic implementation
@@ -148,7 +148,7 @@ export async function listPublicFeeds(options: {
  */
 export async function getUserPersonalFeed(userId: string): Promise<string | null> {
     const personalFeedDoc = await db
-        .collection('v1/users')
+        .collection('users')
         .doc(userId)
         .collection('personalFeed')
         .doc('ref')
@@ -176,7 +176,7 @@ export async function addFeedMember(
     const batch = db.batch();
 
     // Add to members sub-collection
-    const memberRef = db.collection('v1/feeds').doc(feedId).collection('members').doc(userId);
+    const memberRef = db.collection('feeds').doc(feedId).collection('members').doc(userId);
     batch.set(memberRef, {
         userId,
         displayName: memberData.displayName || null,
@@ -186,7 +186,7 @@ export async function addFeedMember(
     });
 
     // Add reverse lookup
-    const userFeedRef = db.collection('v1/users').doc(userId).collection('feeds').doc(feedId);
+    const userFeedRef = db.collection('users').doc(userId).collection('feeds').doc(feedId);
     batch.set(userFeedRef, {
         feedId,
         role: memberData.role || 'member',
@@ -194,14 +194,14 @@ export async function addFeedMember(
     });
 
     // Increment member count
-    const feedRef = db.collection('v1/feeds').doc(feedId);
+    const feedRef = db.collection('feeds').doc(feedId);
     batch.update(feedRef, {
         'stats.memberCount': admin.firestore.FieldValue.increment(1),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     // Increment user's Feed count
-    const userRef = db.collection('v1/users').doc(userId);
+    const userRef = db.collection('users').doc(userId);
     batch.update(userRef, {
         feedCount: admin.firestore.FieldValue.increment(1),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -217,22 +217,22 @@ export async function removeFeedMember(feedId: string, userId: string): Promise<
     const batch = db.batch();
 
     // Remove from members sub-collection
-    const memberRef = db.collection('v1/feeds').doc(feedId).collection('members').doc(userId);
+    const memberRef = db.collection('feeds').doc(feedId).collection('members').doc(userId);
     batch.delete(memberRef);
 
     // Remove reverse lookup
-    const userFeedRef = db.collection('v1/users').doc(userId).collection('feeds').doc(feedId);
+    const userFeedRef = db.collection('users').doc(userId).collection('feeds').doc(feedId);
     batch.delete(userFeedRef);
 
     // Decrement member count
-    const feedRef = db.collection('v1/feeds').doc(feedId);
+    const feedRef = db.collection('feeds').doc(feedId);
     batch.update(feedRef, {
         'stats.memberCount': admin.firestore.FieldValue.increment(-1),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     // Decrement user's Feed count
-    const userRef = db.collection('v1/users').doc(userId);
+    const userRef = db.collection('users').doc(userId);
     batch.update(userRef, {
         feedCount: admin.firestore.FieldValue.increment(-1),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -252,11 +252,11 @@ export async function updateMemberRole(
     const batch = db.batch();
 
     // Update in members sub-collection
-    const memberRef = db.collection('v1/feeds').doc(feedId).collection('members').doc(userId);
+    const memberRef = db.collection('feeds').doc(feedId).collection('members').doc(userId);
     batch.update(memberRef, { role });
 
     // Update in reverse lookup
-    const userFeedRef = db.collection('v1/users').doc(userId).collection('feeds').doc(feedId);
+    const userFeedRef = db.collection('users').doc(userId).collection('feeds').doc(feedId);
     batch.update(userFeedRef, { role });
 
     await batch.commit();

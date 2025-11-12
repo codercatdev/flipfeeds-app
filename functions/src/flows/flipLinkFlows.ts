@@ -107,7 +107,7 @@ export const generateFlipLinkFlow = ai.defineFlow(
 
         // Ensure uniqueness
         while (attempts < maxAttempts) {
-            const existing = await db.collection('v1/flipLinks').doc(shortCode).get();
+            const existing = await db.collection('flipLinks').doc(shortCode).get();
             if (!existing.exists) {
                 break;
             }
@@ -125,7 +125,7 @@ export const generateFlipLinkFlow = ai.defineFlow(
 
         // Create Flip Link document
         await db
-            .collection('v1/flipLinks')
+            .collection('flipLinks')
             .doc(shortCode)
             .set({
                 feedId,
@@ -178,7 +178,7 @@ export const redeemFlipLinkFlow = ai.defineFlow(
         const { uid, linkId } = input;
 
         // Get Flip Link
-        const linkDoc = await db.collection('v1/flipLinks').doc(linkId).get();
+        const linkDoc = await db.collection('flipLinks').doc(linkId).get();
         if (!linkDoc.exists) {
             throw new HttpsError('not-found', 'Flip Link not found');
         }
@@ -247,7 +247,7 @@ export const redeemFlipLinkFlow = ai.defineFlow(
             updates.usedAt = admin.firestore.FieldValue.serverTimestamp();
         }
 
-        await db.collection('v1/flipLinks').doc(linkId).update(updates);
+        await db.collection('flipLinks').doc(linkId).update(updates);
 
         return {
             success: true,
@@ -275,7 +275,7 @@ export const getFlipLinkFlow = ai.defineFlow(
         const { linkId } = input;
 
         // Get Flip Link
-        const linkDoc = await db.collection('v1/flipLinks').doc(linkId).get();
+        const linkDoc = await db.collection('flipLinks').doc(linkId).get();
         if (!linkDoc.exists) {
             throw new HttpsError('not-found', 'Flip Link not found');
         }
@@ -287,7 +287,7 @@ export const getFlipLinkFlow = ai.defineFlow(
 
         // Increment view count
         await db
-            .collection('v1/flipLinks')
+            .collection('flipLinks')
             .doc(linkId)
             .update({
                 'stats.viewCount': admin.firestore.FieldValue.increment(1),

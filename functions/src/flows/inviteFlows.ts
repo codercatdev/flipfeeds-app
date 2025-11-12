@@ -104,7 +104,7 @@ export const generateInviteFlow = ai.defineFlow(
         expiresAt.setHours(expiresAt.getHours() + (expiresInHours || 168));
 
         // Create invite document
-        const inviteRef = db.collection('v1/feeds').doc(feedId).collection('invites').doc();
+        const inviteRef = db.collection('feeds').doc(feedId).collection('invites').doc();
         const inviteId = inviteRef.id;
 
         await inviteRef.set({
@@ -274,7 +274,7 @@ export const listFeedInvitesFlow = ai.defineFlow(
 
         // Get all invites for this Feed
         const invitesSnapshot = await db
-            .collection('v1/feeds')
+            .collection('feeds')
             .doc(feedId)
             .collection('invites')
             .orderBy('createdAt', 'desc')

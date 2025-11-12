@@ -17,8 +17,8 @@ import * as z from 'zod';
 import { getUserProfile } from '../tools/userTools';
 
 const db = getFirestore();
-const feedsRef = db.collection('v1/feeds');
-const usersRef = db.collection('v1/users');
+const feedsRef = db.collection('feeds');
+const usersRef = db.collection('users');
 
 export const createFeedFlow = defineFlow(
   {

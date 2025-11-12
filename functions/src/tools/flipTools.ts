@@ -46,7 +46,7 @@ export type Comment = z.infer<typeof CommentSchema>;
  * Get a Flip by ID
  */
 export async function getFlip(flipId: string): Promise<Flip | null> {
-    const flipDoc = await db.collection('v1/flips').doc(flipId).get();
+    const flipDoc = await db.collection('flips').doc(flipId).get();
 
     if (!flipDoc.exists) {
         return null;
@@ -84,7 +84,7 @@ export async function getFlip(flipId: string): Promise<Flip | null> {
  */
 export async function listFeedFlips(feedId: string, limit = 20): Promise<Flip[]> {
     const snapshot = await db
-        .collection('v1/flips')
+        .collection('flips')
         .where('feedId', '==', feedId)
         .orderBy('createdAt', 'desc')
         .limit(limit)
@@ -124,7 +124,7 @@ export async function listFeedFlips(feedId: string, limit = 20): Promise<Flip[]>
  */
 export async function listUserAggregatedFlips(userId: string, limit = 20): Promise<Flip[]> {
     // Get all Feeds user belongs to
-    const userFeedsSnapshot = await db.collection(`v1/users/${userId}/feeds`).get();
+    const userFeedsSnapshot = await db.collection(`users/${userId}/feeds`).get();
 
     const feedIds = userFeedsSnapshot.docs.map((doc) => doc.id);
 
@@ -137,7 +137,7 @@ export async function listUserAggregatedFlips(userId: string, limit = 20): Promi
     const chunkedFeedIds = feedIds.slice(0, 10);
 
     const snapshot = await db
-        .collection('v1/flips')
+        .collection('flips')
         .where('feedId', 'in', chunkedFeedIds)
         .orderBy('createdAt', 'desc')
         .limit(limit)
@@ -179,11 +179,11 @@ export async function deleteFlip(flipId: string, feedId: string): Promise<void> 
     const batch = db.batch();
 
     // Delete the flip
-    const flipRef = db.collection('v1/flips').doc(flipId);
+    const flipRef = db.collection('flips').doc(flipId);
     batch.delete(flipRef);
 
     // Decrement flip count in Feed
-    const feedRef = db.collection('v1/feeds').doc(feedId);
+    const feedRef = db.collection('feeds').doc(feedId);
     batch.update(feedRef, {
         'stats.flipCount': admin.firestore.FieldValue.increment(-1),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -200,7 +200,7 @@ export async function deleteFlip(flipId: string, feedId: string): Promise<void> 
  */
 export async function incrementFlipViewCount(flipId: string): Promise<void> {
     await db
-        .collection('v1/flips')
+        .collection('flips')
         .doc(flipId)
         .update({
             'stats.viewCount': admin.firestore.FieldValue.increment(1),
@@ -212,7 +212,7 @@ export async function incrementFlipViewCount(flipId: string): Promise<void> {
  */
 export async function listFlipComments(flipId: string, limit = 50): Promise<Comment[]> {
     const snapshot = await db
-        .collection('v1/flips')
+        .collection('flips')
         .doc(flipId)
         .collection('comments')
         .orderBy('createdAt', 'desc')

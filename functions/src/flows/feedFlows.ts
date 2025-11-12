@@ -122,7 +122,7 @@ export const createFeedFlow = ai.defineFlow(
         }
 
         // Create new Feed document ID
-        const newFeedRef = db.collection('v1/feeds').doc();
+        const newFeedRef = db.collection('feeds').doc();
         const feedId = newFeedRef.id;
 
         // Transaction to ensure atomicity
@@ -154,7 +154,7 @@ export const createFeedFlow = ai.defineFlow(
             });
 
             // Add reverse lookup
-            const userFeedRef = db.collection('v1/users').doc(uid).collection('feeds').doc(feedId);
+            const userFeedRef = db.collection('users').doc(uid).collection('feeds').doc(feedId);
             transaction.set(userFeedRef, {
                 feedId,
                 role: 'admin',
@@ -162,7 +162,7 @@ export const createFeedFlow = ai.defineFlow(
             });
 
             // Increment user's Feed count
-            const userRef = db.collection('v1/users').doc(uid);
+            const userRef = db.collection('users').doc(uid);
             transaction.update(userRef, {
                 feedCount: admin.firestore.FieldValue.increment(1),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),

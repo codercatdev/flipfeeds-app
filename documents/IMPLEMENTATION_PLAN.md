@@ -83,7 +83,7 @@ This plan integrates the FlipFeeds philosophy (Feeds, AI-first, intentional feed
             │     Firebase Services              │
             ├────────────────────────────────────┤
             │  - Auth (Phone + Google)           │
-            │  - Firestore (v1/users, feeds...)  │
+            │  - Firestore (users, feeds...)  │
             │  - Storage (videos, thumbnails)    │
             │  - Functions (Genkit Flows)        │
             │  - Remote Config (feature flags)   │
@@ -242,7 +242,7 @@ The AI chat interface solves the cold-start problem: Users can explore FlipFeeds
 ### Collection Structure
 
 ```
-v1/
+
 ├── users/{userId}
 │   ├── feeds/{feedId}  (reverse lookup)
 │   ├── personalFeed/  (special: user's Personal Feed reference)
@@ -260,7 +260,7 @@ v1/
 
 **Username Uniqueness Pattern:**
 ```typescript
-// Document: v1/usernames/{username}
+// Document: usernames/{username}
 {
   userId: "user123",
   createdAt: serverTimestamp()
@@ -276,7 +276,7 @@ v1/
 Every user gets a Personal Feed automatically created on signup:
 
 ```typescript
-// Document: v1/feeds/personal_{userId}
+// Document: feeds/personal_{userId}
 {
   feedId: "personal_{userId}",
   name: "Personal Feed",
@@ -293,7 +293,7 @@ Every user gets a Personal Feed automatically created on signup:
 }
 
 // User's reference to their Personal Feed
-// Document: v1/users/{userId}/personalFeed
+// Document: users/{userId}/personalFeed
 {
   feedId: "personal_{userId}",
   createdAt: serverTimestamp()
@@ -862,17 +862,17 @@ Create:
 
 **Key Flow Details:**
 
-**leaveFeedFlow**: Removes member from `v1/feeds/{feedId}/members/{userId}`, deletes reverse lookup in `v1/users/{userId}/feeds/{feedId}`, decrements `memberCount` in a transaction.
+**leaveFeedFlow**: Removes member from `feeds/{feedId}/members/{userId}`, deletes reverse lookup in `users/{userId}/feeds/{feedId}`, decrements `memberCount` in a transaction.
 
 **kickMemberFlow**: Admin-only. Validates caller has 'admin' role, then performs same operations as leaveFeedFlow for target user.
 
-**updateMemberRoleFlow**: Admin-only. Updates role field in `v1/feeds/{feedId}/members/{userId}`.
+**updateMemberRoleFlow**: Admin-only. Updates role field in `feeds/{feedId}/members/{userId}`.
 
-**generateInviteFlow**: Creates single-use invite in `v1/feeds/{feedId}/invites/{inviteId}` for private Feeds. Returns invite link.
+**generateInviteFlow**: Creates single-use invite in `feeds/{feedId}/invites/{inviteId}` for private Feeds. Returns invite link.
 
 **acceptInviteFlow**: Validates invite exists and hasn't been used, then calls joinFeedFlow logic and marks invite as consumed.
 
-**updateUserProfileFlow**: When updating username, attempts to create `v1/usernames/{username}` document. If successful, updates user profile. If document exists, returns error "Username taken".
+**updateUserProfileFlow**: When updating username, attempts to create `usernames/{username}` document. If successful, updates user profile. If document exists, returns error "Username taken".
 
 #### 1.3 Shared Logic Package
 
@@ -898,7 +898,7 @@ Implement the rules from `firestore.md`:
 
 📂 Location: `functions/src/triggers/`
 
-**Challenge:** User profile data (`displayName`, `photoURL`) is denormalized in the `members` sub-collection (`v1/feeds/{feedId}/members/{userId}`). When a user updates their profile, this data becomes stale across all Feeds they belong to.
+**Challenge:** User profile data (`displayName`, `photoURL`) is denormalized in the `members` sub-collection (`feeds/{feedId}/members/{userId}`). When a user updates their profile, this data becomes stale across all Feeds they belong to.
 
 **Solution Options:**
 
@@ -906,7 +906,7 @@ Implement the rules from `firestore.md`:
 ```typescript
 // functions/src/triggers/onUserUpdate.ts
 export const onUserUpdate = functions.firestore
-  .document('v1/users/{userId}')
+  .document('users/{userId}')
   .onUpdate(async (change, context) => {
     const before = change.before.data();
     const after = change.after.data();
@@ -983,7 +983,7 @@ export const processVideoFlow = ai.defineFlow({
   // 2. Title generation
   // 3. Auto-tagging
   // 4. Content moderation
-  // 5. Store in Firestore v1/flips/{flipId}
+  // 5. Store in Firestore flips/{flipId}
 });
 ```
 
@@ -1041,7 +1041,7 @@ export const generateFlipLinkFlow = ai.defineFlow({
     deepLink: z.string(), // flipfeeds://feed/{linkId}
   }),
 }, async (input) => {
-  // 1. Create record in v1/flipLinks/{linkId}
+  // 1. Create record in flipLinks/{linkId}
   // 2. Generate short URL (Firebase Dynamic Links or custom)
   // 3. Generate QR code
   // 4. Return data
@@ -1173,7 +1173,7 @@ export const registerFeedAppFlow = ai.defineFlow({
 }, async (input) => {
   // 1. Verify user is Feed owner
   // 2. Verify Pro tier subscription
-  // 3. Store in v1/feeds/{feedId}/apps/{appId}
+  // 3. Store in feeds/{feedId}/apps/{appId}
   // 4. Set up trigger webhook
 });
 ```

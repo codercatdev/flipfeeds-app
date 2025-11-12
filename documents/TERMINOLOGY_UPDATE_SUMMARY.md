@@ -60,13 +60,13 @@ This natural language works for:
 - ✅ Replaced all Circle → Feed references
 - ✅ Replaced all post/posts → flip/flips references
 - ✅ Updated architecture diagrams
-- ✅ Updated Firestore schema paths (`v1/feeds`, `v1/flips`)
+- ✅ Updated Firestore schema paths (`feeds`, `flips`)
 - ✅ Updated MCP tools naming
 - ✅ Added "Personal Feeds Schema" section
 
 **Key Updates:**
-- Data structure: `v1/users/{userId}/personalFeed/`
-- Collection: `v1/feeds/personal_{userId}`
+- Data structure: `users/{userId}/personalFeed/`
+- Collection: `feeds/personal_{userId}`
 - MCP Tools: `get_personal_feed`, `save_flip_to_personal`, `move_flip_to_feed`
 - Flow names: `createFlipFlow`, `listFeedFlips`
 
@@ -76,7 +76,7 @@ This natural language works for:
 **Changes:**
 - ✅ Replaced all Circle → Feed references
 - ✅ Replaced all post/posts → flip/flips references
-- ✅ Updated collection names (`v1/feeds`, `v1/flips`)
+- ✅ Updated collection names (`feeds`, `flips`)
 - ✅ Added section "Personal Feeds: Every User's Private Space"
 - ✅ Updated security rules for Personal Feeds
 
@@ -152,7 +152,7 @@ Every user automatically gets a **Personal Feed** - a private space that:
 
 ### Data Structure:
 ```
-v1/
+
 ├── feeds/personal_{userId}  (the Personal Feed document)
 └── users/{userId}/personalFeed/  (reference to their Personal Feed)
 ```

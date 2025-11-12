@@ -86,7 +86,7 @@ export async function storeVideoMetadata(
     }
 ): Promise<void> {
     await db
-        .collection('v1/flips')
+        .collection('flips')
         .doc(flipId)
         .update({
             gcsUri: metadata.gcsUri,

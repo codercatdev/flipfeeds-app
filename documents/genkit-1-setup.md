@@ -36,7 +36,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import * as z from 'zod';
 
 const db = getFirestore();
-const usersRef = db.collection('v1/users');
+const usersRef = db.collection('users');
 
 // Tool to get a user's profile from Firestore
 export const getUserProfile = defineTool(
@@ -80,7 +80,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import * as z from 'zod';
 
 const db = getFirestore();
-const feedsRef = db.collection('v1/feeds');
+const feedsRef = db.collection('feeds');
 
 // Tool to get a feed's data
 export const getFeedData = defineTool(

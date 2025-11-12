@@ -117,7 +117,7 @@ export const createFlipFlow = ai.defineFlow(
         const thumbnailURL = await generateThumbnail(gcsUri);
 
         // Create Flip document
-        const newFlipRef = db.collection('v1/flips').doc();
+        const newFlipRef = db.collection('flips').doc();
         const flipId = newFlipRef.id;
 
         await db.runTransaction(async (transaction) => {
@@ -147,7 +147,7 @@ export const createFlipFlow = ai.defineFlow(
             });
 
             // Increment Feed flip count
-            const feedRef = db.collection('v1/feeds').doc(feedId);
+            const feedRef = db.collection('feeds').doc(feedId);
             transaction.update(feedRef, {
                 'stats.flipCount': admin.firestore.FieldValue.increment(1),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),

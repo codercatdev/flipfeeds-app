@@ -23,7 +23,7 @@ export type UserProfile = z.infer<typeof UserProfileSchema>;
  * Get user profile from Firestore
  */
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-    const userDoc = await db.collection('v1/users').doc(uid).get();
+    const userDoc = await db.collection('users').doc(uid).get();
 
     if (!userDoc.exists) {
         return null;
@@ -50,7 +50,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 export async function getUserFeeds(
     uid: string
 ): Promise<Array<{ feedId: string; role: string; joinedAt: Date }>> {
-    const feedsSnapshot = await db.collection(`v1/users/${uid}/feeds`).get();
+    const feedsSnapshot = await db.collection(`users/${uid}/feeds`).get();
 
     return feedsSnapshot.docs.map((doc) => {
         const data = doc.data();
@@ -66,7 +66,7 @@ export async function getUserFeeds(
  * Check if username is available
  */
 export async function isUsernameAvailable(username: string): Promise<boolean> {
-    const usernameDoc = await db.collection('v1/usernames').doc(username.toLowerCase()).get();
+    const usernameDoc = await db.collection('usernames').doc(username.toLowerCase()).get();
     return !usernameDoc.exists;
 }
 
@@ -78,7 +78,7 @@ export async function claimUsername(uid: string, username: string): Promise<bool
 
     try {
         // Attempt to create the username document
-        await db.collection('v1/usernames').doc(normalizedUsername).create({
+        await db.collection('usernames').doc(normalizedUsername).create({
             userId: uid,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
@@ -93,7 +93,7 @@ export async function claimUsername(uid: string, username: string): Promise<bool
  * Release a username (used when changing username)
  */
 export async function releaseUsername(username: string): Promise<void> {
-    await db.collection('v1/usernames').doc(username.toLowerCase()).delete();
+    await db.collection('usernames').doc(username.toLowerCase()).delete();
 }
 
 /**
@@ -104,7 +104,7 @@ export async function updateUserProfile(
     updates: Partial<Omit<UserProfile, 'uid' | 'createdAt' | 'updatedAt'>>
 ): Promise<void> {
     await db
-        .collection('v1/users')
+        .collection('users')
         .doc(uid)
         .update({
             ...updates,
@@ -123,7 +123,7 @@ export async function createUserProfile(data: {
     email?: string;
 }): Promise<void> {
     await db
-        .collection('v1/users')
+        .collection('users')
         .doc(data.uid)
         .set({
             displayName: data.displayName || null,

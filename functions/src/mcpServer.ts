@@ -249,31 +249,31 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
             ) {
                 console.log(`Found ${result.imageUrls.length} image URLs in response`);
 
-                // Add each image using base64 data from the response
+                // Add the main message
+                content.push({
+                    type: 'text',
+                    text: result.message || 'Images generated successfully!',
+                });
+
+                // Add each image with base64 data (for inline display) and URL (for selection)
                 for (let i = 0; i < result.imageUrls.length; i++) {
                     const imageInfo = result.imageUrls[i];
 
-                    // Check if base64 data is available
+                    // If base64 is available, show the actual image
                     if (imageInfo.base64) {
-                        console.log(
-                            `Adding image ${i + 1} as base64 (${imageInfo.base64.length} chars): ${imageInfo.description}`
-                        );
-
-                        // Add image content for MCP (this displays inline in Claude/ChatGPT)
                         content.push({
                             type: 'image',
                             data: imageInfo.base64,
                             mimeType: 'image/jpeg',
                         });
 
-                        // Add caption with URL reference for selection
+                        // Add description and URL after the image
                         content.push({
                             type: 'text',
-                            text: `**Image ${i + 1}**: ${imageInfo.description}\n**URL for selection**: \`${imageInfo.url}\``,
+                            text: `**Image ${i + 1}**: ${imageInfo.description}\n\n📋 **To select this image, use this URL:**\n\`\`\`\n${imageInfo.url}\n\`\`\``,
                         });
                     } else {
-                        // Fallback: just show URL if base64 not available
-                        console.log(`No base64 data for image ${i + 1}, showing URL only`);
+                        // Fallback if no base64
                         content.push({
                             type: 'text',
                             text: `**Image ${i + 1}**: ${imageInfo.description}\n**URL**: ${imageInfo.url}`,
@@ -281,21 +281,8 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
                     }
                 }
 
-                // Add selection instructions with clear reference to URLs
-                const selectionInstructions = `
-${result.message || 'Images generated successfully!'}
-
-To select an image, use the URL shown above (not the base64 data).
-Example: If user likes Image 2, use imageUrl: "${result.imageUrls[1]?.url || 'the URL shown above'}"
-`;
-
-                content.push({
-                    type: 'text',
-                    text: selectionInstructions.trim(),
-                });
-
                 console.log(
-                    `Returning ${content.length} content items (${result.imageUrls.length} images with URLs + instructions)`
+                    `Returning ${content.length} content items (message + ${result.imageUrls.length} images with base64 + URLs)`
                 );
             }
             // Legacy: Check if result contains base64 images (backward compatibility)

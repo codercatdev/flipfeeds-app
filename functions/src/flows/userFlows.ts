@@ -1,6 +1,7 @@
 import parseDataURL from 'data-urls';
 import * as admin from 'firebase-admin';
 import { HttpsError } from 'firebase-functions/v2/https';
+import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { requireAuth } from '../auth/contextProvider';
 import { ai, vertexAI } from '../genkit';
@@ -12,6 +13,13 @@ import {
     releaseUsernameTool,
     updateUserProfileTool,
 } from '../tools/userTools';
+
+/**
+ * Helper function to build public URL for Firebase Storage files with download token
+ */
+function buildPublicStorageUrl(bucketName: string, filePath: string, token: string): string {
+    return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media&token=${token}`;
+}
 
 // Output schemas
 const UserProfileOutputSchema = z.object({
@@ -659,15 +667,15 @@ export const profileImageAssistantFlow = ai.defineFlow(
                             );
                         }
 
-                        // Convert to base64 for MCP display
-                        const base64Data = Buffer.from(parsed.body).toString('base64');
-
                         // Create unique file path in generated folder
                         const timestamp = Date.now();
                         const fileName = `profile-images/${auth.uid}/generated/ai-avatar-${timestamp}-${index}.jpg`;
                         const file = bucket.file(fileName);
 
-                        // Upload to Firebase Storage
+                        // Generate a download token for public access (works in emulator and production)
+                        const downloadToken = uuidv4();
+
+                        // Upload to Firebase Storage with download token
                         await file.save(Buffer.from(parsed.body), {
                             metadata: {
                                 contentType: 'image/jpeg',
@@ -676,15 +684,24 @@ export const profileImageAssistantFlow = ai.defineFlow(
                                     generatedAt: new Date().toISOString(),
                                     prompt: userPrompt,
                                     variation: index + 1,
+                                    firebaseStorageDownloadTokens: downloadToken,
                                 },
                             },
-                            public: true,
                         });
 
-                        // Get the public URL
-                        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+                        // Build public URL
+                        const publicUrl = buildPublicStorageUrl(
+                            bucket.name,
+                            fileName,
+                            downloadToken
+                        );
 
-                        console.log(`Stored image ${index + 1} to ${fileName}`);
+                        // Also convert to base64 for MCP display (Claude needs this to show images)
+                        const base64Data = Buffer.from(parsed.body).toString('base64');
+
+                        console.log(
+                            `Stored image ${index + 1} to ${fileName} with URL: ${publicUrl}`
+                        );
 
                         return {
                             url: publicUrl,
@@ -699,7 +716,7 @@ export const profileImageAssistantFlow = ai.defineFlow(
                         `Successfully stored ${uploadedImages.length} images to Firebase Storage`
                     );
 
-                    // Format response with image URLs and base64 data
+                    // Format response with URLs and base64 data for display
                     const imageUrls = uploadedImages.map(({ url, base64, index }) => ({
                         url,
                         base64,
@@ -709,12 +726,11 @@ export const profileImageAssistantFlow = ai.defineFlow(
 
                     return {
                         success: true,
-                        message: `Generated ${imageUrls.length} AI profile images! To select one:
+                        message: `✅ Generated ${imageUrls.length} profile images!
 
-Call this flow again with:
-   - action: "select_image"
-   - selectedImageIndex: 0 for image 1, 1 for image 2, or 2 for image 3
-   - imageUrl: the URL of your chosen image`,
+To select an image, call this flow again with:
+- action: "select_image"  
+- imageUrl: (paste the URL of your chosen image)`,
                         imageUrls,
                         imageCount: imageUrls.length,
                     };
@@ -763,7 +779,10 @@ Call this flow again with:
                     const fileName = `profile-images/${auth.uid}/selected/profile-${timestamp}.jpg`;
                     const file = bucket.file(fileName);
 
-                    // Upload to Firebase Storage
+                    // Generate a download token for public access
+                    const downloadToken = uuidv4();
+
+                    // Upload to Firebase Storage with download token
                     await file.save(Buffer.from(imageBuffer), {
                         metadata: {
                             contentType: 'image/jpeg',
@@ -771,17 +790,17 @@ Call this flow again with:
                                 uid: auth.uid,
                                 selectedAt: new Date().toISOString(),
                                 sourceUrl: imageUrl,
+                                firebaseStorageDownloadTokens: downloadToken,
                             },
                         },
-                        public: true,
                     });
 
-                    // Get the public URL
-                    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+                    // Build public URL (emulator-aware)
+                    const publicUrl = buildPublicStorageUrl(bucket.name, fileName, downloadToken);
 
-                    console.log(`Selected image stored to ${fileName}`);
+                    console.log(`Selected image stored to ${fileName} with URL: ${publicUrl}`);
 
-                    // Update user profile with the new image URL
+                    // Update user profile with the public URL
                     await updateUserProfileTool({
                         uid: auth.uid,
                         updates: { photoURL: publicUrl },

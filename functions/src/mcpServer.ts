@@ -16,6 +16,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { onRequest } from 'firebase-functions/v2/https';
+import type { ActionContext } from 'genkit';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { getAuthServerUrl, getMcpServerUrl, jwtSecret } from './auth/config';
 import { authenticateRequest, type FlipFeedsAuthContext } from './auth/contextProvider';
@@ -60,16 +61,16 @@ const authMiddleware = async (
 // ============================================================================
 
 /**
- * Create and configure the MCP server with user context
+ * Create and configure the MCP server with user auth context
  *
  * This function creates a new MCP server instance for each authenticated request.
  * It exposes all Genkit flows as MCP tools by:
  * 1. Listing all actions from ai.registry
- * 2. Filtering for flows (excluding models and other action types)
+ * 2. Filtering for flows (excluding models, tools, and other action types)
  * 3. Converting Zod schemas to MCP tool schemas
  * 4. Handling tool execution with the authenticated user's uid
  */
-function createMCPServer(context: FlipFeedsAuthContext): Server {
+function createMCPServer(auth: FlipFeedsAuthContext): Server {
     const server = new Server(
         {
             name: 'flipfeeds-mcp-server',
@@ -87,15 +88,18 @@ function createMCPServer(context: FlipFeedsAuthContext): Server {
         // Get all Genkit flows and expose them as MCP tools
         const actions = await ai.registry.listActions();
 
-        // Filter for flows only - exclude models and other action types
+        // Filter for flows only - exclude models, tools, and other action types
         const allActions = Object.values(actions);
         const flows = allActions.filter((a: any) => {
             // Flows are callable functions with __action metadata
             // Exclude googleai models (they start with 'googleai/')
+            // Exclude tools (they have metadata.type === 'tool')
             const flowName = a.__action?.name || '';
+            const actionType = a.__action?.metadata?.type;
             return (
                 typeof a === 'function' &&
                 a.__action &&
+                actionType !== 'tool' &&
                 !flowName.startsWith('googleai/') &&
                 flowName !== 'generate' // Exclude the default 'generate' flow
             );
@@ -134,11 +138,6 @@ function createMCPServer(context: FlipFeedsAuthContext): Server {
                     } else {
                         inputJsonSchema = rawJsonSchema;
                     }
-
-                    console.log(
-                        `Input schema for ${flowName}:`,
-                        JSON.stringify(inputJsonSchema, null, 2)
-                    );
                 } catch (error) {
                     console.error(`Failed to convert input schema for ${flowName}:`, error);
                     // Fallback to empty schema
@@ -166,11 +165,6 @@ function createMCPServer(context: FlipFeedsAuthContext): Server {
                     } else {
                         outputJsonSchema = rawOutputSchema;
                     }
-
-                    console.log(
-                        `Output schema for ${flowName}:`,
-                        JSON.stringify(outputJsonSchema, null, 2)
-                    );
                 } catch (error) {
                     console.error(`Failed to convert output schema for ${flowName}:`, error);
                 }
@@ -190,7 +184,7 @@ function createMCPServer(context: FlipFeedsAuthContext): Server {
         });
 
         console.log(
-            `Listing ${tools.length} MCP tools for user ${context.uid} (${context.email || 'no email'})`
+            `Listing ${tools.length} MCP tools for user ${auth.uid} (${auth.email || 'no email'})`
         );
 
         return {
@@ -202,11 +196,9 @@ function createMCPServer(context: FlipFeedsAuthContext): Server {
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
 
-        console.log(
-            `Executing flow: ${name} for user ${context.uid} (${context.email || 'no email'})`
-        );
+        console.log(`Executing flow: ${name} for user ${auth.uid} (${auth.email || 'no email'})`);
         console.log('Flow arguments:', args);
-        console.log('Context passed to flow:', JSON.stringify(context, null, 2));
+        console.log('Context passed to flow:', JSON.stringify(auth, null, 2));
 
         try {
             // Get the flow from Genkit registry
@@ -225,13 +217,15 @@ function createMCPServer(context: FlipFeedsAuthContext): Server {
 
             // Second parameter: options object with context
             // This is how Genkit flows receive context information
-            const flowOptions = {
-                context,
+            const flowContext: { context: ActionContext } = {
+                context: {
+                    auth,
+                },
             };
 
             // Execute the flow with both parameters
             // flowEntry(input, options) where options contains { context }
-            const result = await flowEntry(flowArgs, flowOptions);
+            const result = await flowEntry(flowArgs, flowContext);
 
             // Return the result as MCP content
             return {

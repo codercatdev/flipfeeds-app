@@ -1,5 +1,6 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { z } from 'zod';
+import { requireAuth } from '../auth/contextProvider';
 import { ai } from '../genkit';
 import {
     claimUsernameTool,
@@ -38,9 +39,9 @@ const UserProfileOutputSchema = z.object({
     username: z.string().optional(),
     photoURL: z.string().url().optional(),
     bio: z.string().optional(),
-    feedCount: z.number(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
+    feedCount: z.number().optional(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
 });
 
 const CheckUsernameOutputSchema = z.object({
@@ -164,30 +165,38 @@ export const checkUsernameFlow = ai.defineFlow(
 
 /**
  * Get user profile
+ * Only allows users to access their own profile
  */
 export const getUserProfileFlow = ai.defineFlow(
     {
         name: 'getUserProfileFlow',
-        inputSchema: z.object({ uid: z.string() }),
         outputSchema: UserProfileOutputSchema,
     },
-    async (input: { uid: string }, { context }) => {
+    async (_, { context }) => {
         console.log('Flow context', JSON.stringify(context, null, 2));
+        const auth = requireAuth(context);
 
-        const profile = await getUserProfileTool({ uid: input.uid });
+        const profile = await getUserProfileTool({ uid: auth.uid });
+
         if (!profile) {
-            throw new HttpsError('not-found', 'User profile not found');
+            return {
+                uid: auth.uid,
+                displayName: auth.displayName,
+                username: undefined,
+                photoURL: auth.photoURL,
+                bio: undefined,
+            };
+        } else {
+            return {
+                uid: profile.uid,
+                displayName: profile.displayName,
+                username: profile.username,
+                photoURL: profile.photoURL,
+                bio: profile.bio,
+                feedCount: profile.feedCount,
+                createdAt: profile.createdAt.toISOString(),
+                updatedAt: profile.updatedAt.toISOString(),
+            };
         }
-
-        return {
-            uid: profile.uid,
-            displayName: profile.displayName,
-            username: profile.username,
-            photoURL: profile.photoURL,
-            bio: profile.bio,
-            feedCount: profile.feedCount,
-            createdAt: profile.createdAt.toISOString(),
-            updatedAt: profile.updatedAt.toISOString(),
-        };
     }
 );

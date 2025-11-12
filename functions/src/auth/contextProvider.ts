@@ -11,7 +11,7 @@
 
 import type { Request } from 'express';
 import { getAuth } from 'firebase-admin/auth';
-import { UserFacingError } from 'genkit';
+import { type ActionContext, UserFacingError } from 'genkit';
 import { jwtSecret } from './config';
 import { verifyAccessToken } from './tokens';
 
@@ -115,8 +115,8 @@ export async function authenticateRequest(req: Request): Promise<FlipFeedsAuthCo
 /**
  * Authorization policy helper: require authenticated user
  */
-export const requireAuth = (context: { auth?: FlipFeedsAuthContext }) => {
-    if (!context.auth?.uid) {
+export const requireAuth = (context: ActionContext | undefined) => {
+    if (!context?.auth?.uid) {
         throw new UserFacingError('UNAUTHENTICATED', 'Authentication required');
     }
     return context.auth;
@@ -125,7 +125,7 @@ export const requireAuth = (context: { auth?: FlipFeedsAuthContext }) => {
 /**
  * Authorization policy helper: require specific user
  */
-export const requireUser = (expectedUid: string) => (context: { auth?: FlipFeedsAuthContext }) => {
+export const requireUser = (expectedUid: string) => (context: ActionContext) => {
     const auth = requireAuth(context);
     if (auth.uid !== expectedUid) {
         throw new UserFacingError(

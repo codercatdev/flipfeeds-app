@@ -11,7 +11,10 @@
         "start": "npm run shell",
         "deploy": "firebase deploy --only functions",
         "logs": "firebase functions:log",
-        "set-claims": "node scripts/set-user-claims.js"
+        "set-claims": "node scripts/set-user-claims.js",
+        "genkit:dev": "bash scripts/run-genkit-dev.sh",
+        "genkit:dev:build": "tsc && bash scripts/run-genkit-build.sh",
+        "genkit:open": "bash scripts/run-genkit-open.sh"
     },
     "engines": {
         "node": "22"
@@ -35,6 +38,7 @@
     "devDependencies": {
         "@types/node": "^22.0.0",
         "firebase-functions-test": "^3.0.0",
+        "tsx": "^4.20.6",
         "typescript": "^5.0.0"
     },
     "private": true

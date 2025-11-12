@@ -8,13 +8,6 @@ import { getAuthServerUrl, getMcpServerUrl, jwtSecret } from './auth/config';
 import { verifyAccessToken } from './auth/tokens';
 import { ai } from './genkit';
 
-// Ensure all flows are loaded into the registry
-import './flows/userFlows';
-import './flows/feedFlows';
-import './flows/flipFlows';
-import './flows/flipLinkFlows';
-import './flows/inviteFlows';
-
 // ============================================================================
 // FIREBASE AUTHENTICATION MIDDLEWARE (Dual Mode)
 // ============================================================================

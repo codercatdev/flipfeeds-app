@@ -64,3 +64,44 @@ You can find user UIDs in:
 - Users must be in the `allowedFunctions` array for the specific function they're calling
 - Claims are set on the server and cannot be modified by the client
 - Users need to refresh their auth token (sign out/in) to get updated claims
+
+---
+
+## Genkit Development Scripts
+
+### Environment Configuration
+
+All scripts now use the `.env` file for configuration. Copy `example.secret.local` to `.env` and configure:
+
+```bash
+cp example.secret.local .env
+```
+
+Required variables in `.env`:
+- `GCLOUD_PROJECT` - Your Firebase project ID (e.g., "flipfeeds-app")
+- `FIREBASE_PROJECT` - Same as GCLOUD_PROJECT
+- `FIRESTORE_EMULATOR_HOST` - Emulator host for local dev (e.g., "localhost:8080")
+- `GEMINI_API_KEY` - Your Google AI API key
+- `JWT_SECRET` - Secret for JWT token signing
+
+**Note:** In Cloud Functions v2, `GCLOUD_PROJECT` and `FIREBASE_PROJECT` are automatically provided. The `.env` file is only needed for local development with Genkit UI.
+
+### Available Scripts
+
+**`run-genkit-dev.sh`** - Development mode with hot reload
+```bash
+pnpm genkit:dev
+```
+Starts Genkit with TypeScript watch mode for live code updates.
+
+**`run-genkit-build.sh`** - Production build mode
+```bash
+pnpm genkit:dev:build
+```
+Compiles TypeScript first, then starts Genkit with the built JS files.
+
+**`run-genkit-open.sh`** - UI only mode
+```bash
+pnpm genkit:open
+```
+Opens Genkit UI without emulators (useful for testing against production).

@@ -1,8 +1,12 @@
 #!/bin/bash
 # Load .env and start Genkit with pre-built JS
 
+# Set working directory to the functions folder
+cd "$(dirname "$0")/.."
+
 set -a  # automatically export all variables
 [ -f .env ] && source .env
 set +a
 
-FIRESTORE_EMULATOR_HOST=localhost:8080 genkit start --port 4001 -- node lib/genkit-dev.js
+# Start Genkit with compiled JS
+genkit start --port 4001 -- node lib/genkit-dev.js

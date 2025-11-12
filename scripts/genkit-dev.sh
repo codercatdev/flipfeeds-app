@@ -49,5 +49,12 @@ echo "The Genkit Developer UI will open at: http://localhost:4001"
 echo "Firebase Emulator UI is at: http://localhost:4000"
 echo ""
 
+# Load environment variables
+cd functions
+set -a
+[ -f .env ] && source .env
+set +a
+cd ..
+
 # Set environment variables and start
-FIRESTORE_EMULATOR_HOST=localhost:8080 genkit start --port 4001 -- node lib/genkit-dev.js
+genkit start --port 4001 -- node functions/lib/genkit-dev.js

@@ -17,6 +17,7 @@
  */
 
 import { googleAI } from '@genkit-ai/googleai';
+import { vertexAI } from '@genkit-ai/vertexai';
 import * as admin from 'firebase-admin';
 import type { CallableOptions } from 'firebase-functions/https';
 import { defineSecret } from 'firebase-functions/params';
@@ -60,7 +61,7 @@ export const genKitGoogleAiOptions: CallableOptions = {
 // ============================================================================
 
 /**
- * Initialize Genkit with Google AI plugin
+ * Initialize Genkit with Google AI and Vertex AI plugins
  *
  * For local development, set GEMINI_API_KEY in .env
  * For production, use Firebase secrets
@@ -69,15 +70,24 @@ export const genKitGoogleAiOptions: CallableOptions = {
  * - googleai/gemini-1.5-flash (stable, fast)
  * - googleai/gemini-1.5-pro (stable, powerful)
  * - googleai/gemini-2.0-flash-exp (experimental)
+ * - vertexai/imagen-3.0-fast-generate-001 (image generation)
  */
 export const ai = genkit({
     plugins: [
         googleAI({
             apiKey: process.env.GEMINI_API_KEY,
         }),
+        vertexAI({
+            projectId:
+                process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT || 'flipfeeds-app',
+            location: 'us-central1',
+        }),
     ],
     model: 'googleai/gemini-1.5-flash',
 });
+
+// Export vertexAI for use in flows
+export { vertexAI };
 
 // ============================================================================
 // FLOW REGISTRATION (Import to Register)

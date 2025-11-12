@@ -1,7 +1,9 @@
+import parseDataURL from 'data-urls';
+import * as admin from 'firebase-admin';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { z } from 'zod';
 import { requireAuth } from '../auth/contextProvider';
-import { ai } from '../genkit';
+import { ai, vertexAI } from '../genkit';
 import {
     claimUsernameTool,
     createUserProfileTool,
@@ -480,25 +482,48 @@ export const profileImageAssistantFlow = ai.defineFlow(
         name: 'profileImageAssistantFlow',
         metadata: {
             description:
-                'A flow to assist users in setting up their profile image through various methods.',
+                'A flow to assist users in setting up their profile image through AI generation or direct URL.',
         },
         inputSchema: z.object({
             action: z
-                .enum(['provide_url', 'generate_guidance', 'search_guidance', 'remove'])
+                .enum(['provide_url', 'generate_images', 'select_image', 'remove'])
                 .describe('The action to take with the profile image'),
-            imageUrl: z.string().url().optional().describe('Image URL if action is provide_url'),
-            prompt: z.string().optional().describe('Description for AI image generation guidance'),
+            imageUrl: z
+                .string()
+                .url()
+                .optional()
+                .describe('Image URL for provide_url or select_image actions'),
+            prompt: z
+                .string()
+                .optional()
+                .describe('Description for AI image generation (e.g., "a professional avatar")'),
+            selectedImageIndex: z
+                .number()
+                .optional()
+                .describe('Index (0-2) of the selected image from generated images'),
         }),
-        outputSchema: z.object({
-            success: z.boolean(),
-            message: z.string(),
-            imageUrl: z.string().optional().describe('The profile image URL if set'),
-            guidance: z.string().optional().describe('Additional guidance or suggestions'),
-        }),
+        outputSchema: z
+            .object({
+                success: z.boolean(),
+                message: z.string(),
+                imageUrl: z.string().optional().describe('The profile image URL if set'),
+                imageUrls: z
+                    .array(
+                        z.object({
+                            url: z.string().url(),
+                            index: z.number(),
+                            description: z.string(),
+                        })
+                    )
+                    .optional()
+                    .describe('Generated image URLs for user selection'),
+                imageCount: z.number().optional(),
+            })
+            .passthrough(),
     },
     async (input, { context }) => {
         const auth = requireAuth(context);
-        const { action, imageUrl, prompt } = input;
+        const { action, imageUrl, selectedImageIndex } = input;
 
         // Get current profile
         const profile = await getUserProfileTool({ uid: auth.uid });
@@ -518,69 +543,259 @@ export const profileImageAssistantFlow = ai.defineFlow(
                     };
                 }
 
-                // Update profile with the image URL
-                await updateUserProfileTool({
-                    uid: auth.uid,
-                    updates: { photoURL: imageUrl },
-                });
+                try {
+                    // Initialize Firebase Storage
+                    const storage = admin.storage();
+                    const bucket = storage.bucket();
 
-                return {
-                    success: true,
-                    message: 'Successfully updated your profile image!',
-                    imageUrl: imageUrl,
-                };
+                    // Fetch and store the provided image URL
+                    const imageResponse = await fetch(imageUrl);
+                    if (!imageResponse.ok) {
+                        throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
+                    }
+                    const imageBuffer = await imageResponse.arrayBuffer();
 
-            case 'generate_guidance': {
-                const aiPrompt = prompt || 'a professional avatar based on your interests';
-                return {
-                    success: true,
-                    message: `To generate an AI image for your profile, you can use these services:
-                    
-1. **DALL-E (OpenAI)**: Create unique, AI-generated images
-   - Visit: https://labs.openai.com
-   - Prompt: "${aiPrompt}"
-   
-2. **Midjourney**: High-quality AI art generation
-   - Discord-based: https://midjourney.com
-   
-3. **Stable Diffusion**: Free, open-source option
-   - Visit: https://stablediffusionweb.com
-   
-4. **Gemini Image Generation**: Google's AI image tool
-   - Use Google AI Studio: https://aistudio.google.com
+                    // Create a unique file path in the uploaded folder
+                    const timestamp = Date.now();
+                    const fileName = `profile-images/${auth.uid}/uploaded/profile-${timestamp}.jpg`;
+                    const file = bucket.file(fileName);
 
-After generating your image, come back and use the 'provide_url' action to set it as your profile image!`,
-                    guidance:
-                        'Once you have your image URL, call this flow again with action: "provide_url" and your imageUrl.',
-                };
+                    // Upload to Firebase Storage
+                    await file.save(Buffer.from(imageBuffer), {
+                        metadata: {
+                            contentType: 'image/jpeg',
+                            metadata: {
+                                uid: auth.uid,
+                                uploadedAt: new Date().toISOString(),
+                                sourceUrl: imageUrl,
+                            },
+                        },
+                        public: true,
+                    });
+
+                    // Get the public URL
+                    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+
+                    console.log(`User-provided image stored to ${fileName}`);
+
+                    // Update profile with the stored image URL
+                    await updateUserProfileTool({
+                        uid: auth.uid,
+                        updates: { photoURL: publicUrl },
+                    });
+
+                    return {
+                        success: true,
+                        message: 'Successfully updated your profile image!',
+                        imageUrl: publicUrl,
+                    };
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                    console.error('Error storing provided image:', errorMessage);
+                    return {
+                        success: false,
+                        message: `Failed to store provided image: ${errorMessage}`,
+                    };
+                }
+
+            case 'generate_images': {
+                const userPrompt =
+                    input.prompt || `A professional avatar for ${profile.displayName || 'user'}`;
+
+                try {
+                    // Generate three images in parallel
+                    // Adding slight variations to ensure diversity
+                    const prompts = [
+                        userPrompt,
+                        `${userPrompt}, variation 2`,
+                        `${userPrompt}, variation 3`,
+                    ];
+
+                    console.log(`Generating ${prompts.length} images in parallel...`);
+
+                    const imagePromises = prompts.map(async (prompt, index) => {
+                        console.log(`Starting generation for image ${index + 1}`);
+                        const response = await ai.generate({
+                            model: vertexAI.model('imagen-3.0-fast-generate-001'),
+                            prompt: prompt,
+                            output: { format: 'media' },
+                            config: {
+                                aspectRatio: '1:1', // Square image for profile
+                                outputOptions: {
+                                    mimeType: 'image/jpeg', // JPEG is more compact than PNG
+                                    compressionQuality: 80, // Good quality but smaller size
+                                },
+                            },
+                        });
+
+                        if (!response.media?.url) {
+                            throw new Error(`Failed to generate image ${index + 1}`);
+                        }
+
+                        console.log(`Successfully generated image ${index + 1}`);
+                        return { mediaUrl: response.media.url, index };
+                    });
+
+                    const results = await Promise.all(imagePromises);
+                    console.log(
+                        `All ${results.length} images generated, storing to Firebase Storage...`
+                    );
+
+                    // Initialize Firebase Storage
+                    const storage = admin.storage();
+                    const bucket = storage.bucket();
+
+                    // Store each generated image to Firebase Storage and get public URLs
+                    const uploadPromises = results.map(async ({ mediaUrl, index }) => {
+                        if (!mediaUrl) {
+                            throw new Error(`Failed to get image ${index + 1} URL`);
+                        }
+
+                        // Parse the data URL
+                        const parsed = parseDataURL(mediaUrl);
+                        if (!parsed) {
+                            throw new Error(
+                                `Failed to parse image data URL for image ${index + 1}`
+                            );
+                        }
+
+                        // Create unique file path in generated folder
+                        const timestamp = Date.now();
+                        const fileName = `profile-images/${auth.uid}/generated/ai-avatar-${timestamp}-${index}.jpg`;
+                        const file = bucket.file(fileName);
+
+                        // Upload to Firebase Storage
+                        await file.save(Buffer.from(parsed.body), {
+                            metadata: {
+                                contentType: 'image/jpeg',
+                                metadata: {
+                                    uid: auth.uid,
+                                    generatedAt: new Date().toISOString(),
+                                    prompt: userPrompt,
+                                    variation: index + 1,
+                                },
+                            },
+                            public: true,
+                        });
+
+                        // Get the public URL
+                        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+
+                        console.log(`Stored image ${index + 1} to ${fileName}`);
+
+                        return {
+                            url: publicUrl,
+                            index,
+                            fileName,
+                        };
+                    });
+
+                    const uploadedImages = await Promise.all(uploadPromises);
+                    console.log(
+                        `Successfully stored ${uploadedImages.length} images to Firebase Storage`
+                    );
+
+                    // Format response with image URLs
+                    const imageUrls = uploadedImages.map(({ url, index }) => ({
+                        url,
+                        index,
+                        description: `Variation ${index + 1} of: ${userPrompt}`,
+                    }));
+
+                    return {
+                        success: true,
+                        message: `Generated ${imageUrls.length} AI profile images! To select one:
+
+Call this flow again with:
+   - action: "select_image"
+   - selectedImageIndex: 0 for image 1, 1 for image 2, or 2 for image 3
+   - imageUrl: the URL of your chosen image`,
+                        imageUrls,
+                        imageCount: imageUrls.length,
+                    };
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                    console.error('Error generating images:', errorMessage);
+                    return {
+                        success: false,
+                        message: `Failed to generate images: ${errorMessage}`,
+                    };
+                }
             }
 
-            case 'search_guidance':
-                return {
-                    success: true,
-                    message: `Here are some great places to find profile images:
+            case 'select_image': {
+                if (!imageUrl) {
+                    return {
+                        success: false,
+                        message: 'Please provide imageUrl of the selected image.',
+                    };
+                }
 
-1. **Unsplash** (Free, high-quality): https://unsplash.com
-   - Search for: avatars, portraits, professional headshots
-   
-2. **Pexels** (Free): https://pexels.com
-   - Great for professional photos
-   
-3. **Gravatar**: Use your email-based Gravatar
-   - Visit: https://gravatar.com
-   
-4. **UI Avatars** (Generated): https://ui-avatars.com
-   - Auto-generates based on your name
+                if (
+                    selectedImageIndex !== undefined &&
+                    (selectedImageIndex < 0 || selectedImageIndex > 2)
+                ) {
+                    return {
+                        success: false,
+                        message: 'selectedImageIndex must be between 0 and 2.',
+                    };
+                }
 
-Remember to:
-- Use images you have rights to
-- Choose appropriate, professional images
-- Use square images for best results (recommended: 400x400px or larger)
+                try {
+                    // Initialize Firebase Storage
+                    const storage = admin.storage();
+                    const bucket = storage.bucket();
 
-After finding your image, come back with the URL to set it as your profile image!`,
-                    guidance:
-                        'Once you have your image URL, call this flow again with action: "provide_url" and your imageUrl.',
-                };
+                    // Fetch the image from the provided URL
+                    const imageResponse = await fetch(imageUrl);
+                    if (!imageResponse.ok) {
+                        throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
+                    }
+                    const imageBuffer = await imageResponse.arrayBuffer();
+
+                    // Create a unique file path in the selected folder
+                    const timestamp = Date.now();
+                    const fileName = `profile-images/${auth.uid}/selected/profile-${timestamp}.jpg`;
+                    const file = bucket.file(fileName);
+
+                    // Upload to Firebase Storage
+                    await file.save(Buffer.from(imageBuffer), {
+                        metadata: {
+                            contentType: 'image/jpeg',
+                            metadata: {
+                                uid: auth.uid,
+                                selectedAt: new Date().toISOString(),
+                                sourceUrl: imageUrl,
+                            },
+                        },
+                        public: true,
+                    });
+
+                    // Get the public URL
+                    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+
+                    console.log(`Selected image stored to ${fileName}`);
+
+                    // Update user profile with the new image URL
+                    await updateUserProfileTool({
+                        uid: auth.uid,
+                        updates: { photoURL: publicUrl },
+                    });
+
+                    return {
+                        success: true,
+                        message: 'Successfully updated your profile image!',
+                        imageUrl: publicUrl,
+                    };
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                    console.error('Error selecting and storing image:', errorMessage);
+                    return {
+                        success: false,
+                        message: `Failed to store and update profile image: ${errorMessage}`,
+                    };
+                }
+            }
 
             case 'remove':
                 await updateUserProfileTool({

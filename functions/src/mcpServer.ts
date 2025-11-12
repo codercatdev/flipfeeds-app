@@ -92,17 +92,39 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
         const allActions = Object.values(actions);
         const flows = allActions.filter((a: any) => {
             // Flows are callable functions with __action metadata
-            // Exclude googleai models (they start with 'googleai/')
-            // Exclude tools (they have metadata.type === 'tool')
             const flowName = a.__action?.name || '';
             const actionType = a.__action?.metadata?.type;
-            return (
-                typeof a === 'function' &&
-                a.__action &&
-                actionType !== 'tool' &&
-                !flowName.startsWith('googleai/') &&
-                flowName !== 'generate' // Exclude the default 'generate' flow
-            );
+            
+            // Exclude all models (they have type === 'model')
+            if (actionType === 'model') {
+                console.log(`Filtering out model: ${flowName} (type: ${actionType})`);
+                return false;
+            }
+            
+            // Exclude tools (they have type === 'tool')
+            if (actionType === 'tool') {
+                console.log(`Filtering out tool: ${flowName} (type: ${actionType})`);
+                return false;
+            }
+            
+            // Exclude model namespaces (googleai/, vertexai/, etc.)
+            if (flowName.includes('/') && (
+                flowName.startsWith('googleai/') ||
+                flowName.startsWith('vertexai/') ||
+                flowName.startsWith('vertexAI/')
+            )) {
+                console.log(`Filtering out namespaced model/action: ${flowName}`);
+                return false;
+            }
+            
+            // Exclude the default 'generate' flow
+            if (flowName === 'generate') {
+                console.log(`Filtering out default generate flow: ${flowName}`);
+                return false;
+            }
+            
+            // Only include callable functions with __action metadata
+            return typeof a === 'function' && a.__action;
         });
 
         console.log(
@@ -111,9 +133,15 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
 
         const tools = flows.map((flow: any) => {
             const flowAction = flow.__action;
-            const flowName = flowAction.name;
+            const originalFlowName = flowAction.name;
+            
+            // Sanitize flow name to meet MCP requirements: ^[a-zA-Z0-9_-]{1,64}$
+            // Replace invalid characters with underscores and truncate to 64 chars
+            const flowName = originalFlowName
+                .replace(/[^a-zA-Z0-9_-]/g, '_')
+                .substring(0, 64);
 
-            console.log('Processing flow:', flowName);
+            console.log('Processing flow:', originalFlowName, flowName !== originalFlowName ? `(sanitized to: ${flowName})` : '');
 
             // Convert Zod input schema to JSON Schema for MCP
             const inputSchema = flowAction.inputSchema;
@@ -145,40 +173,20 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
                 }
             }
 
-            // Convert Zod output schema to JSON Schema for documentation
-            const outputSchema = flowAction.outputSchema;
-            let outputJsonSchema: any = null;
-
-            if (outputSchema) {
-                try {
-                    const rawOutputSchema = zodToJsonSchema(outputSchema, {
-                        name: `${flowName}Output`,
-                        $refStrategy: 'none',
-                    });
-                    delete rawOutputSchema.$schema;
-
-                    // Inline the definition if using $ref
-                    const outputSchemaAny = rawOutputSchema as any;
-                    if (outputSchemaAny.$ref && outputSchemaAny.definitions) {
-                        const refName = outputSchemaAny.$ref.split('/').pop();
-                        outputJsonSchema = outputSchemaAny.definitions[refName] || rawOutputSchema;
-                    } else {
-                        outputJsonSchema = rawOutputSchema;
-                    }
-                } catch (error) {
-                    console.error(`Failed to convert output schema for ${flowName}:`, error);
-                }
-            }
-
             // Build tool description with output info if available
             const fullDescription =
-                flowAction?.metadata?.escription || `Execute the ${flowName} flow`;
+                flowAction?.metadata?.description || `Execute the ${flowName} flow`;
 
+            // Ensure inputSchema always has type: "object"
+            if (!inputJsonSchema.type) {
+                inputJsonSchema.type = 'object';
+            }
+
+            // MCP tools should NOT include outputSchema - only inputSchema
             return {
                 name: flowName,
                 description: fullDescription,
                 inputSchema: inputJsonSchema,
-                outputSchema: outputJsonSchema,
             };
         });
 
@@ -226,14 +234,89 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
             // flowEntry(input, options) where options contains { context }
             const result = await flowEntry(flowArgs, flowContext);
 
+            // Prepare MCP content array
+            const content: any[] = [];
+
+            // Check if result contains imageUrls (new URL-based approach for profileImageAssistantFlow)
+            if (
+                result &&
+                typeof result === 'object' &&
+                'imageUrls' in result &&
+                Array.isArray(result.imageUrls)
+            ) {
+                console.log(`Found ${result.imageUrls.length} image URLs in response`);
+
+                // Add each image URL as a text item with embedded image reference
+                for (let i = 0; i < result.imageUrls.length; i++) {
+                    const imageInfo = result.imageUrls[i];
+                    console.log(`Adding image URL ${i + 1}: ${imageInfo.url}`);
+
+                    // Add image as resource with URL
+                    content.push({
+                        type: 'resource',
+                        resource: {
+                            uri: imageInfo.url,
+                            mimeType: 'image/jpeg',
+                            text: imageInfo.description,
+                        },
+                    });
+                }
+
+                // Add text response with helpful context
+                content.push({
+                    type: 'text',
+                    text: JSON.stringify(result, null, 2),
+                });
+
+                console.log(
+                    `Returning ${content.length} content items (${result.imageUrls.length} image resources + 1 text)`
+                );
+            }
+            // Legacy: Check if result contains base64 images (backward compatibility)
+            else if (
+                result &&
+                typeof result === 'object' &&
+                'images' in result &&
+                Array.isArray(result.images)
+            ) {
+                console.log(`Found ${result.images.length} base64 images in response (legacy)`);
+
+                // Add each image as separate content item
+                for (let i = 0; i < result.images.length; i++) {
+                    const image = result.images[i];
+                    if (image.type === 'image' && image.data && image.mimeType) {
+                        console.log(
+                            `Adding image ${i + 1}: ${image.mimeType}, size: ${image.data.length} bytes`
+                        );
+                        content.push({
+                            type: 'image',
+                            data: image.data,
+                            mimeType: image.mimeType,
+                            ...(image.annotations && { annotations: image.annotations }),
+                        });
+                    }
+                }
+
+                const { images: _images, ...resultWithoutImages } = result;
+                content.push({
+                    type: 'text',
+                    text: JSON.stringify(resultWithoutImages, null, 2),
+                });
+
+                console.log(
+                    `Returning ${content.length} content items (${result.images.length} images + 1 text)`
+                );
+            } else {
+                // Standard text response
+                content.push({
+                    type: 'text',
+                    text: JSON.stringify(result, null, 2),
+                });
+            }
+
             // Return the result as MCP content
             return {
-                content: [
-                    {
-                        type: 'text',
-                        text: JSON.stringify(result, null, 2),
-                    },
-                ],
+                content,
             };
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -263,6 +346,22 @@ const app = express();
 // Parse JSON bodies
 app.use(express.json());
 
+// Add CORS middleware for all requests
+app.use((_req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    
+    // Handle OPTIONS preflight requests
+    if (_req.method === 'OPTIONS') {
+        res.status(204).send();
+        return;
+    }
+    
+    next();
+});
+
 // ============================================================================
 // METADATA ENDPOINT (OAuth Protected Resource)
 // ============================================================================
@@ -288,17 +387,7 @@ app.get('/.well-known/oauth-protected-resource', (_req, res) => {
     });
 });
 
-/**
- * CORS preflight handler for OAuth metadata endpoint
- * Required for browser-based MCP clients
- */
-app.options('/.well-known/oauth-protected-resource', (_req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Max-Age', '86400');
-    res.status(204).send();
-});
+
 
 // Health check endpoint
 app.get('/health', (_req, res) => {

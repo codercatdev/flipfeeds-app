@@ -53,5 +53,10 @@
         "node": ">=20.0.0",
         "pnpm": ">=10.0.0"
     },
-    "packageManager": "pnpm@10.21.0"
+    "packageManager": "pnpm@10.21.0",
+    "pnpm": {
+        "overrides": {
+            "long": "^5.2.3"
+        }
+    }
 }

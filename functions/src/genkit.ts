@@ -37,6 +37,11 @@ export const genKitGoogleAiOptions: CallableOptions = {
  *
  * For local development, set GEMINI_API_KEY in .env
  * For production, use Firebase secrets
+ *
+ * Available models:
+ * - googleai/gemini-1.5-flash (stable, fast)
+ * - googleai/gemini-1.5-pro (stable, powerful)
+ * - googleai/gemini-2.0-flash-exp (experimental)
  */
 export const ai = genkit({
     plugins: [
@@ -44,7 +49,7 @@ export const ai = genkit({
             apiKey: process.env.GEMINI_API_KEY,
         }),
     ],
-    model: 'googleai/gemini-2.5-flash',
+    model: 'googleai/gemini-1.5-flash',
 });
 
 // ============================================================================
@@ -84,14 +89,15 @@ import './flows/inviteFlows';
  * These tools can be used by flows or directly called in the Dev UI.
  */
 
-// User management tools
-import './tools/userTools';
-
 // Feed management tools
-import './tools/feedTools';
-
+import * as feedTools from './tools/feedTools';
 // Flip (video) management tools
-import './tools/flipTools';
+import * as flipTools from './tools/flipTools';
+// User management tools
+import * as userTools from './tools/userTools';
 
 // Video processing tools
-import './tools/videoTools';
+import * as videoTools from './tools/videoTools';
+
+// Export all tools so they're accessible
+export { userTools, feedTools, flipTools, videoTools };

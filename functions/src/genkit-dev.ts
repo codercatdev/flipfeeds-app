@@ -35,4 +35,5 @@ export * from './genkit';
 
 console.log('✅ Genkit development server initialized');
 console.log('📊 All flows registered from genkit.ts');
-console.log('🔧 Utility functions available from tools/ (not Genkit AI tools)');
+console.log('🔧 All tools registered and available in Dev UI');
+console.log('🌐 Open http://localhost:4001 to access Genkit Dev UI');

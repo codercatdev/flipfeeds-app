@@ -210,6 +210,7 @@ export const createUserProfileTool = ai.defineTool(
         outputSchema: z.void(),
     },
     async (input) => {
+        console.log('Creating user profile for UID:', input.uid);
         await db
             .collection('users')
             .doc(input.uid)

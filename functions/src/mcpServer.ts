@@ -171,15 +171,14 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
             }
 
             // Build tool description with output info if available
-            let fullDescription = flowAction.description || `Execute the ${flowName} flow`;
-            if (outputJsonSchema) {
-                fullDescription += `\n\nReturns: ${JSON.stringify(outputJsonSchema, null, 2)}`;
-            }
+            const fullDescription =
+                flowAction?.metadata?.escription || `Execute the ${flowName} flow`;
 
             return {
                 name: flowName,
                 description: fullDescription,
                 inputSchema: inputJsonSchema,
+                outputSchema: outputJsonSchema,
             };
         });
 

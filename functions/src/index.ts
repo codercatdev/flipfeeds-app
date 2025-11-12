@@ -1,10 +1,6 @@
-import * as admin from 'firebase-admin';
-
-// Initialize Firebase Admin SDK
-admin.initializeApp();
-
 // Import Genkit instance and all flows
 // This ensures flows are registered with Genkit before MCP server starts
+// Note: Firebase Admin is initialized in genkit.ts
 import './genkit';
 
 // Export OAuth Authorization Server (handles OAuth 2.1 flow)

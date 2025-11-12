@@ -17,9 +17,36 @@
  */
 
 import { googleAI } from '@genkit-ai/googleai';
+import * as admin from 'firebase-admin';
 import type { CallableOptions } from 'firebase-functions/https';
 import { defineSecret } from 'firebase-functions/params';
 import { genkit } from 'genkit';
+
+// ============================================================================
+// FIREBASE ADMIN INITIALIZATION
+// ============================================================================
+
+/**
+ * Initialize Firebase Admin SDK
+ * This must happen BEFORE importing flows/tools that use Firestore
+ *
+ * In production: Uses default credentials
+ * In dev/emulator: Set FIRESTORE_EMULATOR_HOST and GCLOUD_PROJECT env vars
+ */
+if (!admin.apps.length) {
+    const projectId = process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT;
+
+    if (projectId) {
+        admin.initializeApp({ projectId });
+    } else {
+        admin.initializeApp();
+    }
+
+    // Log emulator configuration for debugging
+    if (process.env.FIRESTORE_EMULATOR_HOST) {
+        console.log('🔧 Using Firestore Emulator:', process.env.FIRESTORE_EMULATOR_HOST);
+    }
+}
 
 const googleAIapiKey = defineSecret('GEMINI_API_KEY');
 export const genKitGoogleAiOptions: CallableOptions = {

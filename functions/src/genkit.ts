@@ -36,11 +36,17 @@ import { genkit } from 'genkit';
  */
 if (!admin.apps.length) {
     const projectId = process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT;
+    const storageBucket = process.env.STORAGE_BUCKET || 'flipfeeds-app.firebasestorage.app';
 
     if (projectId) {
-        admin.initializeApp({ projectId });
+        admin.initializeApp({
+            projectId,
+            storageBucket,
+        });
     } else {
-        admin.initializeApp();
+        admin.initializeApp({
+            storageBucket,
+        });
     }
 
     // Log emulator configuration for debugging

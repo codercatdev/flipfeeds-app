@@ -659,6 +659,9 @@ export const profileImageAssistantFlow = ai.defineFlow(
                             );
                         }
 
+                        // Convert to base64 for MCP display
+                        const base64Data = Buffer.from(parsed.body).toString('base64');
+
                         // Create unique file path in generated folder
                         const timestamp = Date.now();
                         const fileName = `profile-images/${auth.uid}/generated/ai-avatar-${timestamp}-${index}.jpg`;
@@ -685,6 +688,7 @@ export const profileImageAssistantFlow = ai.defineFlow(
 
                         return {
                             url: publicUrl,
+                            base64: base64Data,
                             index,
                             fileName,
                         };
@@ -695,9 +699,10 @@ export const profileImageAssistantFlow = ai.defineFlow(
                         `Successfully stored ${uploadedImages.length} images to Firebase Storage`
                     );
 
-                    // Format response with image URLs
-                    const imageUrls = uploadedImages.map(({ url, index }) => ({
+                    // Format response with image URLs and base64 data
+                    const imageUrls = uploadedImages.map(({ url, base64, index }) => ({
                         url,
+                        base64,
                         index,
                         description: `Variation ${index + 1} of: ${userPrompt}`,
                     }));

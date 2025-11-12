@@ -94,35 +94,36 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
             // Flows are callable functions with __action metadata
             const flowName = a.__action?.name || '';
             const actionType = a.__action?.metadata?.type;
-            
+
             // Exclude all models (they have type === 'model')
             if (actionType === 'model') {
                 console.log(`Filtering out model: ${flowName} (type: ${actionType})`);
                 return false;
             }
-            
+
             // Exclude tools (they have type === 'tool')
             if (actionType === 'tool') {
                 console.log(`Filtering out tool: ${flowName} (type: ${actionType})`);
                 return false;
             }
-            
+
             // Exclude model namespaces (googleai/, vertexai/, etc.)
-            if (flowName.includes('/') && (
-                flowName.startsWith('googleai/') ||
-                flowName.startsWith('vertexai/') ||
-                flowName.startsWith('vertexAI/')
-            )) {
+            if (
+                flowName.includes('/') &&
+                (flowName.startsWith('googleai/') ||
+                    flowName.startsWith('vertexai/') ||
+                    flowName.startsWith('vertexAI/'))
+            ) {
                 console.log(`Filtering out namespaced model/action: ${flowName}`);
                 return false;
             }
-            
+
             // Exclude the default 'generate' flow
             if (flowName === 'generate') {
                 console.log(`Filtering out default generate flow: ${flowName}`);
                 return false;
             }
-            
+
             // Only include callable functions with __action metadata
             return typeof a === 'function' && a.__action;
         });
@@ -134,14 +135,16 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
         const tools = flows.map((flow: any) => {
             const flowAction = flow.__action;
             const originalFlowName = flowAction.name;
-            
+
             // Sanitize flow name to meet MCP requirements: ^[a-zA-Z0-9_-]{1,64}$
             // Replace invalid characters with underscores and truncate to 64 chars
-            const flowName = originalFlowName
-                .replace(/[^a-zA-Z0-9_-]/g, '_')
-                .substring(0, 64);
+            const flowName = originalFlowName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 64);
 
-            console.log('Processing flow:', originalFlowName, flowName !== originalFlowName ? `(sanitized to: ${flowName})` : '');
+            console.log(
+                'Processing flow:',
+                originalFlowName,
+                flowName !== originalFlowName ? `(sanitized to: ${flowName})` : ''
+            );
 
             // Convert Zod input schema to JSON Schema for MCP
             const inputSchema = flowAction.inputSchema;
@@ -246,30 +249,53 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
             ) {
                 console.log(`Found ${result.imageUrls.length} image URLs in response`);
 
-                // Add each image URL as a text item with embedded image reference
+                // Add each image using base64 data from the response
                 for (let i = 0; i < result.imageUrls.length; i++) {
                     const imageInfo = result.imageUrls[i];
-                    console.log(`Adding image URL ${i + 1}: ${imageInfo.url}`);
 
-                    // Add image as resource with URL
-                    content.push({
-                        type: 'resource',
-                        resource: {
-                            uri: imageInfo.url,
+                    // Check if base64 data is available
+                    if (imageInfo.base64) {
+                        console.log(
+                            `Adding image ${i + 1} as base64 (${imageInfo.base64.length} chars): ${imageInfo.description}`
+                        );
+
+                        // Add image content for MCP (this displays inline in Claude/ChatGPT)
+                        content.push({
+                            type: 'image',
+                            data: imageInfo.base64,
                             mimeType: 'image/jpeg',
-                            text: imageInfo.description,
-                        },
-                    });
+                        });
+
+                        // Add caption with URL reference for selection
+                        content.push({
+                            type: 'text',
+                            text: `**Image ${i + 1}**: ${imageInfo.description}\n**URL for selection**: \`${imageInfo.url}\``,
+                        });
+                    } else {
+                        // Fallback: just show URL if base64 not available
+                        console.log(`No base64 data for image ${i + 1}, showing URL only`);
+                        content.push({
+                            type: 'text',
+                            text: `**Image ${i + 1}**: ${imageInfo.description}\n**URL**: ${imageInfo.url}`,
+                        });
+                    }
                 }
 
-                // Add text response with helpful context
+                // Add selection instructions with clear reference to URLs
+                const selectionInstructions = `
+${result.message || 'Images generated successfully!'}
+
+To select an image, use the URL shown above (not the base64 data).
+Example: If user likes Image 2, use imageUrl: "${result.imageUrls[1]?.url || 'the URL shown above'}"
+`;
+
                 content.push({
                     type: 'text',
-                    text: JSON.stringify(result, null, 2),
+                    text: selectionInstructions.trim(),
                 });
 
                 console.log(
-                    `Returning ${content.length} content items (${result.imageUrls.length} image resources + 1 text)`
+                    `Returning ${content.length} content items (${result.imageUrls.length} images with URLs + instructions)`
                 );
             }
             // Legacy: Check if result contains base64 images (backward compatibility)
@@ -352,13 +378,13 @@ app.use((_req, res, next) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Access-Control-Max-Age', '86400');
-    
+
     // Handle OPTIONS preflight requests
     if (_req.method === 'OPTIONS') {
         res.status(204).send();
         return;
     }
-    
+
     next();
 });
 
@@ -386,8 +412,6 @@ app.get('/.well-known/oauth-protected-resource', (_req, res) => {
         resource_policy_uri: `${mcpServerUrl}/policy`,
     });
 });
-
-
 
 // Health check endpoint
 app.get('/health', (_req, res) => {

@@ -91,6 +91,7 @@ export const getFeedData = defineTool(
     outputSchema: z.object({
       name: z.string(),
       description: z.string(),
+      logoURL: z.string().optional(),
       visibility: z.string(), // 'public' | 'private'
       ownerId: z.string(),
       memberCount: z.number(),
@@ -105,6 +106,7 @@ export const getFeedData = defineTool(
     return {
       name: data.name,
       description: data.description,
+      logoURL: data.logoURL || '',
       visibility: data.visibility,
       ownerId: data.ownerId,
       memberCount: data.stats.memberCount || 0,

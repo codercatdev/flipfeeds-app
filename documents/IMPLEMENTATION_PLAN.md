@@ -854,10 +854,25 @@ Create:
 📂 Location: `functions/src/flows/`
 
 Create:
-- `userFlows.ts` - createUserFlow (on signup)
-- `feedFlows.ts` - createFeedFlow, joinFeedFlow, leaveFeedFlow
+- `userFlows.ts` - createUserFlow (on signup), updateUserProfileFlow (with username uniqueness)
+- `feedFlows.ts` - createFeedFlow, joinFeedFlow, leaveFeedFlow, kickMemberFlow, updateMemberRoleFlow
 - `flipFlows.ts` - createFlipFlow (with AI processing)
 - `flipLinkFlows.ts` - generateFlipLinkFlow, redeemFlipLinkFlow
+- `inviteFlows.ts` - generateInviteFlow (for private Feeds), acceptInviteFlow
+
+**Key Flow Details:**
+
+**leaveFeedFlow**: Removes member from `v1/feeds/{feedId}/members/{userId}`, deletes reverse lookup in `v1/users/{userId}/feeds/{feedId}`, decrements `memberCount` in a transaction.
+
+**kickMemberFlow**: Admin-only. Validates caller has 'admin' role, then performs same operations as leaveFeedFlow for target user.
+
+**updateMemberRoleFlow**: Admin-only. Updates role field in `v1/feeds/{feedId}/members/{userId}`.
+
+**generateInviteFlow**: Creates single-use invite in `v1/feeds/{feedId}/invites/{inviteId}` for private Feeds. Returns invite link.
+
+**acceptInviteFlow**: Validates invite exists and hasn't been used, then calls joinFeedFlow logic and marks invite as consumed.
+
+**updateUserProfileFlow**: When updating username, attempts to create `v1/usernames/{username}` document. If successful, updates user profile. If document exists, returns error "Username taken".
 
 #### 1.3 Shared Logic Package
 
@@ -878,6 +893,60 @@ Implement the rules from `firestore.md`:
 - User can only edit their own profile
 - Feed member checks for flip visibility
 - Public vs private Feed logic
+
+#### 1.5 Denormalized Data Synchronization
+
+📂 Location: `functions/src/triggers/`
+
+**Challenge:** User profile data (`displayName`, `photoURL`) is denormalized in the `members` sub-collection (`v1/feeds/{feedId}/members/{userId}`). When a user updates their profile, this data becomes stale across all Feeds they belong to.
+
+**Solution Options:**
+
+**Option A: Real-time Update (Firebase Trigger)** ⚡ **Recommended for MVP**
+```typescript
+// functions/src/triggers/onUserUpdate.ts
+export const onUserUpdate = functions.firestore
+  .document('v1/users/{userId}')
+  .onUpdate(async (change, context) => {
+    const before = change.before.data();
+    const after = change.after.data();
+    const userId = context.params.userId;
+    
+    // Only update if displayName or photoURL changed
+    if (before.displayName === after.displayName && 
+        before.photoURL === after.photoURL) {
+      return;
+    }
+    
+    // Collection group query to find all member documents for this user
+    const memberDocs = await db.collectionGroup('members')
+      .where('userId', '==', userId)
+      .get();
+    
+    // Batch update all member documents
+    const batch = db.batch();
+    memberDocs.forEach(doc => {
+      batch.update(doc.ref, {
+        displayName: after.displayName,
+        photoURL: after.photoURL,
+      });
+    });
+    
+    await batch.commit();
+  });
+```
+
+**Trade-offs:**
+- ✅ **Pros**: Data always fresh, users see updated names/avatars immediately
+- ❌ **Cons**: Can be slow/expensive for users in many Feeds (100+ writes), increases function execution costs
+- ⚠️ **Rate Limiting**: Consider throttling profile updates (max 1 per hour) to prevent abuse
+
+**Option B: Lazy Update** 🐌 **Consider for Scale**
+- Only update denormalized data when the user next interacts with a Feed (flips a video, comments, etc.)
+- Much cheaper, but data can be stale for long periods
+- Good for users in 100+ Feeds where real-time sync is cost-prohibitive
+
+**Recommendation:** Start with Option A for MVP. Add rate limiting to profile updates. If costs become an issue at scale, implement Option B with a background job that syncs stale data weekly.
 
 **Deliverable:** Users can sign up, create Feeds, and basic flips work
 
@@ -1259,20 +1328,121 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'update_my_profile',
-        description: 'Update user profile (displayName, bio, avatar)',
+        description: 'Update user profile (displayName, bio, avatar, username)',
         inputSchema: {
           type: 'object',
           properties: {
             displayName: { type: 'string' },
             bio: { type: 'string' },
             photoURL: { type: 'string' },
+            username: { type: 'string' },
           },
+        },
+      },
+      // Personal Feed (NEW!)
+      {
+        name: 'get_personal_feed',
+        description: 'Get the user\'s Personal Feed - a private space for saving flips',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            limit: { type: 'number', default: 20 },
+          },
+        },
+      },
+      {
+        name: 'save_flip_to_personal',
+        description: 'Save/bookmark a flip to the user\'s Personal Feed',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            flipId: { type: 'string' },
+          },
+          required: ['flipId'],
+        },
+      },
+      // Member Management (Admin-only)
+      {
+        name: 'leave_feed',
+        description: 'Leave a Feed (remove yourself as a member)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            feedId: { type: 'string' },
+          },
+          required: ['feedId'],
+        },
+      },
+      {
+        name: 'kick_member',
+        description: 'Remove a member from a Feed (admin-only)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            feedId: { type: 'string' },
+            userId: { type: 'string' },
+          },
+          required: ['feedId', 'userId'],
+        },
+      },
+      {
+        name: 'update_member_role',
+        description: 'Update a member\'s role in a Feed (admin-only)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            feedId: { type: 'string' },
+            userId: { type: 'string' },
+            role: { type: 'string', enum: ['admin', 'moderator', 'member'] },
+          },
+          required: ['feedId', 'userId', 'role'],
+        },
+      },
+      // Private Feed Invites (NEW!)
+      {
+        name: 'generate_invite',
+        description: 'Generate a single-use invite link for a private Feed (admin-only)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            feedId: { type: 'string' },
+            expiresInHours: { type: 'number', default: 168 },
+          },
+          required: ['feedId'],
+        },
+      },
+      {
+        name: 'accept_invite',
+        description: 'Accept a private Feed invite using an invite code',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            inviteId: { type: 'string' },
+          },
+          required: ['inviteId'],
         },
       },
     ],
   };
 });
 ```
+
+**Note on Schema Generation:**
+To ensure type safety and reduce drift between internal Zod schemas and MCP tool schemas, consider using `zod-to-json-schema`:
+
+```typescript
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import { CreateFeedInputSchema } from './flows/feedFlows';
+
+// Instead of manually writing inputSchema, generate it from Zod
+{
+  name: 'create_feed',
+  description: 'Create a new Feed (public or private)',
+  inputSchema: zodToJsonSchema(CreateFeedInputSchema),
+}
+```
+
+This keeps your MCP server's public API in perfect sync with your internal type definitions.
 
 #### 7.2 MCP UI Package
 

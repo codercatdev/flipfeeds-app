@@ -154,7 +154,7 @@ export const joinFeedFlow = defineFlow(
         joinedAt: FieldValue.serverTimestamp(),
         role: 'member',
         name: feedData.name, // Denormalized
-        logoURL: '[https://placehold.co/100x100/F26F21/FFFFFF?text=FF](https://placehold.co/100x100/F26F21/FFFFFF?text=FF)', // TODO: Get real logo
+        logoURL: feedData.logoURL || '', // Denormalized from feed data
       });
 
       // Increment member count

@@ -1,439 +1,243 @@
 # FlipFeeds: Comprehensive Implementation Plan
 
-
-**Status:** Phase 7 Implementation  **Created:** November 11, 2025  
-
-**Target Platforms:** ChatGPT, Claude Desktop, Gemini (future)  **Status:** Draft  
-
-**Based on:** [mcpui.dev](https://mcpui.dev/)**Version:** 1.0
-
-
-
-------
-
-
-
-## 🎯 Vision## 🎯 Executive Summary
-
-
-
-FlipFeeds should be **fully functional** inside AI chat applications. Users should be able to:This plan integrates the FlipFeeds philosophy (Feeds, AI-first, intentional feeds) into your existing monorepo architecture with **mobile (React Native/Expo)** and **web (Next.js)** applications. We'll leverage your current Firebase Functions + Genkit setup and extend it to support the full FlipFeeds vision.
-
-- Browse their Feeds
-
-- Create new Feeds---
-
-- Generate and share Flip Links
-
-- View video feeds with AI summaries## 📐 Current Architecture Analysis
-
-- Search public Feeds
-
-- Manage their profile### ✅ What We Have
-
-- **Monorepo Structure**: pnpm workspaces with apps/mobile, apps/web, packages/*, functions
-
-All through **natural language commands**, with **rich UI cards** for visual feedback.- **Backend**: Firebase Functions with Genkit flows (generateFlip, generatePoem, youtubeThumbnail)
-
-- **Auth**: Dual OAuth 2.1 + Firebase ID token authentication via MCP server
-
----- **Mobile**: React Native + Expo with full Firebase SDK (@react-native-firebase/*)
-
-- **Web**: Next.js 16 with App Router, Radix UI, Tailwind
-
-## 🏗️ Architecture- **Shared Packages**: firebase-config, shared-logic, ui-components
-
-- **MCP Server**: Already implemented with OAuth auth and streaming support
-
-```- **AI-Native Ready**: MCP server can be consumed by ChatGPT, Claude, Gemini
-
-┌─────────────────────────────────────────────────┐
-
-│  ChatGPT / Claude Desktop / Gemini              │### 🔧 What Needs Adjustment
-
-│  ┌───────────────────────────────────────────┐  │- **Data Schema**: No Firestore collections for users, feeds, flips yet
-
-│  │  User: "Show me my Feeds"                 │  │- **Flows**: Current flows are demos; need core business logic flows
-
-│  └───────────────────────────────────────────┘  │- **Tools**: Need user/feed/flip management tools
-
-│                     │                            │- **Security Rules**: firestore.rules needs implementation
-
-│                     │ MCP Protocol               │- **Client SDKs**: Need shared logic for feed/flip CRUD in packages/shared-logic
-
-│                     ▼                            │- **UI Components**: Need Feed and Flip components in packages/ui-components
-
-│  ┌───────────────────────────────────────────┐  │- **MCP UI Package**: Need dedicated UI components for AI chat interfaces (ChatGPT, Claude, Gemini)
-
-│  │  AI Model (GPT-4, Claude 3.5, Gemini)    │  │- **MCP Tools Expansion**: Expose all FlipFeeds operations as MCP tools
-
-│  │  - Understands intent                     │  │
-
-│  │  - Selects MCP tool: "list_my_feeds"   │  │---
-
-│  └───────────────────────────────────────────┘  │
-
-│                     │                            │## 🏗️ Architecture Overview
-
-└─────────────────────┼────────────────────────────┘
-
-                      │ HTTPS + OAuth 2.1```
-
-                      ▼┌─────────────────────────────────────────────────────────────────────────────┐
-
-┌─────────────────────────────────────────────────┐│                         CLIENT PLATFORMS                                     │
-
-│  FlipFeeds MCP Server (Firebase Functions)      │├──────────────────┬─────────────────────┬──────────────────────────────────┤
-
-│  https://us-central1-PROJECT.cloudfunctions.net ││  Mobile          │  Web                │  AI Chat (NEW!)                   │
-
-│                  /mcpServer                      ││  (React Native)  │  (Next.js)          │  (ChatGPT/Claude/Gemini)          │
-
-│                                                  │├──────────────────┼─────────────────────┼──────────────────────────────────┤
-
-│  ┌────────────────────────────────────────────┐ ││ - Video Record   │ - Video Upload      │ - Text Commands                   │
-
-│  │  OAuth Middleware                          │ ││ - Push Notifs    │ - Desktop UI        │ - MCP Tool Calls                  │
-
-│  │  - Verify access token (JWT)              │ ││ - Deep Links     │ - Keyboard Nav      │ - Rich Card UIs (mcpui.dev)      │
-
-│  │  - Extract user UID                       │ ││ - Share Sheet    │ - Copy Links        │ - No Auth Required (OAuth flow)   │
-
-│  └────────────────────────────────────────────┘ ││ - Camera         │ - File System       │ - Natural Language Interface      │
-
-│                     │                            │└──────────────────┴─────────────────────┴──────────────────────────────────┘
-
-│  ┌────────────────────────────────────────────┐ │                              │
-
-│  │  MCP Tool Handler                          │ │                    ┌─────────▼──────────┐
-
-│  │  - Call Genkit Flow                       │ │                    │  Shared Packages   │
-
-│  │  - Format response as MCP UI card         │ │                    │  - firebase-config │
-
-│  └────────────────────────────────────────────┘ │                    │  - shared-logic    │
-
-│                     │                            │                    │  - ui-components   │
-
-└─────────────────────┼────────────────────────────┘                    │  - mcp-ui (NEW!)   │  ← AI-native UI components
-
-                      │                    └─────────┬──────────┘
-
-                      ▼                              │
-
-          ┌───────────────────────┐            ┌─────────────────▼──────────────────┐
-
-          │  Firestore Database   │            │     Firebase Services              │
-
-          │  - v1/users           │            ├────────────────────────────────────┤
-
-          │  - v1/feeds           │            │  - Auth (Phone + Google)           │
-
-          │  - v1/flips           │            │  - Firestore (v1/users, feeds...)  │
-
-          └───────────────────────┘            │  - Storage (videos, thumbnails)    │
-
-```            │  - Functions (Genkit Flows)        │
-
-            │  - Remote Config (feature flags)   │
-
----            │  - App Check (abuse prevention)    │
-
-            └────────────────────────────────────┘
-
-## 🛠️ MCP Tools Specification                              │
-
-            ┌─────────────────▼──────────────────┐
-
-### Feed Management            │   Genkit Backend (functions/)      │
-
-            ├────────────────────────────────────┤
-
-#### `list_my_feeds`            │  TOOLS (Data Access)               │
-
-**Description:** List all Feeds the user belongs to              │  - getUserProfile                  │
-
-**Input:** None (uses authenticated user UID)              │  - getFeedData                   │
-
-**Output:**            │  - checkFeedMembership           │
-
-```json            │  - processVideo (AI)               │
-
-{            │                                    │
-
-  "feeds": [            │  FLOWS (Business Logic)            │
-
-    {            │  - createFeedFlow                │
-
-      "id": "feed123",            │  - joinFeedFlow                  │
-
-      "name": "Family",            │  - createFlipFlow                │
-
-      "logoURL": "https://...",            │  - generateFlipLinkFlow            │
-
-      "memberCount": 12,            │                                    │
-
-      "flipCount": 45,            │  MCP SERVER (Extensibility)        │
-
-      "role": "admin"            │  - Exposes ALL tools as MCP        │
-
-    }            │  - OAuth 2.1 + Firebase ID auth    │
-
-  ]            │  - Feed Apps platform            │
-
-}            │  - AI Chat integration             │
-
-```            └────────────────────────────────────┘
-
-**UI Card:** `FeedListCard` (grid of feeds with thumbnails)                              │
-
-            ┌─────────────────▼──────────────────┐
-
-#### `create_feed`            │   External AI Services             │
-
-**Description:** Create a new Feed              ├────────────────────────────────────┤
-
-**Input:**            │  - Vertex AI / Gemini 2.0          │
-
-```json            │  - Video summarization             │
-
-{            │  - Content moderation              │
-
-  "name": "My New Feed",            │  - Title generation                │
-
-  "description": "A place for...",            └────────────────────────────────────┘
-
-  "visibility": "private",```
-
-  "tags": ["tag1", "tag2"]
-
-}---
-
-```
-
-**Output:**## 📱 Platform-Specific Considerations
-
-```json
-
-{### Mobile App (React Native/Expo)
-
-  "feedId": "feed456",**Core Features:**
-
-  "flipLink": "https://flip.to/abc123",1. **Video Recording**: Native camera with in-app recording
-
-  "qrCode": "data:image/png;base64,..."2. **Push Notifications**: FCM for flip notifications and feed updates
-
-}3. **Deep Linking**: Handle `flipfeeds://` URLs for Flip Links
-
-```4. **Offline Support**: Local caching with AsyncStorage
-
-**UI Card:** `FlipLinkCard` (shareable link + QR code)5. **Share Sheet**: Native sharing for Flip Links
-
-6. **Biometric Auth**: Face ID / Fingerprint for quick login
-
-#### `get_feed_details`
-
-**Description:** Get detailed info about a Feed  **Key Flows:**
-
-**Input:** `{ "feedId": "feed123" }`  - Onboarding: Phone verification → First Feed creation → Generate Flip Link
-
-**Output:**- Record & Flip: Camera → AI title suggestion → Select Feed → Flip
-
-```json- Receive Flip: Push notification → Deep link → Auto-join Feed → See content
-
-{
-
-  "id": "feed123",**UI Priorities:**
-
-  "name": "Family",- Vertical video feed (TikTok-style)
-
-  "description": "Our family Feed",- Bottom tab navigation (Feed, Feeds, Profile)
-
-  "visibility": "private",- Camera button prominently placed
-
-  "ownerId": "user123",- Quick "Flip" button on each Feed
-
-  "memberCount": 12,
-
-  "flipCount": 45,### Web App (Next.js)
-
-  "tags": ["family"],**Core Features:**
-
-  "createdAt": "2025-01-15T10:00:00Z"1. **Video Upload**: Drag-and-drop with progress indicators
-
-}2. **Desktop Optimized**: Multi-column layouts, keyboard shortcuts
-
-```3. **Discovery Mode**: Browse public Feeds with rich search
-
-**UI Card:** `FeedDetailCard`4. **Analytics Dashboard**: For Feed owners (Pro tier)
-
-5. **Feed Management**: Advanced admin tools
-
-#### `join_feed`
-
-**Description:** Join a public Feed or redeem a Flip Link  **Key Flows:**
-
-**Input:** `{ "feedId": "feed789" }` OR `{ "flipLinkId": "link123" }`  - Onboarding: Google Sign-In → Browse public Feeds → Create first Feed
-
-**Output:**- Upload & Flip: Drag video → AI processing → Add metadata → Flip
-
-```json- Feed Admin: Manage members, view analytics, configure Feed Apps
-
-{
-
-  "success": true,**UI Priorities:**
-
-  "message": "Joined 'Cooking Tips Feed",- Sidebar navigation (Feeds list, Discovery, Profile)
-
-  "feedId": "feed789"- Grid/List toggle for video feed
-
-}- Rich text editor for flips
-
-```- Flip Link generator with QR code
-
-
-
----### AI Chat Interface (ChatGPT/Claude/Gemini) **NEW!**
-
-**Core Features:**
-
-### Flip & Feed Management1. **Natural Language Commands**: "Create a Feed about cooking", "Flip my video to my friends Feed"
-
-2. **MCP Tool Integration**: All FlipFeeds operations exposed as tools
-
-#### `list_feed_flips`3. **Rich UI Cards**: Leverage mcpui.dev for embedded UIs
-
-**Description:** Get recent flips from a specific Feed  4. **OAuth Flow**: Seamless authentication via MCP OAuth 2.1
-
-**Input:**5. **Context Awareness**: AI understands user's Feeds and recent activity
-
-```json
-
-{**Key Flows:**
-
-  "feedId": "feed123",```
-
-  "limit": 10User: "Show me my Feeds"
-
-}AI: [Calls listMyFeeds tool]
-
-```    [Renders FeedListCard with thumbnails]
-
-**Output:**    "You have 3 Feeds: Family (12 members), Work Team (8 members), Book Club (5 members)"
-
-```json
-
-{User: "Create a new Feed for my hiking group"
-
-  "flips": [AI: [Calls createFeed tool with name="Hiking Group"]
-
-    {    [Renders FlipLinkCard with QR code and share URL]
-
-      "id": "flip123",    "I've created your Hiking Group Feed! Here's your Flip Link to invite members."
-
-      "feedId": "feed123",
-
-      "authorId": "user456",User: "What are the latest videos in my Family Feed?"
-
-      "authorName": "John Doe",AI: [Calls listFeedFlips tool with feedId]
-
-      "title": "My first video!",    [Renders VideoFeedCard with thumbnails and AI summaries]
-
-      "aiSummary": "This video shows how to use Genkit...",    "Here are the 5 most recent videos in Family..."
-
-      "thumbnailURL": "https://...",```
-
-      "videoURL": "https://...",
-
-      "createdAt": "2025-11-10T14:30:00Z",**UI Components (mcpui.dev):**
-
-      "stats": { "likeCount": 10, "commentCount": 3 }- **FeedListCard**: Grid of Feeds with member counts
-
-    }- **VideoFeedCard**: Video thumbnails with AI summaries
-
-  ]- **FlipLinkCard**: Shareable link + QR code
-
-}- **FlipComposerCard**: Upload video directly from chat
-
-```- **AnalyticsCard**: Feed stats for owners
-
-**UI Card:** `VideoFeedCard` (scrollable list with thumbnails and summaries)
-
-**Why This Matters:**
-
-#### `get_my_feed`- **Distribution**: Users already in ChatGPT/Claude > installing new app
-
-**Description:** Get aggregated feed from all user's Feeds  - **Natural UX**: Talk to FlipFeeds instead of navigating menus
-
-**Input:** `{ "limit": 20 }`  - **Viral Loop**: "Share this Flip Link" button in AI chat → Direct share
-
-**Output:** Same as `list_feed_flips` but aggregated  - **Power Users**: Advanced commands like "Find public Feeds about AI"
-
-**UI Card:** `VideoFeedCard`- **Future-Proof**: As AI chat becomes default interface, we're native there
-
-
-
-------
-
-
-
-### Flip Links### Platform Comparison Matrix
-
-
-
-#### `generate_flip_link`| Feature | Mobile | Web | AI Chat |
-
-**Description:** Generate a shareable Flip Link for inviting members  |---------|--------|-----|---------|
-
-**Input:**| **Video Capture** | ✅ Native Camera | ❌ Upload Only | ❌ Link Only |
-
-```json| **Video Upload** | ✅ From Gallery | ✅ Drag & Drop | ⚠️ Via Link/Future |
-
-{| **Authentication** | Phone + Biometric | Google/Email | OAuth 2.1 Auto |
-
-  "feedId": "feed123",| **Flip Link Sharing** | Native Share Sheet | Copy + QR Code | Direct Link in Chat |
-
-  "expiresInHours": 168,| **Feed Discovery** | Vertical Scroll | Grid View + Search | Natural Language Query |
-
-  "singleUse": false| **Notifications** | Push (FCM) | Browser + Email | In-Chat Mentions |
-
-}| **Offline Mode** | ✅ Full | ⚠️ Partial | ❌ None |
-
-```| **Admin Dashboard** | ❌ Basic | ✅ Advanced | ✅ Text + Cards |
-
-**Output:**| **Feed Apps Config** | ❌ Not Available | ✅ Full UI | ⚠️ Read-Only |
-
-```json| **Onboarding Time** | 2-3 minutes | 1-2 minutes | **10 seconds** |
-
-{| **Install Required** | ✅ Yes | ❌ No | ❌ No |
-
-  "linkId": "link789",| **Primary Use Case** | Content Creation | Management + Discovery | Quick Actions + Browse |
-
-  "shortUrl": "https://flip.to/xyz789",| **User Persona** | Creators, Active Users | Admins, Power Users | Casual Users, Lurkers |
-
-  "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
-
-  "deepLink": "flipfeeds://feed/link789",**Strategic Insight:** 
-
-  "expiresAt": "2025-11-18T10:00:00Z"- **Mobile** = Creation engine (record and flip)
-
-}- **Web** = Command center (manage and analyze)
-
-```- **AI Chat** = Gateway drug (discover and join)
-
-**UI Card:** `FlipLinkCard` with:
-
-- Clickable short URLThe AI chat interface solves the cold-start problem: Users can explore FlipFeeds, join Feeds, and see content WITHOUT installing anything. Once engaged, they'll want the mobile app for video creation.
-
-- Embedded QR code image
-
-- Copy button---
-
-- Expiration countdown
-
-## 🗂️ Firestore Schema (Production-Ready)
+**Status:** Phase 7 Implementation  
+**Created:** November 11, 2025  
+**Target Platforms:** ChatGPT, Claude Desktop, Gemini (future)  
+**Version:** 1.0  
+**Based on:** [mcpui.dev](https://mcpui.dev/)
 
 ---
+
+## 🎯 Vision
+
+FlipFeeds should be **fully functional** inside AI chat applications. Users should be able to:
+
+- Browse their Feeds
+- Create new Feeds
+- Generate and share Flip Links
+- View video feeds with AI summaries
+- Search public Feeds
+- Manage their profile
+
+All through **natural language commands**, with **rich UI cards** for visual feedback.
+
+---
+
+## 🎯 Executive Summary
+
+This plan integrates the FlipFeeds philosophy (Feeds, AI-first, intentional feeds) into your existing monorepo architecture with **mobile (React Native/Expo)** and **web (Next.js)** applications. We'll leverage your current Firebase Functions + Genkit setup and extend it to support the full FlipFeeds vision.
+
+---
+
+## 📐 Current Architecture Analysis
+
+### ✅ What We Have
+
+- **Monorepo Structure**: pnpm workspaces with apps/mobile, apps/web, packages/*, functions
+- **Backend**: Firebase Functions with Genkit flows (generateFlip, generatePoem, youtubeThumbnail)
+- **Auth**: Dual OAuth 2.1 + Firebase ID token authentication via MCP server
+- **Mobile**: React Native + Expo with full Firebase SDK (@react-native-firebase/*)
+- **Web**: Next.js 16 with App Router, Radix UI, Tailwind
+- **Shared Packages**: firebase-config, shared-logic, ui-components
+- **MCP Server**: Already implemented with OAuth auth and streaming support
+- **AI-Native Ready**: MCP server can be consumed by ChatGPT, Claude, Gemini
+
+### 🔧 What Needs Adjustment
+
+- **Data Schema**: No Firestore collections for users, feeds, flips yet
+- **Flows**: Current flows are demos; need core business logic flows
+- **Tools**: Need user/feed/flip management tools
+- **Security Rules**: firestore.rules needs implementation
+- **Client SDKs**: Need shared logic for feed/flip CRUD in packages/shared-logic
+- **UI Components**: Need Feed and Flip components in packages/ui-components
+- **MCP UI Package**: Need dedicated UI components for AI chat interfaces (ChatGPT, Claude, Gemini)
+- **MCP Tools Expansion**: Expose all FlipFeeds operations as MCP tools
+
+---
+
+## 🏗️ Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CLIENT PLATFORMS                                     │
+├──────────────────┬─────────────────────┬──────────────────────────────────┤
+│  Mobile          │  Web                │  AI Chat (NEW!)                   │
+│  (React Native)  │  (Next.js)          │  (ChatGPT/Claude/Gemini)          │
+├──────────────────┼─────────────────────┼──────────────────────────────────┤
+│ - Video Record   │ - Video Upload      │ - Text Commands                   │
+│ - Push Notifs    │ - Desktop UI        │ - MCP Tool Calls                  │
+│ - Deep Links     │ - Keyboard Nav      │ - Rich Card UIs (mcpui.dev)      │
+│ - Share Sheet    │ - Copy Links        │ - No Auth Required (OAuth flow)   │
+│ - Camera         │ - File System       │ - Natural Language Interface      │
+└──────────────────┴─────────────────────┴──────────────────────────────────┘
+                              │
+                    ┌─────────▼──────────┐
+                    │  Shared Packages   │
+                    │  - firebase-config │
+                    │  - shared-logic    │
+                    │  - ui-components   │
+                    │  - mcp-ui (NEW!)   │  ← AI-native UI components
+                    └─────────┬──────────┘
+                              │
+            ┌─────────────────▼──────────────────┐
+            │     Firebase Services              │
+            ├────────────────────────────────────┤
+            │  - Auth (Phone + Google)           │
+            │  - Firestore (v1/users, feeds...)  │
+            │  - Storage (videos, thumbnails)    │
+            │  - Functions (Genkit Flows)        │
+            │  - Remote Config (feature flags)   │
+            │  - App Check (abuse prevention)    │
+            └────────────────────────────────────┘
+                              │
+            ┌─────────────────▼──────────────────┐
+            │   Genkit Backend (functions/)      │
+            ├────────────────────────────────────┤
+            │  TOOLS (Data Access)               │
+            │  - getUserProfile                  │
+            │  - getFeedData                     │
+            │  - checkFeedMembership             │
+            │  - processVideo (AI)               │
+            │                                    │
+            │  FLOWS (Business Logic)            │
+            │  - createFeedFlow                  │
+            │  - joinFeedFlow                    │
+            │  - createFlipFlow                  │
+            │  - generateFlipLinkFlow            │
+            │                                    │
+            │  MCP SERVER (Extensibility)        │
+            │  - Exposes ALL tools as MCP        │
+            │  - OAuth 2.1 + Firebase ID auth    │
+            │  - Feed Apps platform              │
+            │  - AI Chat integration             │
+            └────────────────────────────────────┘
+                              │
+            ┌─────────────────▼──────────────────┐
+            │   External AI Services             │
+            ├────────────────────────────────────┤
+            │  - Vertex AI / Gemini 2.0          │
+            │  - Video summarization             │
+            │  - Content moderation              │
+            │  - Title generation                │
+            └────────────────────────────────────┘
+```
+
+---
+
+## 📱 Platform-Specific Considerations
+
+### Mobile App (React Native/Expo)
+
+**Core Features:**
+1. **Video Recording**: Native camera with in-app recording
+2. **Push Notifications**: FCM for flip notifications and feed updates
+3. **Deep Linking**: Handle `flipfeeds://` URLs for Flip Links
+4. **Offline Support**: Local caching with AsyncStorage
+5. **Share Sheet**: Native sharing for Flip Links
+6. **Biometric Auth**: Face ID / Fingerprint for quick login
+
+**Key Flows:**
+- Onboarding: Phone verification → First Feed creation → Generate Flip Link
+- Record & Flip: Camera → AI title suggestion → Select Feed → Flip
+- Receive Flip: Push notification → Deep link → Auto-join Feed → See content
+
+**UI Priorities:**
+- Vertical video feed (TikTok-style)
+- Bottom tab navigation (Feed, Feeds, Profile)
+- Camera button prominently placed
+- Quick "Flip" button on each Feed
+
+### Web App (Next.js)
+
+**Core Features:**
+1. **Video Upload**: Drag-and-drop with progress indicators
+2. **Desktop Optimized**: Multi-column layouts, keyboard shortcuts
+3. **Discovery Mode**: Browse public Feeds with rich search
+4. **Analytics Dashboard**: For Feed owners (Pro tier)
+5. **Feed Management**: Advanced admin tools
+
+**Key Flows:**
+- Onboarding: Google Sign-In → Browse public Feeds → Create first Feed
+- Upload & Flip: Drag video → AI processing → Add metadata → Flip
+- Feed Admin: Manage members, view analytics, configure Feed Apps
+
+**UI Priorities:**
+- Sidebar navigation (Feeds list, Discovery, Profile)
+- Grid/List toggle for video feed
+- Rich text editor for flips
+- Flip Link generator with QR code
+
+### AI Chat Interface (ChatGPT/Claude/Gemini) **NEW!**
+
+**Core Features:**
+1. **Natural Language Commands**: "Create a Feed about cooking", "Flip my video to my friends Feed"
+2. **MCP Tool Integration**: All FlipFeeds operations exposed as tools
+3. **Rich UI Cards**: Leverage mcpui.dev for embedded UIs
+4. **OAuth Flow**: Seamless authentication via MCP OAuth 2.1
+5. **Context Awareness**: AI understands user's Feeds and recent activity
+
+**Key Flows:**
+```
+User: "Show me my Feeds"
+AI: [Calls listMyFeeds tool]
+    [Renders FeedListCard with thumbnails]
+    "You have 3 Feeds: Family (12 members), Work Team (8 members), Book Club (5 members)"
+
+User: "Create a new Feed for my hiking group"
+AI: [Calls createFeed tool with name="Hiking Group"]
+    [Renders FlipLinkCard with QR code and share URL]
+    "I've created your Hiking Group Feed! Here's your Flip Link to invite members."
+
+User: "What are the latest videos in my Family Feed?"
+AI: [Calls listFeedFlips tool with feedId]
+    [Renders VideoFeedCard with thumbnails and AI summaries]
+    "Here are the 5 most recent videos in Family..."
+```
+
+**UI Components (mcpui.dev):**
+- **FeedListCard**: Grid of Feeds with member counts
+- **VideoFeedCard**: Video thumbnails with AI summaries
+- **FlipLinkCard**: Shareable link + QR code
+- **FlipComposerCard**: Upload video directly from chat
+- **AnalyticsCard**: Feed stats for owners
+
+**Why This Matters:**
+- **Distribution**: Users already in ChatGPT/Claude > installing new app
+- **Natural UX**: Talk to FlipFeeds instead of navigating menus
+- **Viral Loop**: "Share this Flip Link" button in AI chat → Direct share
+- **Power Users**: Advanced commands like "Find public Feeds about AI"
+- **Future-Proof**: As AI chat becomes default interface, we're native there
+
+---
+
+### Platform Comparison Matrix
+
+| Feature | Mobile | Web | AI Chat |
+|---------|--------|-----|---------|
+| **Video Capture** | ✅ Native Camera | ❌ Upload Only | ❌ Link Only |
+| **Video Upload** | ✅ From Gallery | ✅ Drag & Drop | ⚠️ Via Link/Future |
+| **Authentication** | Phone + Biometric | Google/Email | OAuth 2.1 Auto |
+| **Flip Link Sharing** | Native Share Sheet | Copy + QR Code | Direct Link in Chat |
+| **Feed Discovery** | Vertical Scroll | Grid View + Search | Natural Language Query |
+| **Notifications** | Push (FCM) | Browser + Email | In-Chat Mentions |
+| **Offline Mode** | ✅ Full | ⚠️ Partial | ❌ None |
+| **Admin Dashboard** | ❌ Basic | ✅ Advanced | ✅ Text + Cards |
+| **Feed Apps Config** | ❌ Not Available | ✅ Full UI | ⚠️ Read-Only |
+| **Onboarding Time** | 2-3 minutes | 1-2 minutes | **10 seconds** |
+| **Install Required** | ✅ Yes | ❌ No | ❌ No |
+| **Primary Use Case** | Content Creation | Management + Discovery | Quick Actions + Browse |
+| **User Persona** | Creators, Active Users | Admins, Power Users | Casual Users, Lurkers |
+
+**Strategic Insight:** 
+- **Mobile** = Creation engine (record and flip)
+- **Web** = Command center (manage and analyze)
+- **AI Chat** = Gateway drug (discover and join)
+
+The AI chat interface solves the cold-start problem: Users can explore FlipFeeds, join Feeds, and see content WITHOUT installing anything. Once engaged, they'll want the mobile app for video creation.
+
+---
+
+## 🗂️ Firestore Schema (Production-Ready)
 
 ### Collection Structure
 
@@ -443,6 +247,7 @@ v1/
 │   ├── feeds/{feedId}  (reverse lookup)
 │   ├── personalFeed/  (special: user's Personal Feed reference)
 │   └── notifications/{notificationId}
+├── usernames/{username}  (for username uniqueness enforcement)
 ├── feeds/{feedId}
 │   ├── members/{userId}
 │   ├── invites/{inviteId}
@@ -451,6 +256,19 @@ v1/
 │   └── comments/{commentId}
 ├── flipLinks/{linkId}  (for tracking Flip Links)
 └── moderation/{itemId}  (flagged content queue)
+```
+
+**Username Uniqueness Pattern:**
+```typescript
+// Document: v1/usernames/{username}
+{
+  userId: "user123",
+  createdAt: serverTimestamp()
+}
+// This collection enforces username uniqueness.
+// To claim a username, attempt to create this document.
+// If it succeeds, the username is claimed.
+// If it fails (document exists), the username is taken.
 ```
 
 ### Personal Feeds Schema
@@ -482,770 +300,912 @@ Every user gets a Personal Feed automatically created on signup:
 }
 ```
 
+### Key Indexes Required
+
+```javascript
+// Firestore Indexes (firestore.indexes.json)
+[
+  {
+    "collectionGroup": "flips",
+    "queryScope": "COLLECTION",
+    "fields": [
+      { "fieldPath": "feedId", "order": "ASCENDING" },
+      { "fieldPath": "createdAt", "order": "DESCENDING" }
+    ]
+  },
+  {
+    "collectionGroup": "members",
+    "queryScope": "COLLECTION_GROUP",
+    "fields": [
+      { "fieldPath": "userId", "order": "ASCENDING" },
+      { "fieldPath": "joinedAt", "order": "DESCENDING" }
+    ]
+  }
+]
+```
+
+---
+
+## 🛠️ MCP Tools Specification
+
+### Feed Management
+
+#### `list_my_feeds`
+
+**Description:** List all Feeds the user belongs to  
+**Input:** None (uses authenticated user UID)  
+**Output:**
+
+```json
+{
+  "feeds": [
+    {
+      "id": "feed123",
+      "name": "Family",
+      "logoURL": "https://...",
+      "memberCount": 12,
+      "flipCount": 45,
+      "role": "admin"
+    }
+  ]
+}
+```
+
+**UI Card:** `FeedListCard` (grid of feeds with thumbnails)
+
+#### `create_feed`
+
+**Description:** Create a new Feed  
+**Input:**
+
+```json
+{
+  "name": "My New Feed",
+  "description": "A place for...",
+  "visibility": "private",
+  "tags": ["tag1", "tag2"]
+}
+```
+
+**Output:**
+
+```json
+{
+  "feedId": "feed456",
+  "flipLink": "https://flip.to/abc123",
+  "qrCode": "data:image/png;base64,..."
+}
+```
+
+**UI Card:** `FlipLinkCard` (shareable link + QR code)
+
+#### `get_feed_details`
+
+**Description:** Get detailed info about a Feed  
+**Input:** `{ "feedId": "feed123" }`  
+**Output:**
+
+```json
+{
+  "id": "feed123",
+  "name": "Family",
+  "description": "Our family Feed",
+  "visibility": "private",
+  "ownerId": "user123",
+  "memberCount": 12,
+  "flipCount": 45,
+  "tags": ["family"],
+  "createdAt": "2025-01-15T10:00:00Z"
+}
+```
+
+**UI Card:** `FeedDetailCard`
+
+#### `join_feed`
+
+**Description:** Join a public Feed or redeem a Flip Link  
+**Input:** `{ "feedId": "feed789" }` OR `{ "flipLinkId": "link123" }`  
+**Output:**
+
+```json
+{
+  "success": true,
+  "message": "Joined 'Cooking Tips Feed'",
+  "feedId": "feed789"
+}
+```
+
+---
+
+### Flip & Feed Management
+
+#### `list_feed_flips`
+
+**Description:** Get recent flips from a specific Feed  
+**Input:**
+
+```json
+{
+  "feedId": "feed123",
+  "limit": 10
+}
+```
+
+**Output:**
+
+```json
+{
+  "flips": [
+    {
+      "id": "flip123",
+      "feedId": "feed123",
+      "authorId": "user456",
+      "authorName": "John Doe",
+      "title": "My first video!",
+      "aiSummary": "This video shows how to use Genkit...",
+      "thumbnailURL": "https://...",
+      "videoURL": "https://...",
+      "createdAt": "2025-11-10T14:30:00Z",
+      "stats": { "likeCount": 10, "commentCount": 3 }
+    }
+  ]
+}
+```
+
+**UI Card:** `VideoFeedCard` (scrollable list with thumbnails and summaries)
+
+#### `get_my_feed`
+
+**Description:** Get aggregated feed from all user's Feeds  
+**Input:** `{ "limit": 20 }`  
+**Output:** Same as `list_feed_flips` but aggregated  
+**UI Card:** `VideoFeedCard`
+
+---
+
+### Flip Links
+
+#### `generate_flip_link`
+
+**Description:** Generate a shareable Flip Link for inviting members  
+**Input:**
+
+```json
+{
+  "feedId": "feed123",
+  "expiresInHours": 168,
+  "singleUse": false
+}
+```
+
+**Output:**
+
+```json
+{
+  "linkId": "link789",
+  "shortUrl": "https://flip.to/xyz789",
+  "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+  "deepLink": "flipfeeds://feed/link789",
+  "expiresAt": "2025-11-18T10:00:00Z"
+}
+```
+
+**UI Card:** `FlipLinkCard` with:
+- Clickable short URL
+- Embedded QR code image
+- Copy button
+- Expiration countdown
+
 ---
 
 ### Discovery
 
 #### `search_public_feeds`
+
 **Description:** Search for public Feeds by name or tags  
 **Input:**
+
 ```json
 {
   "query": "cooking",
   "tags": ["food", "recipes"],
   "limit": 20
 }
-
-```├── flipLinks/{linkId}  (for tracking Flip Links)
-
-**Output:**└── moderation/{itemId}  (flagged content queue)
-
-```json```
-
-{
-
-  "feeds": [### Key Indexes Required
-
-    {```javascript
-
-      "id": "feed999",// Firestore Indexes (firestore.indexes.json)
-
-      "name": "Cooking Tips",[
-
-      "description": "Learn to cook!",  {
-
-      "logoURL": "https://...",    "collectionGroup": "flips",
-
-      "memberCount": 342,    "queryScope": "COLLECTION",
-
-      "flipCount": 1250,    "fields": [
-
-      "tags": ["food", "cooking", "recipes"],      { "fieldPath": "feedId", "order": "ASCENDING" },
-
-      "visibility": "public"      { "fieldPath": "createdAt", "order": "DESCENDING" }
-
-    }    ]
-
-  ]  },
-
-}  {
-
-```    "collectionGroup": "members",
-
-**UI Card:** `DiscoveryGridCard`    "queryScope": "COLLECTION_GROUP",
-
-    "fields": [
-
----      { "fieldPath": "userId", "order": "ASCENDING" },
-
-      { "fieldPath": "joinedAt", "order": "DESCENDING" }
-
-### User Profile    ]
-
-  }
-
-#### `get_my_profile`]
-
-**Description:** Get the authenticated user's profile  ```
-
-**Input:** None  
-
-**Output:**---
-
-```json
-
-{## 🛠️ Implementation Phases
-
-  "uid": "user123",
-
-  "displayName": "John Doe",### Phase 1: Foundation (Week 1-2)
-
-  "username": "johndoe",**Goal:** Set up core data models and basic CRUD operations
-
-  "photoURL": "https://...",
-
-  "bio": "I love making videos!",#### 1.1 Backend - Genkit Tools
-
-  "feedCount": 5,📂 Location: `functions/src/tools/`
-
-  "createdAt": "2025-01-01T00:00:00Z"
-
-}Create:
-
-```- `userTools.ts` - getUserProfile, updateUserProfile, getUserFeeds
-
-**UI Card:** `ProfileCard`- `feedTools.ts` - getFeedData, checkFeedMembership, listPublicFeeds
-
-- `flipTools.ts` - getFlip, listFeedFlips, deleteFlip
-
-#### `update_my_profile`- `videoTools.ts` - processVideo (AI summarization + moderation)
-
-**Description:** Update user profile  
-
-**Input:**#### 1.2 Backend - Genkit Flows
-
-```json📂 Location: `functions/src/flows/`
-
-{
-
-  "displayName": "Jane Doe",Create:
-
-  "bio": "Updated bio",- `userFlows.ts` - createUserFlow (on signup)
-
-  "photoURL": "https://..."- `feedFlows.ts` - createFeedFlow, joinFeedFlow, leaveFeedFlow
-
-}- `flipFlows.ts` - createFlipFlow (with AI processing)
-
-```- `flipLinkFlows.ts` - generateFlipLinkFlow, redeemFlipLinkFlow
+```
 
 **Output:**
 
-```json#### 1.3 Shared Logic Package
-
-{📂 Location: `packages/shared-logic/src/`
-
-  "success": true,
-
-  "message": "Profile updated"Create:
-
-}- `hooks/useAuth.ts` - Unified auth hook for both platforms
-
-```- `hooks/useFeeds.ts` - Feed CRUD operations
-
-- `hooks/useFlips.ts` - Flip CRUD operations
-
----- `services/api.ts` - Genkit flow callers
-
-- `types/index.ts` - Shared TypeScript types
-
-## 🎨 MCP UI Card Components
-
-#### 1.4 Security Rules
-
-Based on **mcpui.dev** patterns, we'll create reusable card schemas.📂 Location: `firestore.rules`
-
-
-
-### FeedListCardImplement the rules from `firestore.md`:
-
-```typescript- User can only edit their own profile
-
-{- Feed member checks for flip visibility
-
-  type: 'card',- Public vs private Feed logic
-
-  title: 'Your Feeds',
-
-  content: {**Deliverable:** Users can sign up, create Feeds, and basic flips work
-
-    type: 'grid',
-
-    columns: 2,---
-
-    items: [
-
-      {### Phase 2: AI-First Features (Week 3-4)
-
-        type: 'item',**Goal:** Implement the "magic" that differentiates FlipFeeds
-
-        image: 'https://...',
-
-        title: 'Family',#### 2.1 Video Processing Flow
-
-        subtitle: '12 members · 45 flips',📂 Location: `functions/src/flows/videoProcessing.ts`
-
-        badge: 'Admin',
-
-        actions: [```typescript
-
-          { type: 'button', label: 'View', action: 'list_feed_flips feed123' },// Enhanced version of genkit-3-setup.md
-
-          { type: 'button', label: 'Invite', action: 'generate_flip_link feed123' }export const processVideoFlow = ai.defineFlow({
-
-        ]  name: 'processVideoFlow',
-
-      }  inputSchema: z.object({
-
-    ]    gcsUri: z.string(),
-
-  }    feedId: z.string(),
-
-}    authorId: z.string(),
-
-```  }),
-
-  outputSchema: z.object({
-
-### FlipLinkCard    summary: z.string(),
-
-```typescript    suggestedTitle: z.string(),
-
-{    tags: z.array(z.string()),
-
-  type: 'card',    moderation: z.object({
-
-  title: 'Flip Link Created!',      isSafe: z.boolean(),
-
-  description: 'Share this link to invite people to your Feed',      flags: z.array(z.string()),
-
-  content: {    }),
-
-    type: 'stack',  }),
-
-    items: [}, async ({ gcsUri, feedId, authorId }) => {
-
-      {  // 1. Video summarization
-
-        type: 'image',  // 2. Title generation
-
-        src: 'data:image/png;base64,...',  // QR code  // 3. Auto-tagging
-
-        alt: 'QR Code',  // 4. Content moderation
-
-        width: 200,  // 5. Store in Firestore v1/flips/{flipId}
-
-        height: 200});
-
-      },```
-
-      {
-
-        type: 'text',#### 2.2 AI Prompts Library
-
-        text: 'https://flip.to/xyz789',📂 Location: `functions/src/prompts/`
-
-        copyable: true,
-
-        style: 'monospace'Create:
-
-      },- `videoPrompts.ts` - summarizeVideo, moderateVideo, suggestTitle
-
-      {- `feedPrompts.ts` - suggestFeedName, generateWelcomeMessage
-
-        type: 'button',- `contentPrompts.ts` - generateFlipMessage (for the "Yo" experience)
-
-        label: 'Copy Link',
-
-        action: 'copy_to_clipboard https://flip.to/xyz789'#### 2.3 Client Integration
-
-      },Update `packages/shared-logic/src/hooks/useFlips.ts`:
-
-      {
-
-        type: 'text',```typescript
-
-        text: 'Expires: Nov 18, 2025',export function useCreateFlip() {
-
-        style: 'caption'  const [aiSuggestions, setAiSuggestions] = useState(null);
-
-      }  
-
-    ]  const uploadVideo = async (videoUri: string, feedId: string) => {
-
-  }    // 1. Upload to Storage
-
-}    // 2. Call processVideoFlow
-
-```    // 3. Return AI suggestions to UI
-
-    // 4. User can edit or accept
-
-### VideoFeedCard  };
-
-```typescript}
-
-{```
-
-  type: 'card',
-
-  title: 'Recent Videos in Family',**Deliverable:** Video uploads get AI summaries, titles, and moderation
-
-  content: {
-
-    type: 'list',---
-
-    items: [
-
-      {### Phase 3: The Flip Link (Viral Loop) (Week 5)
-
-        type: 'item',**Goal:** Implement the core growth mechanic
-
-        image: 'https://.../thumbnail.jpg',
-
-        title: 'My first video!',#### 3.1 Flip Link Generation
-
-        subtitle: 'by John Doe · 2 hours ago',📂 Location: `functions/src/flows/flipLinkFlows.ts`
-
-        description: 'AI Summary: This video shows how to use Genkit...',
-
-        badge: '10 ❤️',```typescript
-
-        actions: [export const generateFlipLinkFlow = ai.defineFlow({
-
-          { type: 'button', label: 'Watch', action: 'open_url https://...' }  name: 'generateFlipLink',
-
-        ]  inputSchema: z.object({
-
-      }    feedId: z.string(),
-
-    ]    userId: z.string(),
-
-  }    expiresInHours: z.number().default(168), // 7 days
-
-}    singleUse: z.boolean().default(false),
-
-```  }),
-
-  outputSchema: z.object({
-
----    linkId: z.string(),
-
-    shortUrl: z.string(),
-
-## 💬 Example Conversations    qrCode: z.string(), // Base64 QR code image
-
-    deepLink: z.string(), // flipfeeds://feed/{linkId}
-
-### Scenario 1: First-Time User  }),
-
-```}, async (input) => {
-
-User: What is FlipFeeds?  // 1. Create record in v1/flipLinks/{linkId}
-
-  // 2. Generate short URL (Firebase Dynamic Links or custom)
-
-AI: FlipFeeds is a video-first social network organized around "Feeds" -   // 3. Generate QR code
-
-intentional content groups you join. Unlike algorithmic feeds, your feed is   // 4. Return data
-
-empty by default and only shows content from Feeds you explicitly join.});
-
-```
-
-Would you like to:
-
-1. Browse public Feeds#### 3.2 Deep Link Handling
-
-2. Create your own private Feed
-
-3. Learn more about how it works**Mobile** (`apps/mobile/app/_layout.tsx`):
-
-```typescript
-
-User: Create a private Feed for my book club// React Navigation linking config
-
-const linking = {
-
-AI: [Calls create_feed tool with name="Book Club", visibility="private"]  prefixes: ['flipfeeds://', 'https://flipfeeds.app'],
-
-    [Renders FlipLinkCard]  config: {
-
-    screens: {
-
-Great! I've created your "Book Club Feed. Here's your Flip Link to invite       FeedInvite: 'feed/:linkId',
-
-members:    },
-
-  },
-
-https://flip.to/abc123};
-
-```
-
-[Shows QR code]
-
-**Web** (`apps/web/app/feed/[linkId]/page.tsx`):
-
-Anyone with this link can join your Feed. The link expires in 7 days. ```typescript
-
-Would you like to adjust the expiration or make it single-use?// Next.js dynamic route
-
-```export default async function FlipLinkPage({ params }: { params: { linkId: string } }) {
-
-  // 1. Verify link validity
-
-### Scenario 2: Power User  // 2. Check if user is authenticated
-
-```  // 3. Auto-join Feed
-
-User: Show me my Feeds  // 4. Redirect to Feed
-
+```json
+{
+  "feeds": [
+    {
+      "id": "feed999",
+      "name": "Cooking Tips",
+      "description": "Learn to cook!",
+      "logoURL": "https://...",
+      "memberCount": 342,
+      "flipCount": 1250,
+      "tags": ["food", "cooking", "recipes"],
+      "visibility": "public"
+    }
+  ]
 }
-
-AI: [Calls list_my_feeds tool]```
-
-    [Renders FeedListCard with 5 feeds]
-
-#### 3.3 Onboarding Flow
-
-You have 5 Feeds:
-
-- Family (12 members, Admin)**Mobile-First Flow:**
-
-- Work Team (8 members, Member)1. User installs app
-
-- Book Club (5 members, Admin)2. Phone verification
-
-- Cooking Tips (342 members, Member)3. "Create Your First Feed" prompt
-
-- FlipFeeds Beta (1250 members, Member)4. **Big "Flip Your Friends" button**
-
-5. Generate Flip Link → Native share sheet
-
-Which one would you like to explore?6. Friend taps link → Deep link → Auto-install if needed → Join Feed
-
-
-
-User: What are the latest videos in Family?**Web-First Flow:**
-
-1. User signs in with Google
-
-AI: [Calls list_feed_flips tool with feedId="family123"]2. "Browse Public Feeds" or "Create Private Feed"
-
-    [Renders VideoFeedCard]3. Generate Flip Link → Copy + QR code
-
-4. Friend visits link → Sign in → Join Feed
-
-Here are the 5 most recent videos in your Family Feed:
-
-**Deliverable:** Flip Links work end-to-end, growth loop is functional
-
-1. "Trip to the beach" by Mom (3 hours ago)
-
-   AI Summary: Beach vacation with sunset shots and kids playing...---
-
-   10 likes, 3 comments
-
-### Phase 4: Discovery & Social Features (Week 6-7)
-
-2. "Dad's new BBQ" by Dad (yesterday)**Goal:** Allow users to find public Feeds and engage
-
-   AI Summary: Demonstration of new grill features...
-
-   5 likes, 1 comment#### 4.1 Discovery Flow
-
-📂 Location: `functions/src/flows/discoveryFlows.ts`
-
-[More videos...]
-
-```typescript
-
-Would you like to watch any of these?export const searchPublicFeedsFlow = ai.defineFlow({
-
-  name: 'searchPublicFeeds',
-
-User: Generate a Flip Link for my Book Club  inputSchema: z.object({
-
-    query: z.string().optional(),
-
-AI: [Calls generate_flip_link tool]    tags: z.array(z.string()).optional(),
-
-    [Renders FlipLinkCard]    limit: z.number().default(20),
-
-  }),
-
-Here's your Flip Link for Book Club:  outputSchema: z.object({
-
-https://flip.to/xyz789    feeds: z.array(FeedSchema),
-
-[QR code shown]  }),
-
-}, async ({ query, tags, limit }) => {
-
-This link will work for 7 days and can be used unlimited times.   // Firestore query with Algolia or native search
-
-Want to change that?});
-
-``````
-
-
-
-### Scenario 3: Discovery#### 4.2 UI Components
-
-```📂 Location: `packages/ui-components/src/`
-
-User: Find public Feeds about AI and technology
-
-Create platform-agnostic components:
-
-AI: [Calls search_public_feeds with query="AI technology"]- `FeedCard` - Display feed preview
-
-    [Renders DiscoveryGridCard]- `FlipCard` - Video flip with AI summary
-
-- `FlipButton` - Generate Flip Link
-
-I found 15 public Feeds about AI and technology:- `DiscoveryFeed` - Grid of public Feeds
-
-
-
-1. AI Enthusiasts (2.3K members)#### 4.3 Engagement Features
-
-   "Discussing the latest in artificial intelligence"- Like/Comment on flips
-
-   Tags: AI, ML, tech- Feed member list
-
-- User profiles with bio
-
-2. Genkit Developers (450 members)- Follow users (optional, not required for MVP)
-
-   "Building AI-first apps with Firebase Genkit"
-
-   Tags: genkit, firebase, AI**Deliverable:** Users can discover and join public Feeds
-
-
-
-3. Tech News Daily (5.1K members)---
-
-   "Daily curated tech news videos"
-
-   Tags: tech, news, innovation### Phase 5: Monetization & Feed Apps (Week 8-10)
-
-**Goal:** Enable Pro tier and extensible Feed Apps
-
-Would you like to join any of these? Just say "join [feed name]"
-
-#### 5.1 Subscription Flow
-
-User: Join Genkit DevelopersUse **Firebase Extensions** for Stripe integration:
-
-- Install `firestore-stripe-payments` extension
-
-AI: [Calls join_feed tool]- Create Pro tier ($10/mo)
-
-- Gate Feed Apps behind Pro tier
-
-Perfect! You've joined "Genkit Developers Feed. You'll now see their 
-
-flips in your main feed. Want to see the latest flips from this Feed?#### 5.2 Feed Apps Platform
-
-```📂 Location: `functions/src/flows/feedAppsFlows.ts`
-
-
-
----```typescript
-
-export const registerFeedAppFlow = ai.defineFlow({
-
-## 🔐 OAuth Flow  name: 'registerFeedApp',
-
-  inputSchema: z.object({
-
-### Initial Setup (One-Time)    feedId: z.string(),
-
-```    appName: z.string(),
-
-User: (First time using FlipFeeds in ChatGPT)    triggerCommand: z.string(), // e.g., "/summarize"
-
-    mcpEndpoint: z.string(),
-
-AI: To access FlipFeeds, I need to connect to your account.    apiKey: z.string(),
-
-  }),
-
-[Displays OAuth authorization URL]  outputSchema: z.object({
-
-    appId: z.string(),
-
-Please click this link to authorize:    success: z.boolean(),
-
-https://us-central1-PROJECT.cloudfunctions.net/mcpAuthServer/authorize?...  }),
-
-}, async (input) => {
-
-After authorizing, you'll be redirected back here and I'll have access to   // 1. Verify user is Feed owner
-
-your FlipFeeds account.  // 2. Verify Pro tier subscription
-
-  // 3. Store in v1/feeds/{feedId}/apps/{appId}
-
-User: [Clicks link, completes OAuth flow]  // 4. Set up trigger webhook
-
-});
-
-AI: ✅ Connected! I can now access your FlipFeeds account.```
-
-
-
-What would you like to do?#### 5.3 Sandbox Execution
-
-- View your FeedsWhen a flip triggers a Feed App:
-
-- Create a new Feed1. Call the registered MCP endpoint
-
-- Browse public Feeds2. Pass only the flip data (not full Feed access)
-
-- Generate a Flip Link3. Run response through AI moderation
-
-```4. Flip result if safe
-
-
-
-### Subsequent Uses**Deliverable:** Pro users can add custom AI bots to their Feeds
-
 ```
 
-User: Show me my Feeds---
-
-
-
-AI: [Uses stored access token automatically]### Phase 6: Abuse Prevention (Week 11)
-
-    [Calls list_my_feeds]**Goal:** Implement security measures from business_plan.md
-
-    
-
-[Works seamlessly without re-auth]#### 6.1 Phone Verification
-
-```**Mobile**: Use Firebase Auth Phone
-
-**Web**: Use Firebase Auth Phone (requires SMS provider)
+**UI Card:** `DiscoveryGridCard`
 
 ---
 
+### User Profile
+
+#### `get_my_profile`
+
+**Description:** Get the authenticated user's profile  
+**Input:** None  
+**Output:**
+
+```json
+{
+  "uid": "user123",
+  "displayName": "John Doe",
+  "username": "johndoe",
+  "photoURL": "https://...",
+  "bio": "I love making videos!",
+  "feedCount": 5,
+  "createdAt": "2025-01-01T00:00:00Z"
+}
+```
+
+**UI Card:** `ProfileCard`
+
+#### `update_my_profile`
+
+**Description:** Update user profile  
+**Input:**
+
+```json
+{
+  "displayName": "Jane Doe",
+  "bio": "Updated bio",
+  "photoURL": "https://..."
+}
+```
+
+**Output:**
+
+```json
+{
+  "success": true,
+  "message": "Profile updated"
+}
+```
+
+---
+
+## 🎨 MCP UI Card Components
+
+Based on **mcpui.dev** patterns, we'll create reusable card schemas.
+
+### FeedListCard
+
+```typescript
+{
+  type: 'card',
+  title: 'Your Feeds',
+  content: {
+    type: 'grid',
+    columns: 2,
+    items: [
+      {
+        type: 'item',
+        image: 'https://...',
+        title: 'Family',
+        subtitle: '12 members · 45 flips',
+        badge: 'Admin',
+        actions: [
+          { type: 'button', label: 'View', action: 'list_feed_flips feed123' },
+          { type: 'button', label: 'Invite', action: 'generate_flip_link feed123' }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### FlipLinkCard
+
+```typescript
+{
+  type: 'card',
+  title: 'Flip Link Created!',
+  description: 'Share this link to invite people to your Feed',
+  content: {
+    type: 'stack',
+    items: [
+      {
+        type: 'image',
+        src: 'data:image/png;base64,...',  // QR code
+        alt: 'QR Code',
+        width: 200,
+        height: 200
+      },
+      {
+        type: 'text',
+        text: 'https://flip.to/xyz789',
+        copyable: true,
+        style: 'monospace'
+      },
+      {
+        type: 'button',
+        label: 'Copy Link',
+        action: 'copy_to_clipboard https://flip.to/xyz789'
+      },
+      {
+        type: 'text',
+        text: 'Expires: Nov 18, 2025',
+        style: 'caption'
+      }
+    ]
+  }
+}
+```
+
+### VideoFeedCard
+
+```typescript
+{
+  type: 'card',
+  title: 'Recent Videos in Family',
+  content: {
+    type: 'list',
+    items: [
+      {
+        type: 'item',
+        image: 'https://.../thumbnail.jpg',
+        title: 'My first video!',
+        subtitle: 'by John Doe · 2 hours ago',
+        description: 'AI Summary: This video shows how to use Genkit...',
+        badge: '10 ❤️',
+        actions: [
+          { type: 'button', label: 'Watch', action: 'open_url https://...' }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 💬 Example Conversations
+
+### Scenario 1: First-Time User
+
+```
+User: What is FlipFeeds?
+
+AI: FlipFeeds is a video-first social network organized around "Feeds" - 
+intentional content groups you join. Unlike algorithmic feeds, your feed is 
+empty by default and only shows content from Feeds you explicitly join.
+
+Would you like to:
+1. Browse public Feeds
+2. Create your own private Feed
+3. Learn more about how it works
+
+User: Create a private Feed for my book club
+
+AI: [Calls create_feed tool with name="Book Club", visibility="private"]
+    [Renders FlipLinkCard]
+
+Great! I've created your "Book Club" Feed. Here's your Flip Link to invite 
+members:
+
+https://flip.to/abc123
+
+[Shows QR code]
+
+Anyone with this link can join your Feed. The link expires in 7 days. 
+Would you like to adjust the expiration or make it single-use?
+```
+
+### Scenario 2: Power User
+
+```
+User: Show me my Feeds
+
+AI: [Calls list_my_feeds tool]
+    [Renders FeedListCard with 5 feeds]
+
+You have 5 Feeds:
+- Family (12 members, Admin)
+- Work Team (8 members, Member)
+- Book Club (5 members, Admin)
+- Cooking Tips (342 members, Member)
+- FlipFeeds Beta (1250 members, Member)
+
+Which one would you like to explore?
+
+User: What are the latest videos in Family?
+
+AI: [Calls list_feed_flips tool with feedId="family123"]
+    [Renders VideoFeedCard]
+
+Here are the 5 most recent videos in your Family Feed:
+
+1. "Trip to the beach" by Mom (3 hours ago)
+   AI Summary: Beach vacation with sunset shots and kids playing...
+   10 likes, 3 comments
+
+2. "Dad's new BBQ" by Dad (yesterday)
+   AI Summary: Demonstration of new grill features...
+   5 likes, 1 comment
+
+[More videos...]
+
+Would you like to watch any of these?
+
+User: Generate a Flip Link for my Book Club
+
+AI: [Calls generate_flip_link tool]
+    [Renders FlipLinkCard]
+
+Here's your Flip Link for Book Club:
+https://flip.to/xyz789
+[QR code shown]
+
+This link will work for 7 days and can be used unlimited times. 
+Want to change that?
+```
+
+### Scenario 3: Discovery
+
+```
+User: Find public Feeds about AI and technology
+
+AI: [Calls search_public_feeds with query="AI technology"]
+    [Renders DiscoveryGridCard]
+
+I found 15 public Feeds about AI and technology:
+
+1. AI Enthusiasts (2.3K members)
+   "Discussing the latest in artificial intelligence"
+   Tags: AI, ML, tech
+
+2. Genkit Developers (450 members)
+   "Building AI-first apps with Firebase Genkit"
+   Tags: genkit, firebase, AI
+
+3. Tech News Daily (5.1K members)
+   "Daily curated tech news videos"
+   Tags: tech, news, innovation
+
+Would you like to join any of these? Just say "join [feed name]"
+
+User: Join Genkit Developers
+
+AI: [Calls join_feed tool]
+
+Perfect! You've joined "Genkit Developers" Feed. You'll now see their 
+flips in your main feed. Want to see the latest flips from this Feed?
+```
+
+---
+
+## 🔐 OAuth Flow
+
+### Initial Setup (One-Time)
+
+```
+User: (First time using FlipFeeds in ChatGPT)
+
+AI: To access FlipFeeds, I need to connect to your account.
+
+[Displays OAuth authorization URL]
+
+Please click this link to authorize:
+https://us-central1-PROJECT.cloudfunctions.net/mcpAuthServer/authorize?...
+
+After authorizing, you'll be redirected back here and I'll have access to 
+your FlipFeeds account.
+
+User: [Clicks link, completes OAuth flow]
+
+AI: ✅ Connected! I can now access your FlipFeeds account.
+
+What would you like to do?
+- View your Feeds
+- Create a new Feed
+- Browse public Feeds
+- Generate a Flip Link
+```
+
+### Subsequent Uses
+
+```
+User: Show me my Feeds
+
+AI: [Uses stored access token automatically]
+    [Calls list_my_feeds]
+    
+[Works seamlessly without re-auth]
+```
+
+---
+
+## 🚀 Implementation Phases
+
+### Phase 1: Foundation (Week 1-2)
+
+**Goal:** Set up core data models and basic CRUD operations
+
+#### 1.1 Backend - Genkit Tools
+
+📂 Location: `functions/src/tools/`
+
+Create:
+- `userTools.ts` - getUserProfile, updateUserProfile, getUserFeeds
+- `feedTools.ts` - getFeedData, checkFeedMembership, listPublicFeeds
+- `flipTools.ts` - getFlip, listFeedFlips, deleteFlip
+- `videoTools.ts` - processVideo (AI summarization + moderation)
+
+#### 1.2 Backend - Genkit Flows
+
+📂 Location: `functions/src/flows/`
+
+Create:
+- `userFlows.ts` - createUserFlow (on signup)
+- `feedFlows.ts` - createFeedFlow, joinFeedFlow, leaveFeedFlow
+- `flipFlows.ts` - createFlipFlow (with AI processing)
+- `flipLinkFlows.ts` - generateFlipLinkFlow, redeemFlipLinkFlow
+
+#### 1.3 Shared Logic Package
+
+📂 Location: `packages/shared-logic/src/`
+
+Create:
+- `hooks/useAuth.ts` - Unified auth hook for both platforms
+- `hooks/useFeeds.ts` - Feed CRUD operations
+- `hooks/useFlips.ts` - Flip CRUD operations
+- `services/api.ts` - Genkit flow callers
+- `types/index.ts` - Shared TypeScript types
+
+#### 1.4 Security Rules
+
+📂 Location: `firestore.rules`
+
+Implement the rules from `firestore.md`:
+- User can only edit their own profile
+- Feed member checks for flip visibility
+- Public vs private Feed logic
+
+**Deliverable:** Users can sign up, create Feeds, and basic flips work
+
+---
+
+### Phase 2: AI-First Features (Week 3-4)
+
+**Goal:** Implement the "magic" that differentiates FlipFeeds
+
+#### 2.1 Video Processing Flow
+
+📂 Location: `functions/src/flows/videoProcessing.ts`
+
+```typescript
+// Enhanced version of genkit-3-setup.md
+export const processVideoFlow = ai.defineFlow({
+  name: 'processVideoFlow',
+  inputSchema: z.object({
+    gcsUri: z.string(),
+    feedId: z.string(),
+    authorId: z.string(),
+  }),
+  outputSchema: z.object({
+    summary: z.string(),
+    suggestedTitle: z.string(),
+    tags: z.array(z.string()),
+    moderation: z.object({
+      isSafe: z.boolean(),
+      flags: z.array(z.string()),
+    }),
+  }),
+}, async ({ gcsUri, feedId, authorId }) => {
+  // 1. Video summarization
+  // 2. Title generation
+  // 3. Auto-tagging
+  // 4. Content moderation
+  // 5. Store in Firestore v1/flips/{flipId}
+});
+```
+
+#### 2.2 AI Prompts Library
+
+📂 Location: `functions/src/prompts/`
+
+Create:
+- `videoPrompts.ts` - summarizeVideo, moderateVideo, suggestTitle
+- `feedPrompts.ts` - suggestFeedName, generateWelcomeMessage
+- `contentPrompts.ts` - generateFlipMessage (for the "Yo" experience)
+
+#### 2.3 Client Integration
+
+Update `packages/shared-logic/src/hooks/useFlips.ts`:
+
+```typescript
+export function useCreateFlip() {
+  const [aiSuggestions, setAiSuggestions] = useState(null);
+  
+  const uploadVideo = async (videoUri: string, feedId: string) => {
+    // 1. Upload to Storage
+    // 2. Call processVideoFlow
+    // 3. Return AI suggestions to UI
+    // 4. User can edit or accept
+  };
+}
+```
+
+**Deliverable:** Video uploads get AI summaries, titles, and moderation
+
+---
+
+### Phase 3: The Flip Link (Viral Loop) (Week 5)
+
+**Goal:** Implement the core growth mechanic
+
+#### 3.1 Flip Link Generation
+
+📂 Location: `functions/src/flows/flipLinkFlows.ts`
+
+```typescript
+export const generateFlipLinkFlow = ai.defineFlow({
+  name: 'generateFlipLink',
+  inputSchema: z.object({
+    feedId: z.string(),
+    userId: z.string(),
+    expiresInHours: z.number().default(168), // 7 days
+    singleUse: z.boolean().default(false),
+  }),
+  outputSchema: z.object({
+    linkId: z.string(),
+    shortUrl: z.string(),
+    qrCode: z.string(), // Base64 QR code image
+    deepLink: z.string(), // flipfeeds://feed/{linkId}
+  }),
+}, async (input) => {
+  // 1. Create record in v1/flipLinks/{linkId}
+  // 2. Generate short URL (Firebase Dynamic Links or custom)
+  // 3. Generate QR code
+  // 4. Return data
+});
+```
+
+#### 3.2 Deep Link Handling
+
+**Mobile** (`apps/mobile/app/_layout.tsx`):
+
+```typescript
+// React Navigation linking config
+const linking = {
+  prefixes: ['flipfeeds://', 'https://flipfeeds.app'],
+  config: {
+    screens: {
+      FeedInvite: 'feed/:linkId',
+    },
+  },
+};
+```
+
+**Web** (`apps/web/app/feed/[linkId]/page.tsx`):
+
+```typescript
+// Next.js dynamic route
+export default async function FlipLinkPage({ params }: { params: { linkId: string } }) {
+  // 1. Verify link validity
+  // 2. Check if user is authenticated
+  // 3. Auto-join Feed
+  // 4. Redirect to Feed
+}
+```
+
+#### 3.3 Onboarding Flow
+
+**Mobile-First Flow:**
+1. User installs app
+2. Phone verification
+3. "Create Your First Feed" prompt
+4. **Big "Flip Your Friends" button**
+5. Generate Flip Link → Native share sheet
+6. Friend taps link → Deep link → Auto-install if needed → Join Feed
+
+**Web-First Flow:**
+1. User signs in with Google
+2. "Browse Public Feeds" or "Create Private Feed"
+3. Generate Flip Link → Copy + QR code
+4. Friend visits link → Sign in → Join Feed
+
+**Deliverable:** Flip Links work end-to-end, growth loop is functional
+
+---
+
+### Phase 4: Discovery & Social Features (Week 6-7)
+
+**Goal:** Allow users to find public Feeds and engage
+
+#### 4.1 Discovery Flow
+
+📂 Location: `functions/src/flows/discoveryFlows.ts`
+
+```typescript
+export const searchPublicFeedsFlow = ai.defineFlow({
+  name: 'searchPublicFeeds',
+  inputSchema: z.object({
+    query: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    limit: z.number().default(20),
+  }),
+  outputSchema: z.object({
+    feeds: z.array(FeedSchema),
+  }),
+}, async ({ query, tags, limit }) => {
+  // Firestore query with Algolia or native search
+});
+```
+
+#### 4.2 UI Components
+
+📂 Location: `packages/ui-components/src/`
+
+Create platform-agnostic components:
+- `FeedCard` - Display feed preview
+- `FlipCard` - Video flip with AI summary
+- `FlipButton` - Generate Flip Link
+- `DiscoveryFeed` - Grid of public Feeds
+
+#### 4.3 Engagement Features
+
+- Like/Comment on flips
+- Feed member list
+- User profiles with bio
+- Follow users (optional, not required for MVP)
+
+**Deliverable:** Users can discover and join public Feeds
+
+---
+
+### Phase 5: Monetization & Feed Apps (Week 8-10)
+
+**Goal:** Enable Pro tier and extensible Feed Apps
+
+#### 5.1 Subscription Flow
+
+Use **Firebase Extensions** for Stripe integration:
+- Install `firestore-stripe-payments` extension
+- Create Pro tier ($10/mo)
+- Gate Feed Apps behind Pro tier
+
+#### 5.2 Feed Apps Platform
+
+📂 Location: `functions/src/flows/feedAppsFlows.ts`
+
+```typescript
+export const registerFeedAppFlow = ai.defineFlow({
+  name: 'registerFeedApp',
+  inputSchema: z.object({
+    feedId: z.string(),
+    appName: z.string(),
+    triggerCommand: z.string(), // e.g., "/summarize"
+    mcpEndpoint: z.string(),
+    apiKey: z.string(),
+  }),
+  outputSchema: z.object({
+    appId: z.string(),
+    success: z.boolean(),
+  }),
+}, async (input) => {
+  // 1. Verify user is Feed owner
+  // 2. Verify Pro tier subscription
+  // 3. Store in v1/feeds/{feedId}/apps/{appId}
+  // 4. Set up trigger webhook
+});
+```
+
+#### 5.3 Sandbox Execution
+
+When a flip triggers a Feed App:
+1. Call the registered MCP endpoint
+2. Pass only the flip data (not full Feed access)
+3. Run response through AI moderation
+4. Flip result if safe
+
+**Deliverable:** Pro users can add custom AI bots to their Feeds
+
+---
+
+### Phase 6: Abuse Prevention (Week 11)
+
+**Goal:** Implement security measures from business_plan.md
+
+#### 6.1 Phone Verification
+
+**Mobile**: Use Firebase Auth Phone
+**Web**: Use Firebase Auth Phone (requires SMS provider)
+
 #### 6.2 Content Moderation
 
-## 🚀 Implementation ChecklistAlready in Phase 2, but enhance:
-
+Already in Phase 2, but enhance:
 - Auto-flag content with high toxicity scores
+- Create moderation queue for Feed admins
+- Global ban system (blacklist phone numbers)
 
-### Backend (MCP Server)- Create moderation queue for Feed admins
+#### 6.3 Rate Limiting
 
-- [x] OAuth 2.1 server already exists (`mcpAuthServer`)- Global ban system (blacklist phone numbers)
+Use Firebase App Check + Cloud Armor:
+- Limit Flip Link creation (10 per day for free tier)
+- Limit flip uploads (20 per day for free tier)
+- Limit Feed App API calls (1000 per day)
 
-- [x] Protected resource metadata endpoint exists
+**Deliverable:** Platform is resilient to abuse
 
-- [ ] Expand `mcpServer.ts` with all 10+ tools#### 6.3 Rate Limiting
+---
 
-- [ ] Create response formatters for MCP UI cardsUse Firebase App Check + Cloud Armor:
+### Phase 7: AI Chat Interface (Week 12-13) **NEW!**
 
-- [ ] Add error handling for natural language errors- Limit Flip Link creation (10 per day for free tier)
-
-- [ ] Implement rate limiting per user- Limit flip uploads (20 per day for free tier)
-
-- [ ] Add logging for MCP tool calls- Limit Feed App API calls (1000 per day)
-
-
-
-### MCP UI Package**Deliverable:** Platform is resilient to abuse
-
-- [ ] Create `packages/mcp-ui/` package
-
-- [ ] Define card schemas (FeedListCard, FlipLinkCard, etc.)---
-
-- [ ] Create render functions for each card type
-
-- [ ] Export TypeScript types for AI chat platforms### Phase 7: AI Chat Interface (Week 12-13) **NEW!**
-
-- [ ] Write tests for card rendering**Goal:** Make FlipFeeds fully accessible inside ChatGPT, Claude, and Gemini
-
-- [ ] Document card usage
+**Goal:** Make FlipFeeds fully accessible inside ChatGPT, Claude, and Gemini
 
 #### 7.1 MCP Tools Expansion
 
-### Testing📂 Location: `functions/src/mcpServer.ts`
+📂 Location: `functions/src/mcpServer.ts`
 
-- [ ] Test in ChatGPT Desktop app
+Expose ALL FlipFeeds operations as MCP tools:
 
-- [ ] Test in Claude Desktop appExpose ALL FlipFeeds operations as MCP tools:
-
-- [ ] Test OAuth flow end-to-end
-
-- [ ] Verify UI cards render correctly```typescript
-
-- [ ] Test error scenarios (expired tokens, invalid Feed IDs)// Existing tools in mcpServer.ts
-
-- [ ] Load testing (many concurrent users)server.setRequestHandler(ListToolsRequestSchema, async () => {
-
+```typescript
+// Existing tools in mcpServer.ts
+server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
-
-### Documentation    tools: [
-
-- [ ] User guide: "How to use FlipFeeds in ChatGPT"      // Feed Management
-
-- [ ] Developer docs: MCP tool reference      {
-
-- [ ] Video tutorial: Setting up MCP server        name: 'list_my_feeds',
-
-- [ ] FAQ: Common issues and solutions        description: 'List all Feeds the authenticated user belongs to',
-
-        inputSchema: { type: 'object', properties: {} },
-
-### Deployment      },
-
-- [ ] Deploy enhanced `mcpServer` function      {
-
-- [ ] Set up monitoring for MCP tool calls        name: 'create_feed',
-
-- [ ] Create marketing page showing AI chat features        description: 'Create a new Feed (public or private)',
-
-- [ ] Announce in FlipFeeds blog/social media        inputSchema: {
-
-          type: 'object',
-
----          properties: {
-
-            name: { type: 'string', description: 'Feed name' },
-
-## 📈 Success Metrics            description: { type: 'string' },
-
-            visibility: { type: 'string', enum: ['public', 'private'] },
-
-**Week 1:**            tags: { type: 'array', items: { type: 'string' } },
-
-- 100 MCP tool calls          },
-
-- 10 OAuth completions          required: ['name', 'visibility'],
-
-        },
-
-**Month 1:**      },
-
-- 1,000 daily MCP tool calls      {
-
-- 100 active AI chat users        name: 'join_feed',
-
-- 60% OAuth completion rate        description: 'Join a public Feed or redeem a Flip Link',
-
-        inputSchema: {
-
-**Month 3:**          type: 'object',
-
-- 10,000 daily MCP tool calls          properties: {
-
-- 1,000 active AI chat users            feedId: { type: 'string' },
-
-- 30% of all Flip Links created via AI chat            flipLinkId: { type: 'string' },
-
-          },
-
----        },
-
-      },
-
-## 🎯 Future Enhancements      {
-
-        name: 'get_feed_details',
-
-1. **Video Upload via AI Chat**: "Upload this video to my Feed" (with file attachment)        description: 'Get detailed information about a specific Feed',
-
-2. **AI Feed Suggestions**: "You might like these public Feeds based on your interests"        inputSchema: {
-
-3. **Proactive Notifications**: AI messages user in ChatGPT when new flips arrive          type: 'object',
-
-4. **Voice Integration**: Use voice commands in ChatGPT to control FlipFeeds          properties: { feedId: { type: 'string' } },
-
-5. **Multi-Modal**: AI analyzes video thumbnails and suggests which to watch first          required: ['feedId'],
-
-6. **Feed Apps in AI Chat**: Configure Feed Apps via natural language        },
-
-      },
-
----      // Flip Management
-
+    tools: [
+      // Feed Management
       {
-
-**Ready to build the future of AI-native social media!** 🚀        name: 'list_feed_flips',
-
+        name: 'list_my_feeds',
+        description: 'List all Feeds the authenticated user belongs to',
+        inputSchema: { type: 'object', properties: {} },
+      },
+      {
+        name: 'create_feed',
+        description: 'Create a new Feed (public or private)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Feed name' },
+            description: { type: 'string' },
+            visibility: { type: 'string', enum: ['public', 'private'] },
+            tags: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['name', 'visibility'],
+        },
+      },
+      {
+        name: 'join_feed',
+        description: 'Join a public Feed or redeem a Flip Link',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            feedId: { type: 'string' },
+            flipLinkId: { type: 'string' },
+          },
+        },
+      },
+      {
+        name: 'get_feed_details',
+        description: 'Get detailed information about a specific Feed',
+        inputSchema: {
+          type: 'object',
+          properties: { feedId: { type: 'string' } },
+          required: ['feedId'],
+        },
+      },
+      // Flip Management
+      {
+        name: 'list_feed_flips',
         description: 'Get recent flips from a Feed',
         inputSchema: {
           type: 'object',
@@ -1315,6 +1275,7 @@ AI: [Uses stored access token automatically]### Phase 6: Abuse Prevention (Week 
 ```
 
 #### 7.2 MCP UI Package
+
 📂 Location: `packages/mcp-ui/`
 
 Create a new package for AI chat UI components using **mcpui.dev** patterns:
@@ -1391,6 +1352,7 @@ export function renderFeedListCard(feeds: Feed[]): MCPUICard {
 ```
 
 #### 7.3 Update MCP Server to Return UI Cards
+
 📂 Location: `functions/src/mcpServer.ts`
 
 Modify tool responses to include mcpui.dev card data:
@@ -1478,6 +1440,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 2. Prepare server for Gemini-specific features
 
 #### 7.5 Documentation
+
 📂 Location: `documents/AI_CHAT_GUIDE.md`
 
 Create user guide:
@@ -1493,6 +1456,7 @@ Create user guide:
 ## 🔧 Technical Implementation Details
 
 ### File Structure
+
 ```
 flipfeeds-app/
 ├── apps/
@@ -1596,6 +1560,7 @@ flipfeeds-app/
 ## 🚀 Development Workflow
 
 ### Local Development
+
 ```bash
 # Terminal 1: Start Firebase Emulators
 pnpm emulators
@@ -1611,12 +1576,14 @@ pnpm dev:web
 ```
 
 ### Testing Strategy
+
 1. **Unit Tests**: Tools and utilities
 2. **Integration Tests**: Flows with emulator
 3. **E2E Tests**: Flip Link flow (mobile → web)
 4. **Security Rules Tests**: firestore-rules-unit-testing
 
 ### Deployment
+
 ```bash
 # Deploy functions only
 pnpm deploy:functions
@@ -1630,26 +1597,31 @@ pnpm deploy:all
 ## 📊 Success Metrics
 
 ### Phase 1-2 (MVP)
+
 - Users can create Feeds ✅
 - Users can flip videos ✅
 - AI summaries work ✅
 
 ### Phase 3 (Growth)
+
 - Flip Link redemption rate > 40%
 - Average Feeds per user > 2
 - Daily active users growing
 
 ### Phase 4-5 (Monetization)
+
 - Pro tier conversion > 5%
 - Feed Apps usage > 20% of Pro users
 - Revenue > $1000/month
 
 ### Phase 6 (Security)
+
 - Content moderation accuracy > 95%
 - Abuse reports < 1% of flips
 - Zero CSAM incidents
 
 ### Phase 7 (AI Chat) **NEW!**
+
 - **MCP Tool Calls**: > 1000 tool invocations per day
 - **AI Chat User Retention**: > 60% weekly retention
 - **Cross-Platform Users**: > 30% use both mobile/web AND AI chat

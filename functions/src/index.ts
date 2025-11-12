@@ -12,7 +12,8 @@ export { mcpAuthServer } from './auth/authServer';
 // Export Protected Resource Metadata (MCP discovery endpoint)
 export { mcpProtectedResource } from './auth/protectedResource';
 // Export MCP Server (supports both OAuth and Firebase ID token auth)
-export { mcpServer } from './mcpServer';
+// Built with genkitx-mcp package for automatic tool/flow exposure
+export { mcpServerFunc as mcpServer } from './mcpServer';
 
 // Note: Flows are auto-registered when genkit.ts is imported
 // The mcpServer accesses them via ai.registry.listActions()

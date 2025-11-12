@@ -39,7 +39,8 @@ export const getUserProfileTool = ai.defineTool(
         }),
         outputSchema: UserProfileSchema.nullable(),
     },
-    async (input) => {
+    async (input, { context }) => {
+        console.log('Context in tool', JSON.stringify(context, null, 2));
         const userDoc = await db.collection('users').doc(input.uid).get();
 
         if (!userDoc.exists) {

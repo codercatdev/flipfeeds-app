@@ -171,7 +171,9 @@ export const getUserProfileFlow = ai.defineFlow(
         inputSchema: z.object({ uid: z.string() }),
         outputSchema: UserProfileOutputSchema,
     },
-    async (input: { uid: string }) => {
+    async (input: { uid: string }, { context }) => {
+        console.log('Flow context', JSON.stringify(context, null, 2));
+
         const profile = await getUserProfileTool({ uid: input.uid });
         if (!profile) {
             throw new HttpsError('not-found', 'User profile not found');

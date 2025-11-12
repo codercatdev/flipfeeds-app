@@ -1,83 +1,57 @@
+/**
+ * FlipFeeds MCP Server - Exposes Genkit Flows as MCP Tools
+ *
+ * This MCP server exposes all Genkit flows defined in the application as MCP tools.
+ * Flows are accessed via ai.registry.listActions() and exposed through the MCP protocol.
+ *
+ * Architecture:
+ * - Manual MCP server setup to expose flows (genkitx-mcp only exposes tools, not flows)
+ * - Supports dual authentication (OAuth 2.1 + Firebase ID tokens)
+ * - Improved authentication middleware with context provider
+ * - Exposes OAuth metadata endpoint for MCP client discovery
+ */
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { getAuth } from 'firebase-admin/auth';
 import { onRequest } from 'firebase-functions/v2/https';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import { getAuthServerUrl, getMcpServerUrl, jwtSecret } from './auth/config';
-import { verifyAccessToken } from './auth/tokens';
+import { authenticateRequest, type FlipFeedsAuthContext } from './auth/contextProvider';
 import { ai } from './genkit';
 
 // ============================================================================
-// FIREBASE AUTHENTICATION MIDDLEWARE (Dual Mode)
+// AUTHENTICATED REQUEST INTERFACE
 // ============================================================================
 
 interface AuthenticatedRequest extends Request {
-    user?: {
-        uid: string;
-        email?: string;
-    };
+    auth?: FlipFeedsAuthContext;
 }
+
+// ============================================================================
+// AUTHENTICATION MIDDLEWARE
+// ============================================================================
 
 /**
  * Flexible authentication middleware that supports both:
  * 1. OAuth 2.1 access tokens (for MCP clients)
- * 2. Firebase ID tokens (for mobile app and direct access)
+ * 2. Firebase ID tokens (from mobile app and direct access)
+ *
+ * Populates req.auth with user context for downstream handlers
  */
-const flexibleAuthMiddleware = async (
+const authMiddleware = async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
 ): Promise<void> => {
     try {
-        const authHeader = req.headers.authorization;
-
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            res.status(401).json({
-                error: 'Unauthorized: Missing or invalid authorization header',
-            });
-            return;
-        }
-
-        const token = authHeader.split('Bearer ')[1];
-
-        // Try OAuth access token first (if JWT_SECRET is configured)
-        const secret = jwtSecret.value();
-        if (secret) {
-            try {
-                const payload = await verifyAccessToken(token, secret);
-                req.user = {
-                    uid: payload.uid,
-                    email: payload.email,
-                };
-                console.log('Authenticated via OAuth access token');
-                next();
-                return;
-            } catch (_oauthError) {
-                // Not a valid OAuth token, try Firebase ID token
-                console.log('Not an OAuth token, trying Firebase ID token...');
-            }
-        }
-
-        // Fall back to Firebase ID token
-        try {
-            const decodedToken = await getAuth().verifyIdToken(token);
-            req.user = {
-                uid: decodedToken.uid,
-                email: decodedToken.email,
-            };
-            console.log('Authenticated via Firebase ID token');
-            next();
-            return;
-        } catch (firebaseError) {
-            console.error('Firebase token verification failed:', firebaseError);
-            res.status(401).json({ error: 'Unauthorized: Invalid token' });
-            return;
-        }
+        req.auth = await authenticateRequest(req);
+        next();
     } catch (error) {
-        console.error('Authentication middleware error:', error);
-        res.status(500).json({ error: 'Internal server error during authentication' });
-        return;
+        const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+        console.error('Authentication error:', errorMessage);
+        res.status(401).json({ error: errorMessage });
     }
 };
 
@@ -87,8 +61,15 @@ const flexibleAuthMiddleware = async (
 
 /**
  * Create and configure the MCP server with user context
+ *
+ * This function creates a new MCP server instance for each authenticated request.
+ * It exposes all Genkit flows as MCP tools by:
+ * 1. Listing all actions from ai.registry
+ * 2. Filtering for flows (excluding models and other action types)
+ * 3. Converting Zod schemas to MCP tool schemas
+ * 4. Handling tool execution with the authenticated user's uid
  */
-function createMCPServer(uid: string): Server {
+function createMCPServer(context: FlipFeedsAuthContext): Server {
     const server = new Server(
         {
             name: 'flipfeeds-mcp-server',
@@ -130,42 +111,87 @@ function createMCPServer(uid: string): Server {
 
             console.log('Processing flow:', flowName);
 
-            // Convert Zod schema to JSON schema for MCP
-            const inputSchema = flowAction.inputSchema || {};
+            // Convert Zod input schema to JSON Schema for MCP
+            const inputSchema = flowAction.inputSchema;
+            let inputJsonSchema: any = { type: 'object', properties: {} };
+
+            if (inputSchema) {
+                try {
+                    // Use zod-to-json-schema for proper conversion
+                    const rawJsonSchema = zodToJsonSchema(inputSchema, {
+                        name: `${flowName}Input`,
+                        $refStrategy: 'none',
+                    });
+
+                    // Remove the $schema property as MCP doesn't need it
+                    delete rawJsonSchema.$schema;
+
+                    // If the schema uses $ref and definitions, inline the definition
+                    const jsonSchemaAny = rawJsonSchema as any;
+                    if (jsonSchemaAny.$ref && jsonSchemaAny.definitions) {
+                        const refName = jsonSchemaAny.$ref.split('/').pop();
+                        inputJsonSchema = jsonSchemaAny.definitions[refName] || rawJsonSchema;
+                    } else {
+                        inputJsonSchema = rawJsonSchema;
+                    }
+
+                    console.log(
+                        `Input schema for ${flowName}:`,
+                        JSON.stringify(inputJsonSchema, null, 2)
+                    );
+                } catch (error) {
+                    console.error(`Failed to convert input schema for ${flowName}:`, error);
+                    // Fallback to empty schema
+                    inputJsonSchema = { type: 'object', properties: {} };
+                }
+            }
+
+            // Convert Zod output schema to JSON Schema for documentation
+            const outputSchema = flowAction.outputSchema;
+            let outputJsonSchema: any = null;
+
+            if (outputSchema) {
+                try {
+                    const rawOutputSchema = zodToJsonSchema(outputSchema, {
+                        name: `${flowName}Output`,
+                        $refStrategy: 'none',
+                    });
+                    delete rawOutputSchema.$schema;
+
+                    // Inline the definition if using $ref
+                    const outputSchemaAny = rawOutputSchema as any;
+                    if (outputSchemaAny.$ref && outputSchemaAny.definitions) {
+                        const refName = outputSchemaAny.$ref.split('/').pop();
+                        outputJsonSchema = outputSchemaAny.definitions[refName] || rawOutputSchema;
+                    } else {
+                        outputJsonSchema = rawOutputSchema;
+                    }
+
+                    console.log(
+                        `Output schema for ${flowName}:`,
+                        JSON.stringify(outputJsonSchema, null, 2)
+                    );
+                } catch (error) {
+                    console.error(`Failed to convert output schema for ${flowName}:`, error);
+                }
+            }
+
+            // Build tool description with output info if available
+            let fullDescription = flowAction.description || `Execute the ${flowName} flow`;
+            if (outputJsonSchema) {
+                fullDescription += `\n\nReturns: ${JSON.stringify(outputJsonSchema, null, 2)}`;
+            }
 
             return {
                 name: flowName,
-                description: flowAction.description || `Execute the ${flowName} flow`,
-                inputSchema: {
-                    type: 'object',
-                    properties: inputSchema._def?.shape
-                        ? Object.entries(inputSchema._def.shape).reduce(
-                              (acc: any, [key, value]: [string, any]) => {
-                                  acc[key] = {
-                                      type:
-                                          value._def?.typeName === 'ZodString'
-                                              ? 'string'
-                                              : value._def?.typeName === 'ZodNumber'
-                                                ? 'number'
-                                                : value._def?.typeName === 'ZodBoolean'
-                                                  ? 'boolean'
-                                                  : value._def?.typeName === 'ZodArray'
-                                                    ? 'array'
-                                                    : value._def?.typeName === 'ZodObject'
-                                                      ? 'object'
-                                                      : 'string',
-                                      description: value._def?.description || `${key} parameter`,
-                                  };
-                                  return acc;
-                              },
-                              {}
-                          )
-                        : {},
-                },
+                description: fullDescription,
+                inputSchema: inputJsonSchema,
             };
         });
 
-        console.log(`Listing ${tools.length} MCP tools for user ${uid}`);
+        console.log(
+            `Listing ${tools.length} MCP tools for user ${context.uid} (${context.email || 'no email'})`
+        );
 
         return {
             tools,
@@ -176,8 +202,11 @@ function createMCPServer(uid: string): Server {
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
 
-        console.log(`Executing flow: ${name} for user ${uid}`);
+        console.log(
+            `Executing flow: ${name} for user ${context.uid} (${context.email || 'no email'})`
+        );
         console.log('Flow arguments:', args);
+        console.log('Context passed to flow:', JSON.stringify(context, null, 2));
 
         try {
             // Get the flow from Genkit registry
@@ -188,14 +217,21 @@ function createMCPServer(uid: string): Server {
                 throw new Error(`Flow not found: ${name}`);
             }
 
-            // Inject uid into the arguments if not already present
+            // Prepare flow arguments
+            // First parameter: the input arguments
             const flowArgs = {
-                uid,
                 ...args,
             };
 
-            // Execute the flow - flowEntry is the callable flow function
-            const result = await flowEntry(flowArgs);
+            // Second parameter: options object with context
+            // This is how Genkit flows receive context information
+            const flowOptions = {
+                context,
+            };
+
+            // Execute the flow with both parameters
+            // flowEntry(input, options) where options contains { context }
+            const result = await flowEntry(flowArgs, flowOptions);
 
             // Return the result as MCP content
             return {
@@ -240,7 +276,6 @@ app.use(express.json());
 
 /**
  * OAuth 2.0 Protected Resource Metadata
- * https://datatracker.ietf.org/doc/html/rfc9728#section-4.1
  *
  * This endpoint describes the protected resource (MCP server) and its
  * authorization requirements. Required by MCP specification.
@@ -268,7 +303,7 @@ app.options('/.well-known/oauth-protected-resource', (_req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+    res.setHeader('Access-Control-Max-Age', '86400');
     res.status(204).send();
 });
 
@@ -277,46 +312,71 @@ app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Apply authentication middleware and transport handler to root endpoint
-app.post('/', flexibleAuthMiddleware, async (req: AuthenticatedRequest, res) => {
-    if (!req.user?.uid) {
-        res.status(401).json({ error: 'Unauthorized: No user ID' });
+// ============================================================================
+// MCP REQUEST HANDLERS (with auth context injection)
+// ============================================================================
+
+/**
+ * Main MCP endpoint at root path
+ *
+ * This handler:
+ * 1. Authenticates the request (via authMiddleware)
+ * 2. Creates a new MCP server instance with the user's uid
+ * 3. Creates a transport for this specific request
+ * 4. Connects the server to the transport and handles the request
+ */
+app.post('/', authMiddleware, async (req: AuthenticatedRequest, res) => {
+    if (!req.auth?.uid) {
+        res.status(401).json({ error: 'Unauthorized: No user context' });
         return;
     }
 
-    // Create a new MCP server instance for this authenticated request
-    const mcpServer = createMCPServer(req.user.uid);
+    try {
+        // Create a new MCP server instance for this authenticated request
+        // Pass the full auth context so flows can access uid, email, etc.
+        const mcpServer = createMCPServer(req.auth);
 
-    // Create transport for this request
-    const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: undefined, // Stateless mode
-    });
+        // Create transport for this request (stateless mode)
+        const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined,
+        });
 
-    // Connect the transport to the server
-    mcpServer.connect(transport);
+        // Connect the transport to the server
+        mcpServer.connect(transport);
 
-    await transport.handleRequest(req, res, req.body);
+        await transport.handleRequest(req as any, res, req.body);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('MCP request handling error:', errorMessage);
+        res.status(500).json({ error: errorMessage });
+    }
 });
 
-// Also support /mcp path for backwards compatibility
-app.post('/mcp', flexibleAuthMiddleware, async (req: AuthenticatedRequest, res) => {
-    if (!req.user?.uid) {
-        res.status(401).json({ error: 'Unauthorized: No user ID' });
+/**
+ * Alternative MCP endpoint at /mcp path (for backwards compatibility)
+ */
+app.post('/mcp', authMiddleware, async (req: AuthenticatedRequest, res) => {
+    if (!req.auth?.uid) {
+        res.status(401).json({ error: 'Unauthorized: No user context' });
         return;
     }
 
-    // Create a new MCP server instance for this authenticated request
-    const mcpServer = createMCPServer(req.user.uid);
+    try {
+        // Create a new MCP server instance for this authenticated request
+        // Pass the full auth context so flows can access uid, email, etc.
+        const mcpServer = createMCPServer(req.auth);
 
-    // Create transport for this request
-    const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: undefined, // Stateless mode
-    });
+        const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined,
+        });
 
-    // Connect the transport to the server
-    mcpServer.connect(transport);
-
-    await transport.handleRequest(req, res, req.body);
+        mcpServer.connect(transport);
+        await transport.handleRequest(req as any, res, req.body);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('MCP request handling error:', errorMessage);
+        res.status(500).json({ error: errorMessage });
+    }
 });
 
 // Error handling middleware
@@ -335,26 +395,12 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
  * Supports dual authentication modes:
  * 1. OAuth 2.1 access tokens (from mcpAuthServer)
  * 2. Firebase ID tokens (from mobile app or direct access)
- *
- * Usage with Firebase ID Token:
- * POST https://your-region-your-project.cloudfunctions.net/mcpServer
- * Headers:
- *   Authorization: Bearer <firebase-id-token>
- *   Content-Type: application/json
- *   Accept: application/json, text/event-stream
- *
- * Usage with OAuth Access Token:
- * POST https://your-region-your-project.cloudfunctions.net/mcpServer
- * Headers:
- *   Authorization: Bearer <oauth-access-token>
- *   Content-Type: application/json
- *   Accept: application/json, text/event-stream
  */
-export const mcpServer = onRequest(
+export const mcpServerFunc = onRequest(
     {
         cors: true,
         maxInstances: 10,
-        secrets: [jwtSecret], // Optional - only needed for OAuth support
+        secrets: [jwtSecret],
     },
     app
 );

@@ -110,4 +110,4 @@ export const processVideo = defineTool(
     };
   },
 );
-Note: This flow would be triggered by a Firebase Storage onFinalize event. We can create a flow for that, or have the client call a flow createPost which then calls this tool.
+Note: This flow would be triggered by a Firebase Storage onFinalize event. We can create a flow for that, or have the client call a flow createFlip which then calls this tool.

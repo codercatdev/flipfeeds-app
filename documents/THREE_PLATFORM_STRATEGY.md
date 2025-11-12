@@ -20,15 +20,15 @@ Each platform serves a distinct purpose and user persona.
 - **Time:** 5-10 minutes, **Conversion:** ~30%
 
 **FlipFeeds via AI Chat:**
-- Already in ChatGPT → "Show me FlipFeeds Circles" → OAuth (1 click) → Browse content
+- Already in ChatGPT → "Show me FlipFeeds Feeds" → OAuth (1 click) → Browse content
 - **Time:** 10 seconds, **Conversion:** ~70%
 
 ### 2. Built-In Virality
 When a user creates a Flip Link in ChatGPT:
 ```
-User: "Create a Circle for my team and share the link"
+User: "Create a Feed for my team and share the link"
 
-AI: [Creates Circle, generates Flip Link]
+AI: [Creates Feed, generates Flip Link]
     "Here's your link: https://flip.to/xyz
      Want me to draft an invite message?"
 
@@ -36,11 +36,11 @@ User: "Yes"
 
 AI: "Great! Here's a message you can send:
     
-    Hey team! I just created a FlipFeeds Circle for us.
+    Hey team! I just created a FlipFeeds Feed for us.
     Join here: https://flip.to/xyz
     
     You can browse it directly in ChatGPT without installing 
-    anything - just say 'show me FlipFeeds Circle xyz' to your AI."
+    anything - just say 'show me FlipFeeds Feed xyz' to your AI."
 ```
 
 **Result:** Recipients can join WITHOUT leaving their AI chat. Zero friction.
@@ -69,7 +69,7 @@ As AI chat becomes the dominant interface (predicted by 2027):
 **Journey:**
 - Opens mobile app daily
 - Records videos with native camera
-- Uploads to her "Cooking Tips" Circle (350 members)
+- Uploads to her "Cooking Tips" Feed (350 members)
 - Gets AI-generated title suggestions
 - Shares Flip Links via Instagram Stories
 
@@ -78,11 +78,11 @@ As AI chat becomes the dominant interface (predicted by 2027):
 ---
 
 ### Persona 2: The Manager (Web-First)
-**Profile:** James, 35, startup founder, runs team Circle  
+**Profile:** James, 35, startup founder, runs team Feed  
 **Platform:** 10% Mobile, 80% Web, 10% AI Chat  
 **Journey:**
 - Opens web dashboard weekly
-- Reviews analytics for "Startup Team" Circle
+- Reviews analytics for "Startup Team" Feed
 - Manages member roles and permissions
 - Configures Feed Apps (AI bots)
 - Exports data for reports
@@ -97,7 +97,7 @@ As AI chat becomes the dominant interface (predicted by 2027):
 **Journey:**
 - Already in ChatGPT for work
 - Discovers FlipFeeds via friend's Flip Link
-- Joins "Book Club" Circle in ChatGPT
+- Joins "Book Club" Feed in ChatGPT
 - Browses videos via natural language
 - Never installs mobile app
 
@@ -110,12 +110,45 @@ As AI chat becomes the dominant interface (predicted by 2027):
 **Platform:** 40% Mobile, 30% Web, 30% AI Chat  
 **Journey:**
 - Records videos on mobile
-- Manages Circles on web
+- Manages Feeds on web
 - Checks feed in ChatGPT during work
-- Uses AI chat for quick commands: "Generate Flip Link for my Circle"
+- Uses AI chat for quick commands: "Generate Flip Link for my Feed"
 - Switches platforms based on context
 
 **Why All:** Wants best tool for each task
+
+---
+
+## 🏠 Personal Feeds: Cross-Platform Private Space
+
+Every user gets a **Personal Feed** - their private space accessible from all three platforms:
+
+### Mobile Experience:
+- **Quick save button** - Save flips from other Feeds to Personal Feed
+- **Draft workspace** - Record and refine before sharing
+- **Private collection** - Videos only you can see
+- **Offline access** - Personal Feed cached locally
+
+### Web Experience:
+- **Organize & manage** - Move flips between Personal and shared Feeds
+- **Batch operations** - Select multiple flips to delete or move
+- **Extended storage view** - See all your personal flips in grid view
+- **Export options** - Download your personal flips
+
+### AI Chat Experience:
+- **Voice commands** - "Save this flip to my Personal Feed"
+- **Quick queries** - "Show me my saved flips from last month"
+- **Smart suggestions** - AI recommends flips to save
+- **Privacy first** - Personal Feed never mentioned to others
+
+### Cross-Platform Scenarios:
+1. **Sarah** saves cooking inspiration flips on mobile → Reviews and organizes them on web → Asks ChatGPT "what recipe should I make this week from my saved flips?"
+2. **James** uses Personal Feed as draft space → Creates flip on mobile → Polishes it on web → Moves to team Feed when ready
+3. **Maya** receives flip link via ChatGPT → Saves to Personal Feed → Watches later on mobile during commute
+
+**User Language:** "Did you see the flip I sent to you in your feed?" 
+- Could mean: shared Feed OR Personal Feed (future DM feature)
+- Natural and intuitive across all platforms
 
 ---
 
@@ -144,7 +177,7 @@ As AI chat becomes the dominant interface (predicted by 2027):
 ### Phase 1: Mobile + Web (Weeks 1-11)
 Build core platform, get to product-market fit.
 
-**Goal:** 1,000 users, 100 Circles, prove Flip Link viral loop
+**Goal:** 1,000 users, 100 Feeds, prove Flip Link viral loop
 
 ### Phase 2: AI Chat Integration (Weeks 12-13)
 Add MCP server enhancements, launch ChatGPT support.
@@ -155,7 +188,7 @@ Add MCP server enhancements, launch ChatGPT support.
 Ensure seamless experience across all three platforms.
 
 **Example Flow:**
-1. User discovers Circle in ChatGPT
+1. User discovers Feed in ChatGPT
 2. Joins via OAuth
 3. Browses videos in ChatGPT
 4. Gets hooked
@@ -180,16 +213,16 @@ Optimize Flip Link sharing across all platforms.
 
 ### Web-Only
 - Drag-and-drop bulk video upload
-- Circle analytics dashboard
+- Feed analytics dashboard
 - Feed Apps configuration UI
 - Export data (CSV, JSON)
 - Keyboard shortcuts
 
 ### AI Chat-Only
-- Natural language Circle discovery: "Find Circles about cooking"
-- Conversational Flip Link generation: "Invite my friend to this Circle"
-- Proactive suggestions: "You haven't posted in a while, want ideas?"
-- Multi-Circle queries: "Show me all videos about AI across my Circles"
+- Natural language Circle discovery: "Find Feeds about cooking"
+- Conversational Flip Link generation: "Invite my friend to this Feed"
+- Proactive suggestions: "You haven't flipped in a while, want ideas?"
+- Multi-Feed queries: "Show me all videos about AI across my Feeds"
 - Future: Voice commands via ChatGPT voice mode
 
 ---
@@ -226,17 +259,17 @@ Optimize Flip Link sharing across all platforms.
 Why?
 1. **Zero Learning Curve** - Everyone knows how to chat
 2. **Ambient Computing** - FlipFeeds is just a command away
-3. **Voice Integration** - "Hey ChatGPT, show me my Circles"
+3. **Voice Integration** - "Hey ChatGPT, show me my Feeds"
 4. **Proactive AI** - AI suggests actions without being asked
 5. **Platform Integration** - Works in Slack, Teams, iMessage (via MCP)
 
 **Example 2026 User Experience:**
 ```
-User (via voice in car): "ChatGPT, post my dashcam video to my Road Trip Circle"
+User (via voice in car): "ChatGPT, flip my dashcam video to my Road Trip Feed"
 
 ChatGPT: "I'll need you to confirm when you're not driving. I can:
           1. Save this for later
-          2. Send you a notification to post when parked
+          2. Send you a notification to flip when parked
           
           Which would you prefer?"
 
@@ -244,13 +277,13 @@ User: "Send notification"
 
 [Later, user is parked]
 
-[Phone notification]: "Ready to post your dashcam video? Tap to review."
+[Phone notification]: "Ready to flip your dashcam video? Tap to review."
 
 [User taps, sees video with AI-generated title: "Epic sunset drive through the mountains"]
 
-[User taps "Post"]
+[User taps "Flip"]
 
-ChatGPT: "Posted to Road Trip Circle! 3 people have already watched it."
+ChatGPT: "Flipped to Road Trip Feed! 3 people have already watched it."
 ```
 
 **This is only possible because we're building AI-native from day 1.**

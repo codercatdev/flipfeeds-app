@@ -1,5 +1,7 @@
 
-Genkit Backend - Part 1: Setup & Basic ToolsThis chunk focuses on initializing Genkit and creating the first tools (simple, reusable functions) for managing users and circles. This assumes you have a Genkit project initialized (genkit init).File: flipfeeds-genkit/src/index.ts (or similar)Task 1.1: Initialize Genkit with FirebaseWe need to configure Genkit to use Firebase services (like Firestore) and enable the Firebase Emulator Suite for local testing.// flipfeeds-genkit/src/index.ts
+# Genkit Backend - Part 1: Setup & Basic Tools
+
+This chunk focuses on initializing Genkit and creating the first tools (simple, reusable functions) for managing users and feeds. This assumes you have a Genkit project initialized (genkit init).File: flipfeeds-genkit/src/index.ts (or similar)Task 1.1: Initialize Genkit with FirebaseWe need to configure Genkit to use Firebase services (like Firestore) and enable the Firebase Emulator Suite for local testing.// flipfeeds-genkit/src/index.ts
 import { initializeGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { vertexAI } from '@genkit-ai/vertex-ai';
@@ -65,13 +67,20 @@ export const getUserProfile = defineTool(
     };
   },
 );
-Task 1.3: Define Circle Management ToolsCreate tools for getting feed data and checking membership.File: flipfeeds-genkit/src/tools/feedTools.ts// flipfeeds-genkit/src/tools/feedTools.ts
+## Task 1.3: Define Feed Management Tools
+
+Create tools for getting feed data and checking membership.
+
+**File:** `flipfeeds-genkit/src/tools/feedTools.ts`
+
+```typescript
+// flipfeeds-genkit/src/tools/feedTools.ts
 import { defineTool } from '@genkit-ai/core';
 import { getFirestore } from 'firebase-admin/firestore';
 import * as z from 'zod';
 
 const db = getFirestore();
-const feedsRef = db.collection('v1/circles');
+const feedsRef = db.collection('v1/feeds');
 
 // Tool to get a feed's data
 export const getFeedData = defineTool(
@@ -88,11 +97,11 @@ export const getFeedData = defineTool(
     }),
   },
   async ({ feedId }) => {
-    const circleDoc = await feedsRef.doc(feedId).get();
-    if (!circleDoc.exists) {
-      throw new Error(`Circle with ID ${feedId} not found.`);
+    const feedDoc = await feedsRef.doc(feedId).get();
+    if (!feedDoc.exists) {
+      throw new Error(`Feed with ID ${feedId} not found.`);
     }
-    const data = circleDoc.data()!;
+    const data = feedDoc.data()!;
     return {
       name: data.name,
       description: data.description,
@@ -107,7 +116,7 @@ export const getFeedData = defineTool(
 export const checkFeedMembership = defineTool(
   {
     name: 'checkFeedMembership',
-    description: 'Checks if a user is a member of a given circle.',
+    description: 'Checks if a user is a member of a given feed.',
     inputSchema: z.object({
       feedId: z.string(),
       userId: z.string(),

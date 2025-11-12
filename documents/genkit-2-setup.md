@@ -1,4 +1,15 @@
-Genkit Backend - Part 2: Core FlowsNow we'll create Genkit flows. Flows orchestrate one or more tools (and AI models) to perform complex actions. These are the main entry points for your MCP server and Firebase Functions.Task 2.1: createFeed FlowThis flow handles creating a new Circle, setting the creator as the owner, and updating counts. It uses Firestore transactions to ensure atomicity.File: flipfeeds-genkit/src/flows/feedFlows.ts// flipfeeds-genkit/src/flows/feedFlows.ts
+# Genkit Backend - Part 2: Core Flows
+
+Now we'll create Genkit flows. Flows orchestrate one or more tools (and AI models) to perform complex actions. These are the main entry points for your MCP server and Firebase Functions.
+
+## Task 2.1: createFeed Flow
+
+This flow handles creating a new Feed, setting the creator as the owner, and updating counts. It uses Firestore transactions to ensure atomicity.
+
+**File:** `flipfeeds-genkit/src/flows/feedFlows.ts`
+
+```typescript
+// flipfeeds-genkit/src/flows/feedFlows.ts
 import { defineFlow } from '@genkit-ai/flow';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import * as z from 'zod';
@@ -6,7 +17,7 @@ import * as z from 'zod';
 import { getUserProfile } from '../tools/userTools';
 
 const db = getFirestore();
-const feedsRef = db.collection('v1/circles');
+const feedsRef = db.collection('v1/feeds');
 const usersRef = db.collection('v1/users');
 
 export const createFeedFlow = defineFlow(
@@ -31,14 +42,14 @@ export const createFeedFlow = defineFlow(
     // 1. Get the user's profile data to denormalize
     const userProfile = await getUserProfile({ userId });
 
-    const newCircleRef = feedsRef.doc();
-    const memberRef = newCircleRef.collection('members').doc(userId);
-    const userFeedRef = usersRef.doc(userId).collection('circles').doc(newCircleRef.id);
+    const newFeedRef = feedsRef.doc();
+    const memberRef = newFeedRef.collection('members').doc(userId);
+    const userFeedRef = usersRef.doc(userId).collection('feeds').doc(newFeedRef.id);
 
     // 2. Use a transaction to create all documents atomically
     await db.runTransaction(async (transaction) => {
-      // Create the main circle doc
-      transaction.set(newCircleRef, {
+      // Create the main feed doc
+      transaction.set(newFeedRef, {
         name,
         description,
         visibility,
@@ -48,7 +59,7 @@ export const createFeedFlow = defineFlow(
         bannerURL: '[https://placehold.co/600x200/F26F21/FFFFFF?text=FlipFeeds](https://placehold.co/600x200/F26F21/FFFFFF?text=FlipFeeds)', // Default banner
         stats: {
           memberCount: 1,
-          postCount: 0,
+          flipCount: 0,
         },
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
@@ -63,9 +74,9 @@ export const createFeedFlow = defineFlow(
         photoURL: userProfile.photoURL || '',
       });
 
-      // Add to the user's list of circles (reverse lookup)
+      // Add to the user's list of feeds (reverse lookup)
       transaction.set(userFeedRef, {
-        feedId: newCircleRef.id,
+        feedId: newFeedRef.id,
         joinedAt: FieldValue.serverTimestamp(),
         role: 'admin',
         name: name, // Denormalized
@@ -74,19 +85,28 @@ export const createFeedFlow = defineFlow(
     });
 
     return {
-      feedId: newCircleRef.id,
+      feedId: newFeedRef.id,
       success: true,
     };
   },
 );
-Task 2.2: joinFeed FlowThis flow allows a user to join a public circle. (Private circles would need an invite flow).File: flipfeeds-genkit/src/flows/feedFlows.ts (add to this file)// flipfeeds-genkit/src/flows/feedFlows.ts
+```
+
+## Task 2.2: joinFeed Flow
+
+This flow allows a user to join a public feed. (Private feeds would need an invite flow).
+
+**File:** `flipfeeds-genkit/src/flows/feedFlows.ts` (add to this file)
+
+```typescript
+// flipfeeds-genkit/src/flows/feedFlows.ts
 // ... (imports and createFeedFlow from above) ...
 import { getFeedData, checkFeedMembership } from '../tools/feedTools';
 
 export const joinFeedFlow = defineFlow(
   {
     name: 'joinFeedFlow',
-    description: 'Allows a user to join a public circle.',
+    description: 'Allows a user to join a public feed.',
     inputSchema: z.object({
       userId: z.string(),
       feedId: z.string(),
@@ -97,7 +117,7 @@ export const joinFeedFlow = defineFlow(
     }),
   },
   async ({ userId, feedId }) => {
-    // 1. Get Circle and User data
+    // 1. Get Feed and User data
     const [feedData, userProfile] = await Promise.all([
       getFeedData({ feedId }),
       getUserProfile({ userId }),
@@ -116,10 +136,10 @@ export const joinFeedFlow = defineFlow(
     // 3. Use transaction to add member and update counts
     const feedRef = feedsRef.doc(feedId);
     const memberRef = feedRef.collection('members').doc(userId);
-    const userFeedRef = usersRef.doc(userId).collection('circles').doc(feedId);
+    const userFeedRef = usersRef.doc(userId).collection('feeds').doc(feedId);
 
     await db.runTransaction(async (transaction) => {
-      // Add member to circle
+      // Add member to feed
       transaction.set(memberRef, {
         userId: userId,
         role: 'member',
@@ -128,7 +148,7 @@ export const joinFeedFlow = defineFlow(
         photoURL: userProfile.photoURL || '',
       });
 
-      // Add to user's list of circles
+      // Add to user's list of feeds
       transaction.set(userFeedRef, {
         feedId: feedId,
         joinedAt: FieldValue.serverTimestamp(),
@@ -147,3 +167,4 @@ export const joinFeedFlow = defineFlow(
     return { success: true, message: `Successfully joined ${feedData.name}!` };
   },
 );
+```

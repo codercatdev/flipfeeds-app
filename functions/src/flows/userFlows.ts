@@ -45,15 +45,17 @@ export const conversationalProfileFlow = ai.defineFlow(
         inputSchema: z.object({
             message: z.string().optional().describe('User message or request'),
         }),
-        outputSchema: z.object({
-            response: z.string().describe('Conversational response to the user'),
-            profile: UserProfileOutputSchema.optional().describe('Current user profile state'),
-            needsInput: z.boolean().describe('Whether the flow needs more user input'),
-            suggestedActions: z
-                .array(z.string())
-                .optional()
-                .describe('Suggested next actions for the user'),
-        }),
+        outputSchema: z
+            .object({
+                response: z.string().describe('Conversational response to the user'),
+                profile: UserProfileOutputSchema.optional().describe('Current user profile state'),
+                needsInput: z.boolean().describe('Whether the flow needs more user input'),
+                suggestedActions: z
+                    .array(z.string())
+                    .optional()
+                    .describe('Suggested next actions for the user'),
+            })
+            .passthrough(),
     },
     async (input, { context }) => {
         const auth = requireAuth(context);
@@ -88,8 +90,8 @@ export const conversationalProfileFlow = ai.defineFlow(
                     photoURL: newProfile.photoURL,
                     bio: newProfile.bio,
                     feedCount: newProfile.feedCount,
-                    createdAt: newProfile.createdAt.toISOString(),
-                    updatedAt: newProfile.updatedAt.toISOString(),
+                    createdAt: newProfile.createdAt,
+                    updatedAt: newProfile.updatedAt,
                 },
                 needsInput: true,
                 suggestedActions: [
@@ -117,8 +119,8 @@ export const conversationalProfileFlow = ai.defineFlow(
                         photoURL: profile.photoURL,
                         bio: profile.bio,
                         feedCount: profile.feedCount,
-                        createdAt: profile.createdAt.toISOString(),
-                        updatedAt: profile.updatedAt.toISOString(),
+                        createdAt: profile.createdAt,
+                        updatedAt: profile.updatedAt,
                     },
                     needsInput: true,
                     suggestedActions: ['Enter a username'],
@@ -133,8 +135,8 @@ export const conversationalProfileFlow = ai.defineFlow(
                         photoURL: profile.photoURL,
                         bio: profile.bio,
                         feedCount: profile.feedCount,
-                        createdAt: profile.createdAt.toISOString(),
-                        updatedAt: profile.updatedAt.toISOString(),
+                        createdAt: profile.createdAt,
+                        updatedAt: profile.updatedAt,
                     },
                     needsInput: true,
                     suggestedActions: ['Enter a new username', 'Keep current username'],
@@ -154,8 +156,8 @@ export const conversationalProfileFlow = ai.defineFlow(
                         photoURL: profile.photoURL,
                         bio: profile.bio,
                         feedCount: profile.feedCount,
-                        createdAt: profile.createdAt.toISOString(),
-                        updatedAt: profile.updatedAt.toISOString(),
+                        createdAt: profile.createdAt,
+                        updatedAt: profile.updatedAt,
                     },
                     needsInput: true,
                     suggestedActions: ['Enter your bio'],
@@ -170,8 +172,8 @@ export const conversationalProfileFlow = ai.defineFlow(
                         photoURL: profile.photoURL,
                         bio: profile.bio,
                         feedCount: profile.feedCount,
-                        createdAt: profile.createdAt.toISOString(),
-                        updatedAt: profile.updatedAt.toISOString(),
+                        createdAt: profile.createdAt,
+                        updatedAt: profile.updatedAt,
                     },
                     needsInput: true,
                     suggestedActions: ['Enter a new bio', 'Keep current bio'],
@@ -197,8 +199,8 @@ export const conversationalProfileFlow = ai.defineFlow(
                         photoURL: profile.photoURL,
                         bio: profile.bio,
                         feedCount: profile.feedCount,
-                        createdAt: profile.createdAt.toISOString(),
-                        updatedAt: profile.updatedAt.toISOString(),
+                        createdAt: profile.createdAt,
+                        updatedAt: profile.updatedAt,
                     },
                     needsInput: true,
                     suggestedActions: [
@@ -217,8 +219,8 @@ export const conversationalProfileFlow = ai.defineFlow(
                         photoURL: profile.photoURL,
                         bio: profile.bio,
                         feedCount: profile.feedCount,
-                        createdAt: profile.createdAt.toISOString(),
-                        updatedAt: profile.updatedAt.toISOString(),
+                        createdAt: profile.createdAt,
+                        updatedAt: profile.updatedAt,
                     },
                     needsInput: true,
                     suggestedActions: [
@@ -246,8 +248,8 @@ export const conversationalProfileFlow = ai.defineFlow(
                     photoURL: profile.photoURL,
                     bio: profile.bio,
                     feedCount: profile.feedCount,
-                    createdAt: profile.createdAt.toISOString(),
-                    updatedAt: profile.updatedAt.toISOString(),
+                    createdAt: profile.createdAt,
+                    updatedAt: profile.updatedAt,
                 },
                 needsInput: true,
                 suggestedActions: missingFields.map((field) => `Set ${field}`),
@@ -269,8 +271,8 @@ Would you like to update anything?`,
                 photoURL: profile.photoURL,
                 bio: profile.bio,
                 feedCount: profile.feedCount,
-                createdAt: profile.createdAt.toISOString(),
-                updatedAt: profile.updatedAt.toISOString(),
+                createdAt: profile.createdAt,
+                updatedAt: profile.updatedAt,
             },
             needsInput: false,
             suggestedActions: ['Update username', 'Update bio', 'Change profile image'],
@@ -304,22 +306,40 @@ export const updateProfileFieldFlow = ai.defineFlow(
         }),
     },
     async (input, { context }) => {
+        console.log('[updateProfileFieldFlow] Starting flow with input:', JSON.stringify(input));
+        console.log('[updateProfileFieldFlow] Context:', JSON.stringify(context, null, 2));
+
         const auth = requireAuth(context);
+        console.log('[updateProfileFieldFlow] Auth user:', auth.uid, auth.email);
+
         const { field, value } = input;
+        console.log('[updateProfileFieldFlow] Field to update:', field, 'Value:', value);
 
         // Get current profile
+        console.log('[updateProfileFieldFlow] Fetching current profile...');
         const profile = await getUserProfileTool({ uid: auth.uid });
+        console.log('[updateProfileFieldFlow] Profile fetched:', profile ? 'exists' : 'null');
+
         if (!profile) {
+            console.log('[updateProfileFieldFlow] Profile not found, returning error');
             return {
                 success: false,
                 message: 'Profile not found. Please create a profile first.',
             };
         }
 
+        console.log(
+            '[updateProfileFieldFlow] Current profile data:',
+            JSON.stringify(profile, null, 2)
+        );
+
         // Handle username updates with validation
         if (field === 'username') {
+            console.log('[updateProfileFieldFlow] Handling username update');
+
             // Validate username length
             if (value.length < 3 || value.length > 20) {
+                console.log('[updateProfileFieldFlow] Username length invalid:', value.length);
                 return {
                     success: false,
                     message: 'Username must be between 3 and 20 characters.',
@@ -328,6 +348,7 @@ export const updateProfileFieldFlow = ai.defineFlow(
 
             // Check if username is the same
             if (value === profile.username) {
+                console.log('[updateProfileFieldFlow] Username is already current username');
                 return {
                     success: false,
                     message: 'This is already your username.',
@@ -335,8 +356,12 @@ export const updateProfileFieldFlow = ai.defineFlow(
             }
 
             // Check availability
+            console.log('[updateProfileFieldFlow] Checking username availability...');
             const available = await isUsernameAvailableTool({ username: value });
+            console.log('[updateProfileFieldFlow] Username available:', available);
+
             if (!available) {
+                console.log('[updateProfileFieldFlow] Username already taken');
                 return {
                     success: false,
                     message: `The username "${value}" is already taken. Please try another.`,
@@ -345,12 +370,17 @@ export const updateProfileFieldFlow = ai.defineFlow(
 
             // Release old username if exists
             if (profile.username) {
+                console.log('[updateProfileFieldFlow] Releasing old username:', profile.username);
                 await releaseUsernameTool({ username: profile.username });
             }
 
             // Claim new username
+            console.log('[updateProfileFieldFlow] Claiming new username...');
             const claimed = await claimUsernameTool({ uid: auth.uid, username: value });
+            console.log('[updateProfileFieldFlow] Username claimed:', claimed);
+
             if (!claimed) {
+                console.log('[updateProfileFieldFlow] Failed to claim username');
                 return {
                     success: false,
                     message: 'Failed to claim username. Please try again.',
@@ -358,15 +388,24 @@ export const updateProfileFieldFlow = ai.defineFlow(
             }
 
             // Update profile
+            console.log('[updateProfileFieldFlow] Updating profile in Firestore...');
             await updateUserProfileTool({
                 uid: auth.uid,
                 updates: { username: value },
             });
 
+            console.log('[updateProfileFieldFlow] Fetching updated profile...');
             const updatedProfile = await getUserProfileTool({ uid: auth.uid });
             if (!updatedProfile) {
+                console.error('[updateProfileFieldFlow] Failed to retrieve updated profile');
                 throw new HttpsError('internal', 'Failed to retrieve updated profile');
             }
+
+            console.log('[updateProfileFieldFlow] Username update successful');
+            console.log(
+                '[updateProfileFieldFlow] Updated profile:',
+                JSON.stringify(updatedProfile, null, 2)
+            );
 
             return {
                 success: true,
@@ -378,25 +417,36 @@ export const updateProfileFieldFlow = ai.defineFlow(
                     photoURL: updatedProfile.photoURL,
                     bio: updatedProfile.bio,
                     feedCount: updatedProfile.feedCount,
-                    createdAt: updatedProfile.createdAt.toISOString(),
-                    updatedAt: updatedProfile.updatedAt.toISOString(),
+                    createdAt: updatedProfile.createdAt,
+                    updatedAt: updatedProfile.updatedAt,
                 },
             };
         }
 
         // Handle other field updates
+        console.log('[updateProfileFieldFlow] Handling other field update for:', field);
         const updates: Record<string, string> = {};
         updates[field] = value;
+        console.log('[updateProfileFieldFlow] Updates object:', updates);
 
+        console.log('[updateProfileFieldFlow] Updating profile in Firestore...');
         await updateUserProfileTool({
             uid: auth.uid,
             updates,
         });
 
+        console.log('[updateProfileFieldFlow] Fetching updated profile...');
         const updatedProfile = await getUserProfileTool({ uid: auth.uid });
         if (!updatedProfile) {
+            console.error('[updateProfileFieldFlow] Failed to retrieve updated profile');
             throw new HttpsError('internal', 'Failed to retrieve updated profile');
         }
+
+        console.log('[updateProfileFieldFlow] Field update successful');
+        console.log(
+            '[updateProfileFieldFlow] Updated profile:',
+            JSON.stringify(updatedProfile, null, 2)
+        );
 
         return {
             success: true,
@@ -408,8 +458,8 @@ export const updateProfileFieldFlow = ai.defineFlow(
                 photoURL: updatedProfile.photoURL,
                 bio: updatedProfile.bio,
                 feedCount: updatedProfile.feedCount,
-                createdAt: updatedProfile.createdAt.toISOString(),
-                updatedAt: updatedProfile.updatedAt.toISOString(),
+                createdAt: updatedProfile.createdAt,
+                updatedAt: updatedProfile.updatedAt,
             },
         };
     }

@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import { ai } from '../genkit';
 
@@ -17,8 +18,8 @@ export const UserProfileSchema = z.object({
     phoneNumber: z.string().optional(),
     email: z.string().email().optional(),
     feedCount: z.number().default(0),
-    createdAt: z.date(),
-    updatedAt: z.date(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
 });
 
 export type UserProfile = z.infer<typeof UserProfileSchema>;
@@ -50,15 +51,15 @@ export const getUserProfileTool = ai.defineTool(
         const data = userDoc.data();
         return {
             uid: input.uid,
-            displayName: data?.displayName,
-            username: data?.username,
-            photoURL: data?.photoURL,
-            bio: data?.bio,
-            phoneNumber: data?.phoneNumber,
-            email: data?.email,
+            displayName: data?.displayName || undefined,
+            username: data?.username || undefined,
+            photoURL: data?.photoURL || undefined,
+            bio: data?.bio || undefined,
+            phoneNumber: data?.phoneNumber || undefined,
+            email: data?.email || undefined,
             feedCount: data?.feedCount || 0,
-            createdAt: data?.createdAt?.toDate() || new Date(),
-            updatedAt: data?.updatedAt?.toDate() || new Date(),
+            createdAt: (data?.createdAt?.toDate() || new Date()).toISOString(),
+            updatedAt: (data?.updatedAt?.toDate() || new Date()).toISOString(),
         };
     }
 );
@@ -133,7 +134,7 @@ export const claimUsernameTool = ai.defineTool(
         try {
             await db.collection('usernames').doc(normalizedUsername).create({
                 userId: input.uid,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                createdAt: FieldValue.serverTimestamp(),
             });
             return true;
         } catch {
@@ -188,7 +189,7 @@ export const updateUserProfileTool = ai.defineTool(
             .doc(input.uid)
             .update({
                 ...input.updates,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp(),
             });
     }
 );
@@ -211,6 +212,7 @@ export const createUserProfileTool = ai.defineTool(
     },
     async (input) => {
         console.log('Creating user profile for UID:', input.uid);
+        const timestamp = FieldValue.serverTimestamp();
         await db
             .collection('users')
             .doc(input.uid)
@@ -222,8 +224,8 @@ export const createUserProfileTool = ai.defineTool(
                 phoneNumber: input.phoneNumber || null,
                 email: input.email || null,
                 feedCount: 0,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                createdAt: timestamp,
+                updatedAt: timestamp,
             });
     }
 );

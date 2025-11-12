@@ -1,8 +1,10 @@
-import { type CallableOptions, onCallGenkit } from 'firebase-functions/https';
+import { googleAI } from '@genkit-ai/googleai';
+import type { CallableOptions } from 'firebase-functions/https';
 import { defineSecret } from 'firebase-functions/params';
+import { genkit } from 'genkit';
 
 const googleAIapiKey = defineSecret('GEMINI_API_KEY');
-const genKitGoogleAiOptions: CallableOptions = {
+export const genKitGoogleAiOptions: CallableOptions = {
     secrets: [googleAIapiKey],
     enforceAppCheck: false,
     // Optional. Makes App Check tokens only usable once. This adds extra security
@@ -12,9 +14,22 @@ const genKitGoogleAiOptions: CallableOptions = {
     // authPolicy: (auth) => auth?.token?.email_verified || false,
 };
 
-import { generateFlipFlow } from './flows/generateFlip';
-// Import flows
-import { generatePoemFlow } from './flows/generatePoemFlow';
+// Initialize Genkit with Google AI plugin
+// Note: For local development, the API key can be set via environment variable
+// The secret value is only accessible at runtime, not during deployment
+export const ai = genkit({
+    plugins: [
+        googleAI({
+            apiKey: process.env.GEMINI_API_KEY,
+        }),
+    ],
+    model: 'googleai/gemini-2.0-flash-exp',
+});
 
-export const generatePoem = onCallGenkit(genKitGoogleAiOptions, generatePoemFlow());
-export const generateFlip = onCallGenkit(genKitGoogleAiOptions, generateFlipFlow());
+// Phase 1.2 - Core Genkit Flows
+// Import all flows to register them with Genkit
+import './flows/userFlows';
+import './flows/feedFlows';
+import './flows/flipFlows';
+import './flows/flipLinkFlows';
+import './flows/inviteFlows';

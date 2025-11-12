@@ -6,13 +6,14 @@ import { getAuth } from 'firebase-admin/auth';
 import { onRequest } from 'firebase-functions/v2/https';
 import { getAuthServerUrl, getMcpServerUrl, jwtSecret } from './auth/config';
 import { verifyAccessToken } from './auth/tokens';
-import { youtubeThumbnailFlow } from './flows/youtubeThumbnailFlow';
-import { createThumbnailsTool } from './tools/createThumbnailsTool';
-import { getYouTubeChannelTool } from './tools/getYouTubeChannelTool';
-import { listLatestVideosTool } from './tools/listLatestVideosTool';
+import { ai } from './genkit';
 
-// Initialize the flow
-const thumbnailFlow = youtubeThumbnailFlow();
+// Ensure all flows are loaded into the registry
+import './flows/userFlows';
+import './flows/feedFlows';
+import './flows/flipFlows';
+import './flows/flipLinkFlows';
+import './flows/inviteFlows';
 
 // ============================================================================
 // FIREBASE AUTHENTICATION MIDDLEWARE (Dual Mode)
@@ -97,7 +98,7 @@ const flexibleAuthMiddleware = async (
 function createMCPServer(uid: string): Server {
     const server = new Server(
         {
-            name: 'flipfeeds-youtube-thumbnail-server',
+            name: 'flipfeeds-mcp-server',
             version: '1.0.0',
         },
         {
@@ -109,76 +110,84 @@ function createMCPServer(uid: string): Server {
 
     // Register tool list handler
     server.setRequestHandler(ListToolsRequestSchema, async () => {
+        // Get all Genkit flows and expose them as MCP tools
+        const actions = await ai.registry.listActions();
+
+        // Debug: log what we got from the registry
+        console.log('Actions from registry:', Object.keys(actions).length);
+        console.log('Sample action:', Object.values(actions)[0]);
+
+        // Try different ways to find flows
+        const allActions = Object.values(actions);
+        console.log('Total actions:', allActions.length);
+
+        // Check the structure
+        if (allActions.length > 0) {
+            const firstAction: any = allActions[0];
+            console.log(
+                'First action structure:',
+                JSON.stringify({
+                    hasAction: !!firstAction.__action,
+                    actionType: firstAction.__action?.type,
+                    actionMetadata: firstAction.__action?.metadata,
+                    keys: Object.keys(firstAction),
+                })
+            );
+        }
+
+        // Filter for flows - the __action might not have a type property
+        const flows = allActions.filter((a: any) => {
+            // Flows are callable functions with __action metadata
+            return typeof a === 'function' && a.__action;
+        });
+
+        console.log('Filtered flows:', flows.length);
+
+        const tools = flows.map((flow: any) => {
+            const flowAction = flow.__action;
+            const flowName = flowAction.name;
+
+            console.log('Processing flow:', flowName);
+
+            // Convert Zod schema to JSON schema for MCP
+            const inputSchema = flowAction.inputSchema || {};
+
+            return {
+                name: flowName,
+                description: flowAction.description || `Execute the ${flowName} flow`,
+                inputSchema: {
+                    type: 'object',
+                    properties: inputSchema._def?.shape
+                        ? Object.entries(inputSchema._def.shape).reduce(
+                              (acc: any, [key, value]: [string, any]) => {
+                                  acc[key] = {
+                                      type:
+                                          value._def?.typeName === 'ZodString'
+                                              ? 'string'
+                                              : value._def?.typeName === 'ZodNumber'
+                                                ? 'number'
+                                                : value._def?.typeName === 'ZodBoolean'
+                                                  ? 'boolean'
+                                                  : value._def?.typeName === 'ZodArray'
+                                                    ? 'array'
+                                                    : value._def?.typeName === 'ZodObject'
+                                                      ? 'object'
+                                                      : 'string',
+                                      description: value._def?.description || `${key} parameter`,
+                                  };
+                                  return acc;
+                              },
+                              {}
+                          )
+                        : {},
+                },
+            };
+        });
+
+        console.log(`Listing ${tools.length} MCP tools for user ${uid}`);
+
         return {
-            tools: [
-                {
-                    name: 'getYouTubeChannel',
-                    description:
-                        'Retrieves the YouTube channel ID for the authenticated user from Firestore',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {},
-                        required: [],
-                    },
-                },
-                {
-                    name: 'listLatestVideos',
-                    description: 'Lists the latest videos from a YouTube channel',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {
-                            channelId: {
-                                type: 'string',
-                                description: 'The YouTube channel ID',
-                            },
-                            maxResults: {
-                                type: 'number',
-                                description: 'Maximum number of videos to return',
-                                default: 10,
-                            },
-                        },
-                        required: ['channelId'],
-                    },
-                },
-                {
-                    name: 'createThumbnails',
-                    description:
-                        'Generates thumbnail design ideas based on video content and prompt',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {
-                            videoId: {
-                                type: 'string',
-                                description: 'The YouTube video ID',
-                            },
-                            prompt: {
-                                type: 'string',
-                                description: 'User prompt for thumbnail generation',
-                            },
-                            videoTitle: {
-                                type: 'string',
-                                description: 'The video title',
-                            },
-                        },
-                        required: ['videoId', 'prompt', 'videoTitle'],
-                    },
-                },
-                {
-                    name: 'youtubeThumbnailFlow',
-                    description:
-                        'Complete workflow to generate YouTube thumbnails for the authenticated user',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {
-                            prompt: {
-                                type: 'string',
-                                description: 'User prompt for thumbnail generation',
-                            },
-                        },
-                        required: ['prompt'],
-                    },
-                },
-            ],
+            tools,
         };
     });
 
@@ -186,70 +195,40 @@ function createMCPServer(uid: string): Server {
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
 
+        console.log(`Executing flow: ${name} for user ${uid}`);
+        console.log('Flow arguments:', args);
+
         try {
-            switch (name) {
-                case 'getYouTubeChannel': {
-                    // Use the authenticated uid instead of args.uid
-                    const result = await getYouTubeChannelTool({ uid });
-                    return {
-                        content: [
-                            {
-                                type: 'text',
-                                text: JSON.stringify(result, null, 2),
-                            },
-                        ],
-                    };
-                }
+            // Get the flow from Genkit registry
+            const actions = await ai.registry.listActions();
+            const flowEntry = Object.values(actions).find((a: any) => a.__action?.name === name);
 
-                case 'listLatestVideos': {
-                    const { channelId, maxResults = 10 } = args as {
-                        channelId: string;
-                        maxResults?: number;
-                    };
-                    const result = await listLatestVideosTool({ channelId, maxResults });
-                    return {
-                        content: [
-                            {
-                                type: 'text',
-                                text: JSON.stringify(result, null, 2),
-                            },
-                        ],
-                    };
-                }
-
-                case 'createThumbnails': {
-                    const result = await createThumbnailsTool(
-                        args as { videoId: string; prompt: string; videoTitle: string }
-                    );
-                    return {
-                        content: [
-                            {
-                                type: 'text',
-                                text: JSON.stringify(result, null, 2),
-                            },
-                        ],
-                    };
-                }
-
-                case 'youtubeThumbnailFlow': {
-                    // Inject authenticated uid into the args
-                    const { prompt } = args as { prompt: string };
-                    const result = await thumbnailFlow({ uid, prompt });
-                    return {
-                        content: [
-                            {
-                                type: 'text',
-                                text: JSON.stringify(result, null, 2),
-                            },
-                        ],
-                    };
-                }
-
-                default:
-                    throw new Error(`Unknown tool: ${name}`);
+            if (!flowEntry) {
+                throw new Error(`Flow not found: ${name}`);
             }
+
+            // Inject uid into the arguments if not already present
+            const flowArgs = {
+                uid,
+                ...args,
+            };
+
+            // Execute the flow - flowEntry is the callable flow function
+            const result = await flowEntry(flowArgs);
+
+            // Return the result as MCP content
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify(result, null, 2),
+                    },
+                ],
+            };
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`Error executing flow ${name}:`, errorMessage);
+
             return {
                 content: [
                     {

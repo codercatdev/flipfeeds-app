@@ -113,35 +113,23 @@ function createMCPServer(uid: string): Server {
         // Get all Genkit flows and expose them as MCP tools
         const actions = await ai.registry.listActions();
 
-        // Debug: log what we got from the registry
-        console.log('Actions from registry:', Object.keys(actions).length);
-        console.log('Sample action:', Object.values(actions)[0]);
-
-        // Try different ways to find flows
+        // Filter for flows only - exclude models and other action types
         const allActions = Object.values(actions);
-        console.log('Total actions:', allActions.length);
-
-        // Check the structure
-        if (allActions.length > 0) {
-            const firstAction: any = allActions[0];
-            console.log(
-                'First action structure:',
-                JSON.stringify({
-                    hasAction: !!firstAction.__action,
-                    actionType: firstAction.__action?.type,
-                    actionMetadata: firstAction.__action?.metadata,
-                    keys: Object.keys(firstAction),
-                })
-            );
-        }
-
-        // Filter for flows - the __action might not have a type property
         const flows = allActions.filter((a: any) => {
             // Flows are callable functions with __action metadata
-            return typeof a === 'function' && a.__action;
+            // Exclude googleai models (they start with 'googleai/')
+            const flowName = a.__action?.name || '';
+            return (
+                typeof a === 'function' &&
+                a.__action &&
+                !flowName.startsWith('googleai/') &&
+                flowName !== 'generate' // Exclude the default 'generate' flow
+            );
         });
 
-        console.log('Filtered flows:', flows.length);
+        console.log(
+            `Found ${flows.length} FlipFeeds flows (filtered out ${allActions.length - flows.length} models/other actions)`
+        );
 
         const tools = flows.map((flow: any) => {
             const flowAction = flow.__action;

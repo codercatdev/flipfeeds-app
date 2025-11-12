@@ -23,7 +23,7 @@ export const ai = genkit({
             apiKey: process.env.GEMINI_API_KEY,
         }),
     ],
-    model: 'googleai/gemini-2.0-flash-exp',
+    model: 'googleai/gemini-2.5-flash',
 });
 
 // Phase 1.2 - Core Genkit Flows

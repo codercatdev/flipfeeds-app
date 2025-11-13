@@ -71,19 +71,21 @@ export const conversationalProfileFlow = ai.defineFlow(
         const auth = requireAuth(context);
 
         // Check if profile exists
-        const profile = await getUserProfileTool({ uid: auth.uid });
+        const profile = await getUserProfileTool({}, { context });
 
         // If no profile exists, create one
         if (!profile) {
-            await createUserProfileTool({
-                uid: auth.uid,
-                displayName: auth.displayName,
-                email: auth.email,
-                photoURL: auth.photoURL,
-            });
+            await createUserProfileTool(
+                {
+                    displayName: auth.displayName,
+                    email: auth.email,
+                    photoURL: auth.photoURL,
+                },
+                { context }
+            );
 
             // Fetch the newly created profile
-            const newProfile = await getUserProfileTool({ uid: auth.uid });
+            const newProfile = await getUserProfileTool({}, { context });
             if (!newProfile) {
                 throw new HttpsError('internal', 'Failed to create user profile');
             }
@@ -327,7 +329,7 @@ export const updateProfileFieldFlow = ai.defineFlow(
 
         // Get current profile
         console.log('[updateProfileFieldFlow] Fetching current profile...');
-        const profile = await getUserProfileTool({ uid: auth.uid });
+        const profile = await getUserProfileTool({}, { context });
         console.log('[updateProfileFieldFlow] Profile fetched:', profile ? 'exists' : 'null');
 
         if (!profile) {
@@ -381,12 +383,12 @@ export const updateProfileFieldFlow = ai.defineFlow(
             // Release old username if exists
             if (profile.username) {
                 console.log('[updateProfileFieldFlow] Releasing old username:', profile.username);
-                await releaseUsernameTool({ username: profile.username });
+                await releaseUsernameTool({ username: profile.username }, { context });
             }
 
             // Claim new username
             console.log('[updateProfileFieldFlow] Claiming new username...');
-            const claimed = await claimUsernameTool({ uid: auth.uid, username: value });
+            const claimed = await claimUsernameTool({ username: value }, { context });
             console.log('[updateProfileFieldFlow] Username claimed:', claimed);
 
             if (!claimed) {
@@ -399,13 +401,15 @@ export const updateProfileFieldFlow = ai.defineFlow(
 
             // Update profile
             console.log('[updateProfileFieldFlow] Updating profile in Firestore...');
-            await updateUserProfileTool({
-                uid: auth.uid,
-                updates: { username: value },
-            });
+            await updateUserProfileTool(
+                {
+                    updates: { username: value },
+                },
+                { context }
+            );
 
             console.log('[updateProfileFieldFlow] Fetching updated profile...');
-            const updatedProfile = await getUserProfileTool({ uid: auth.uid });
+            const updatedProfile = await getUserProfileTool({}, { context });
             if (!updatedProfile) {
                 console.error('[updateProfileFieldFlow] Failed to retrieve updated profile');
                 throw new HttpsError('internal', 'Failed to retrieve updated profile');
@@ -440,13 +444,15 @@ export const updateProfileFieldFlow = ai.defineFlow(
         console.log('[updateProfileFieldFlow] Updates object:', updates);
 
         console.log('[updateProfileFieldFlow] Updating profile in Firestore...');
-        await updateUserProfileTool({
-            uid: auth.uid,
-            updates,
-        });
+        await updateUserProfileTool(
+            {
+                updates,
+            },
+            { context }
+        );
 
         console.log('[updateProfileFieldFlow] Fetching updated profile...');
-        const updatedProfile = await getUserProfileTool({ uid: auth.uid });
+        const updatedProfile = await getUserProfileTool({}, { context });
         if (!updatedProfile) {
             console.error('[updateProfileFieldFlow] Failed to retrieve updated profile');
             throw new HttpsError('internal', 'Failed to retrieve updated profile');
@@ -534,7 +540,7 @@ export const profileImageAssistantFlow = ai.defineFlow(
         const { action, imageUrl, selectedImageIndex } = input;
 
         // Get current profile
-        const profile = await getUserProfileTool({ uid: auth.uid });
+        const profile = await getUserProfileTool({}, { context });
         if (!profile) {
             return {
                 success: false,
@@ -587,10 +593,12 @@ export const profileImageAssistantFlow = ai.defineFlow(
                     console.log(`User-provided image stored to ${fileName}`);
 
                     // Update profile with the stored image URL
-                    await updateUserProfileTool({
-                        uid: auth.uid,
-                        updates: { photoURL: publicUrl },
-                    });
+                    await updateUserProfileTool(
+                        {
+                            updates: { photoURL: publicUrl },
+                        },
+                        { context }
+                    );
 
                     return {
                         success: true,
@@ -801,10 +809,12 @@ To select an image, call this flow again with:
                     console.log(`Selected image stored to ${fileName} with URL: ${publicUrl}`);
 
                     // Update user profile with the public URL
-                    await updateUserProfileTool({
-                        uid: auth.uid,
-                        updates: { photoURL: publicUrl },
-                    });
+                    await updateUserProfileTool(
+                        {
+                            updates: { photoURL: publicUrl },
+                        },
+                        { context }
+                    );
 
                     return {
                         success: true,
@@ -822,10 +832,12 @@ To select an image, call this flow again with:
             }
 
             case 'remove':
-                await updateUserProfileTool({
-                    uid: auth.uid,
-                    updates: { photoURL: undefined },
-                });
+                await updateUserProfileTool(
+                    {
+                        updates: { photoURL: undefined },
+                    },
+                    { context }
+                );
 
                 return {
                     success: true,

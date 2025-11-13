@@ -14,7 +14,10 @@
         "set-claims": "node scripts/set-user-claims.js",
         "genkit:dev": "bash scripts/run-genkit-dev.sh",
         "genkit:dev:build": "tsc && bash scripts/run-genkit-build.sh",
-        "genkit:open": "bash scripts/run-genkit-open.sh"
+        "genkit:open": "bash scripts/run-genkit-open.sh",
+        "test": "pnpm build && mocha",
+        "test:emulators": "cd .. && firebase emulators:exec --only firestore,storage \"cd functions && pnpm test\"",
+        "test:watch": "pnpm build:watch & mocha --watch"
     },
     "engines": {
         "node": "22"
@@ -40,9 +43,13 @@
         "zod-to-json-schema": "^3.24.6"
     },
     "devDependencies": {
+        "@types/chai": "^5.2.3",
         "@types/data-urls": "^3.0.4",
+        "@types/mocha": "^10.0.10",
         "@types/node": "^22.0.0",
+        "chai": "^6.2.1",
         "firebase-functions-test": "^3.0.0",
+        "mocha": "^11.7.5",
         "tsx": "^4.20.6",
         "typescript": "^5.0.0"
     },

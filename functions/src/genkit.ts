@@ -111,16 +111,20 @@ export { vertexAI };
 import './flows/userFlows';
 
 // Feed management flows
-import './flows/feedFlows';
+// TODO: Uncomment when feedTools.ts is created
+// import './flows/feedFlows';
 
 // Flip (video) management flows
-import './flows/flipFlows';
+// TODO: Uncomment when flipTools.ts and videoTools.ts are created
+// import './flows/flipFlows';
 
 // Flip link flows
-import './flows/flipLinkFlows';
+// TODO: Uncomment when feedTools.ts is created
+// import './flows/flipLinkFlows';
 
 // Invitation flows
-import './flows/inviteFlows';
+// TODO: Uncomment when feedTools.ts is created
+// import './flows/inviteFlows';
 
 // ============================================================================
 // TOOL REGISTRATION (Import to Register)
@@ -133,14 +137,17 @@ import './flows/inviteFlows';
  */
 
 // Feed management tools
-import * as feedTools from './tools/feedTools';
+// TODO: Uncomment when feedTools.ts is created
+// import * as feedTools from './tools/feedTools';
 // Flip (video) management tools
-import * as flipTools from './tools/flipTools';
+// TODO: Uncomment when flipTools.ts is created
+// import * as flipTools from './tools/flipTools';
 // User management tools
 import * as userTools from './tools/userTools';
 
 // Video processing tools
-import * as videoTools from './tools/videoTools';
+// TODO: Uncomment when videoTools.ts is created
+// import * as videoTools from './tools/videoTools';
 
 // Export all tools so they're accessible
-export { userTools, feedTools, flipTools, videoTools };
+export { userTools };

@@ -11,5 +11,13 @@
         "skipLibCheck": true
     },
     "compileOnSave": true,
-    "include": ["src"]
+    "include": ["src"],
+    "exclude": [
+        "node_modules",
+        "lib",
+        "src/flows/feedFlows.ts",
+        "src/flows/flipFlows.ts",
+        "src/flows/flipLinkFlows.ts",
+        "src/flows/inviteFlows.ts"
+    ]
 }

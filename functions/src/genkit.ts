@@ -108,46 +108,82 @@ export { vertexAI };
  */
 
 // User management flows
-import './flows/userFlows';
+import { registerUserFlows } from './flows/userFlows';
 
 // Feed management flows
-// TODO: Uncomment when feedTools.ts is created
-// import './flows/feedFlows';
+// TODO: Uncomment when feedFlows.ts is created
+// import { registerFeedFlows } from './flows/feedFlows';
 
 // Flip (video) management flows
-// TODO: Uncomment when flipTools.ts and videoTools.ts are created
-// import './flows/flipFlows';
+// TODO: Uncomment when flipFlows.ts is created
+// import { registerFlipFlows } from './flows/flipFlows';
 
 // Flip link flows
-// TODO: Uncomment when feedTools.ts is created
-// import './flows/flipLinkFlows';
+// TODO: Uncomment when flipLinkFlows.ts is created
+// import { registerFlipLinkFlows } from './flows/flipLinkFlows';
 
 // Invitation flows
-// TODO: Uncomment when feedTools.ts is created
-// import './flows/inviteFlows';
+// TODO: Uncomment when inviteFlows.ts is created
+// import { registerInviteFlows } from './flows/inviteFlows';
 
 // ============================================================================
-// TOOL REGISTRATION (Import to Register)
+// FLOW AND TOOL REGISTRATION
 // ============================================================================
 
 /**
- * Import all tools to register them with Genkit.
- * Tools defined with ai.defineTool() are automatically registered.
- * These tools can be used by flows or directly called in the Dev UI.
+ * Register all flows and tools with Genkit after initialization.
+ * They are registered via functions to avoid circular dependencies.
+ * This must happen AFTER Genkit is initialized but BEFORE export.
  */
+
+// Register user management flows
+registerUserFlows(ai);
+
+// Register feed management flows
+// TODO: Uncomment when registerFeedFlows is created
+// registerFeedFlows(ai);
+
+// Register flip management flows
+// TODO: Uncomment when registerFlipFlows is created
+// registerFlipFlows(ai);
+
+// Register flip link flows
+// TODO: Uncomment when registerFlipLinkFlows is created
+// registerFlipLinkFlows(ai);
+
+// Register invitation flows
+// TODO: Uncomment when registerInviteFlows is created
+// registerInviteFlows(ai);
+
+// ============================================================================
+// TOOL REGISTRATION
+// ============================================================================
+
+/**
+ * Import and register all tool registration functions
+ */
+import { registerUserTools } from './tools/userTools';
+
+// Register user management tools
+registerUserTools(ai);
 
 // Feed management tools
 // TODO: Uncomment when feedTools.ts is created
-// import * as feedTools from './tools/feedTools';
+// import { registerFeedTools } from './tools/feedTools';
+// registerFeedTools(ai);
+
 // Flip (video) management tools
 // TODO: Uncomment when flipTools.ts is created
-// import * as flipTools from './tools/flipTools';
-// User management tools
-import * as userTools from './tools/userTools';
+// import { registerFlipTools } from './tools/flipTools';
+// registerFlipTools(ai);
 
 // Video processing tools
 // TODO: Uncomment when videoTools.ts is created
-// import * as videoTools from './tools/videoTools';
+// import { registerVideoTools } from './tools/videoTools';
+// registerVideoTools(ai);
 
-// Export all tools so they're accessible
-export { userTools };
+/**
+ * Export user tools schema for reference
+ * (actual tools are registered dynamically with Genkit)
+ */
+export { UserProfileSchema } from './tools/userTools';

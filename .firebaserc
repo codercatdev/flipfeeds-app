@@ -1,6 +1,7 @@
 {
   "projects": {
-    "prod": "flipfeeds-app"
+    "prod": "flipfeeds-app",
+    "default": "flipfeeds-app"
   },
   "targets": {},
   "etags": {}

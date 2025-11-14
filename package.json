@@ -31,7 +31,7 @@
         "clean": "pnpm -r --parallel run clean && rm -rf node_modules",
         "clean:modules": "find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
         "kill-ports": "bash scripts/kill-emulator-ports.sh",
-        "emulators": "pnpm kill-ports && pnpm --filter functions build && concurrently \"pnpm --filter functions build:watch\" \"firebase emulators:start --only functions,firestore,database,hosting\"",
+        "emulators": "pnpm kill-ports && pnpm --filter functions build && concurrently \"pnpm --filter functions build:watch\" \"firebase emulators:start --only functions,firestore,database,hosting\" \"firebase emulators:start --only apphosting\"",
         "genkit:dev": "pnpm --filter functions genkit:dev:build",
         "genkit:open": "pnpm --filter functions genkit:open",
         "deploy:functions": "firebase deploy --only functions",

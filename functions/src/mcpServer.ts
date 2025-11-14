@@ -1,11 +1,11 @@
 /**
- * FlipFeeds MCP Server - Exposes Genkit Flows as MCP Tools
+ * FlipFeeds MCP Server - Exposes Genkit Tools as MCP Tools
  *
- * This MCP server exposes all Genkit flows defined in the application as MCP tools.
- * Flows are accessed via ai.registry.listActions() and exposed through the MCP protocol.
+ * This MCP server exposes all Genkit tools defined in the application as MCP tools.
+ * Tools are accessed via ai.registry.listActions() and exposed through the MCP protocol.
  *
  * Architecture:
- * - Manual MCP server setup to expose flows (genkitx-mcp only exposes tools, not flows)
+ * - Manual MCP server setup to expose tools
  * - Supports dual authentication (OAuth 2.1 + Firebase ID tokens)
  * - Improved authentication middleware with context provider
  * - Exposes OAuth metadata endpoint for MCP client discovery
@@ -64,9 +64,9 @@ const authMiddleware = async (
  * Create and configure the MCP server with user auth context
  *
  * This function creates a new MCP server instance for each authenticated request.
- * It exposes all Genkit flows as MCP tools by:
+ * It exposes all Genkit tools as MCP tools by:
  * 1. Listing all actions from ai.registry
- * 2. Filtering for flows (excluding models, tools, and other action types)
+ * 2. Filtering for tools (excluding models, flows, and other action types)
  * 3. Converting Zod schemas to MCP tool schemas
  * 4. Handling tool execution with the authenticated user's uid
  */
@@ -85,42 +85,42 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
 
     // Register tool list handler
     server.setRequestHandler(ListToolsRequestSchema, async () => {
-        // Get all Genkit flows and expose them as MCP tools
+        // Get all Genkit tools and expose them as MCP tools
         const actions = await ai.registry.listActions();
 
-        // Filter for flows only - exclude models, tools, and other action types
+        // Filter for tools only - exclude models, flows, and other action types
         const allActions = Object.values(actions);
-        const flows = allActions.filter((a: any) => {
-            // Flows are callable functions with __action metadata
-            const flowName = a.__action?.name || '';
+        const tools = allActions.filter((a: any) => {
+            // Tools are callable functions with __action metadata
+            const toolName = a.__action?.name || '';
             const actionType = a.__action?.metadata?.type;
 
             // Exclude all models (they have type === 'model')
             if (actionType === 'model') {
-                console.log(`Filtering out model: ${flowName} (type: ${actionType})`);
+                console.log(`Filtering out model: ${toolName} (type: ${actionType})`);
                 return false;
             }
 
-            // Exclude tools (they have type === 'tool')
-            if (actionType === 'tool') {
-                console.log(`Filtering out tool: ${flowName} (type: ${actionType})`);
+            // Exclude flows (they have type === 'flow')
+            if (actionType === 'flow') {
+                console.log(`Filtering out flow: ${toolName} (type: ${actionType})`);
+                return false;
+            }
+
+            // Only include tools (they have type === 'tool')
+            if (actionType !== 'tool') {
+                console.log(`Filtering out non-tool action: ${toolName} (type: ${actionType})`);
                 return false;
             }
 
             // Exclude model namespaces (googleai/, vertexai/, etc.)
             if (
-                flowName.includes('/') &&
-                (flowName.startsWith('googleai/') ||
-                    flowName.startsWith('vertexai/') ||
-                    flowName.startsWith('vertexAI/'))
+                toolName.includes('/') &&
+                (toolName.startsWith('googleai/') ||
+                    toolName.startsWith('vertexai/') ||
+                    toolName.startsWith('vertexAI/'))
             ) {
-                console.log(`Filtering out namespaced model/action: ${flowName}`);
-                return false;
-            }
-
-            // Exclude the default 'generate' flow
-            if (flowName === 'generate') {
-                console.log(`Filtering out default generate flow: ${flowName}`);
+                console.log(`Filtering out namespaced model/action: ${toolName}`);
                 return false;
             }
 
@@ -129,32 +129,32 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
         });
 
         console.log(
-            `Found ${flows.length} FlipFeeds flows (filtered out ${allActions.length - flows.length} models/other actions)`
+            `Found ${tools.length} FlipFeeds tools (filtered out ${allActions.length - tools.length} models/flows/other actions)`
         );
 
-        const tools = flows.map((flow: any) => {
-            const flowAction = flow.__action;
-            const originalFlowName = flowAction.name;
+        const mcpTools = tools.map((tool: any) => {
+            const toolAction = tool.__action;
+            const originalToolName = toolAction.name;
 
-            // Sanitize flow name to meet MCP requirements: ^[a-zA-Z0-9_-]{1,64}$
+            // Sanitize tool name to meet MCP requirements: ^[a-zA-Z0-9_-]{1,64}$
             // Replace invalid characters with underscores and truncate to 64 chars
-            const flowName = originalFlowName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 64);
+            const toolName = originalToolName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 64);
 
             console.log(
-                'Processing flow:',
-                originalFlowName,
-                flowName !== originalFlowName ? `(sanitized to: ${flowName})` : ''
+                'Processing tool:',
+                originalToolName,
+                toolName !== originalToolName ? `(sanitized to: ${toolName})` : ''
             );
 
             // Convert Zod input schema to JSON Schema for MCP
-            const inputSchema = flowAction.inputSchema;
+            const inputSchema = toolAction.inputSchema;
             let inputJsonSchema: any = { type: 'object', properties: {} };
 
             if (inputSchema) {
                 try {
                     // Use zod-to-json-schema for proper conversion
                     const rawJsonSchema = zodToJsonSchema(inputSchema, {
-                        name: `${flowName}Input`,
+                        name: `${toolName}Input`,
                         $refStrategy: 'none',
                     });
 
@@ -170,7 +170,7 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
                         inputJsonSchema = rawJsonSchema;
                     }
                 } catch (error) {
-                    console.error(`Failed to convert input schema for ${flowName}:`, error);
+                    console.error(`Failed to convert input schema for ${toolName}:`, error);
                     // Fallback to empty schema
                     inputJsonSchema = { type: 'object', properties: {} };
                 }
@@ -178,7 +178,7 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
 
             // Build tool description with output info if available
             const fullDescription =
-                flowAction?.metadata?.description || `Execute the ${flowName} flow`;
+                toolAction?.metadata?.description || `Execute the ${toolName} tool`;
 
             // Ensure inputSchema always has type: "object"
             if (!inputJsonSchema.type) {
@@ -187,18 +187,18 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
 
             // MCP tools should NOT include outputSchema - only inputSchema
             return {
-                name: flowName,
+                name: toolName,
                 description: fullDescription,
                 inputSchema: inputJsonSchema,
             };
         });
 
         console.log(
-            `Listing ${tools.length} MCP tools for user ${auth.uid} (${auth.email || 'no email'})`
+            `Listing ${mcpTools.length} MCP tools for user ${auth.uid} (${auth.email || 'no email'})`
         );
 
         return {
-            tools,
+            tools: mcpTools,
         };
     });
 
@@ -206,36 +206,36 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
 
-        console.log(`Executing flow: ${name} for user ${auth.uid} (${auth.email || 'no email'})`);
-        console.log('Flow arguments:', args);
-        console.log('Context passed to flow:', JSON.stringify(auth, null, 2));
+        console.log(`Executing tool: ${name} for user ${auth.uid} (${auth.email || 'no email'})`);
+        console.log('Tool arguments:', args);
+        console.log('Context passed to tool:', JSON.stringify(auth, null, 2));
 
         try {
-            // Get the flow from Genkit registry
+            // Get the tool from Genkit registry
             const actions = await ai.registry.listActions();
-            const flowEntry = Object.values(actions).find((a: any) => a.__action?.name === name);
+            const toolEntry = Object.values(actions).find((a: any) => a.__action?.name === name);
 
-            if (!flowEntry) {
-                throw new Error(`Flow not found: ${name}`);
+            if (!toolEntry) {
+                throw new Error(`Tool not found: ${name}`);
             }
 
-            // Prepare flow arguments
+            // Prepare tool arguments
             // First parameter: the input arguments
-            const flowArgs = {
+            const toolArgs = {
                 ...args,
             };
 
             // Second parameter: options object with context
-            // This is how Genkit flows receive context information
-            const flowContext: { context: ActionContext } = {
+            // This is how Genkit tools receive context information
+            const toolContext: { context: ActionContext } = {
                 context: {
                     auth,
                 },
             };
 
-            // Execute the flow with both parameters
-            // flowEntry(input, options) where options contains { context }
-            const result = await flowEntry(flowArgs, flowContext);
+            // Execute the tool with both parameters
+            // toolEntry(input, options) where options contains { context }
+            const result = await toolEntry(toolArgs, toolContext);
 
             // Prepare MCP content array
             const content: any[] = [];
@@ -333,7 +333,7 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
             };
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            console.error(`Error executing flow ${name}:`, errorMessage);
+            console.error(`Error executing tool ${name}:`, errorMessage);
 
             return {
                 content: [

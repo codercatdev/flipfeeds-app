@@ -19,7 +19,7 @@
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import * as admin from 'firebase-admin';
-import type { CallableOptions } from 'firebase-functions/https';
+import { type CallableOptions, onCallGenkit } from 'firebase-functions/https';
 import { defineSecret } from 'firebase-functions/params';
 import { genkit } from 'genkit';
 
@@ -137,7 +137,15 @@ import { registerUserFlows } from './flows/userFlows';
  */
 
 // Register user management flows
-registerUserFlows(ai);
+const userFlows = registerUserFlows(ai);
+
+// Export flows as Cloud Functions using the returned flow
+export const conversationalProfileFlow = onCallGenkit(
+    {
+        ...genKitGoogleAiOptions,
+    },
+    userFlows.conversationalProfileFlowAction
+);
 
 // Register feed management flows
 // TODO: Uncomment when registerFeedFlows is created

@@ -26,6 +26,7 @@ function buildPublicStorageUrl(bucketName: string, filePath: string, token: stri
 /**
  * Register all user flows with the provided Genkit instance.
  * This function is called from genkit.ts after Genkit is initialized.
+ * Returns the conversationalProfileFlow action for export.
  */
 export function registerUserFlows(ai: Genkit) {
     /**
@@ -40,7 +41,7 @@ export function registerUserFlows(ai: Genkit) {
      * Uses available tools: getUserProfileTool, createUserProfileTool,
      * updateUserProfileTool, isUsernameAvailableTool, claimUsernameTool
      */
-    ai.defineFlow(
+    const conversationalProfileFlowAction = ai.defineFlow(
         {
             name: 'conversationalProfileFlow',
             metadata: {
@@ -871,4 +872,6 @@ To select an image, call this flow again with:
             }
         }
     );
+
+    return { conversationalProfileFlowAction };
 }

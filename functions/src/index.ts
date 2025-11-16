@@ -8,7 +8,7 @@ export { mcpAuthServer } from './auth/authServer';
 // Export Protected Resource Metadata (MCP discovery endpoint)
 export { mcpProtectedResource } from './auth/protectedResource';
 // Export Genkit flows as Cloud Functions
-export { conversationalProfileFlow } from './genkit';
+export { conversationalProfileFlow, createFeedFlow, createFlipFlow } from './genkit';
 // Export MCP Server (supports both OAuth and Firebase ID token auth)
 // Built with genkitx-mcp package for automatic tool/flow exposure
 export { mcpServerFunc as mcpServer } from './mcpServer';

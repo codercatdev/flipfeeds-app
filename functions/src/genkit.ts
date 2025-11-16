@@ -32,7 +32,7 @@ import { genkit } from 'genkit';
  * This must happen BEFORE importing flows/tools that use Firestore
  *
  * In production: Uses default credentials
- * In dev/emulator: Set FIRESTORE_EMULATOR_HOST and GCLOUD_PROJECT env vars
+ * In dev/emulator: Set FIRESTORE_EMulator_HOST and GCLOUD_PROJECT env vars
  */
 if (!admin.apps.length) {
     const projectId = process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT;
@@ -109,59 +109,17 @@ export { vertexAI };
 
 // User management flows
 import { registerUserFlows } from './flows/userFlows';
+const { conversationalProfileFlowAction } = registerUserFlows(ai);
+export const conversationalProfileFlow = onCallGenkit(genKitGoogleAiOptions, conversationalProfileFlowAction);
 
 // Feed management flows
-// TODO: Uncomment when feedFlows.ts is created
-// import { registerFeedFlows } from './flows/feedFlows';
+import { createFeedFlow as createFeedFlowDef } from './flows/feedFlows';
+export const createFeedFlow = onCallGenkit(genKitGoogleAiOptions, createFeedFlowDef);
 
 // Flip (video) management flows
-// TODO: Uncomment when flipFlows.ts is created
-// import { registerFlipFlows } from './flows/flipFlows';
+import { createFlipFlow as createFlipFlowDef } from './flows/flipFlows';
+export const createFlipFlow = onCallGenkit(genKitGoogleAiOptions, createFlipFlowDef);
 
-// Flip link flows
-// TODO: Uncomment when flipLinkFlows.ts is created
-// import { registerFlipLinkFlows } from './flows/flipLinkFlows';
-
-// Invitation flows
-// TODO: Uncomment when inviteFlows.ts is created
-// import { registerInviteFlows } from './flows/inviteFlows';
-
-// ============================================================================
-// FLOW AND TOOL REGISTRATION
-// ============================================================================
-
-/**
- * Register all flows and tools with Genkit after initialization.
- * They are registered via functions to avoid circular dependencies.
- * This must happen AFTER Genkit is initialized but BEFORE export.
- */
-
-// Register user management flows
-const userFlows = registerUserFlows(ai);
-
-// Export flows as Cloud Functions using the returned flow
-export const conversationalProfileFlow = onCallGenkit(
-    {
-        ...genKitGoogleAiOptions,
-    },
-    userFlows.conversationalProfileFlowAction
-);
-
-// Register feed management flows
-// TODO: Uncomment when registerFeedFlows is created
-// registerFeedFlows(ai);
-
-// Register flip management flows
-// TODO: Uncomment when registerFlipFlows is created
-// registerFlipFlows(ai);
-
-// Register flip link flows
-// TODO: Uncomment when registerFlipLinkFlows is created
-// registerFlipLinkFlows(ai);
-
-// Register invitation flows
-// TODO: Uncomment when registerInviteFlows is created
-// registerInviteFlows(ai);
 
 // ============================================================================
 // TOOL REGISTRATION
@@ -174,21 +132,6 @@ import { registerUserTools } from './tools/userTools';
 
 // Register user management tools
 registerUserTools(ai);
-
-// Feed management tools
-// TODO: Uncomment when feedTools.ts is created
-// import { registerFeedTools } from './tools/feedTools';
-// registerFeedTools(ai);
-
-// Flip (video) management tools
-// TODO: Uncomment when flipTools.ts is created
-// import { registerFlipTools } from './tools/flipTools';
-// registerFlipTools(ai);
-
-// Video processing tools
-// TODO: Uncomment when videoTools.ts is created
-// import { registerVideoTools } from './tools/videoTools';
-// registerVideoTools(ai);
 
 /**
  * Export user tools schema for reference

@@ -55,7 +55,11 @@
         "sonner": "^2.0.7",
         "tailwind-merge": "^3.4.0",
         "vaul": "^1.1.2",
-        "zod": "^3.25.76"
+        "zod": "^3.25.76",
+        "@firebase-ui/react": "https://github.com/firebase/firebaseui-web/raw/refs/heads/v7-alpha/releases/firebase-ui-react-0.0.1.tgz",
+        "@firebase-ui/core": "https://github.com/firebase/firebaseui-web/raw/refs/heads/v7-alpha/releases/firebase-ui-core-0.0.1.tgz",
+        "@firebase-ui/styles": "https://github.com/firebase/firebaseui-web/raw/refs/heads/v7-alpha/releases/firebase-ui-styles-0.0.1.tgz",
+        "@firebase-ui/translations": "https://github.com/firebase/firebaseui-web/raw/refs/heads/v7-alpha/releases/firebase-ui-translations-0.0.1.tgz"
     },
     "devDependencies": {
         "@biomejs/biome": "2.2.0",

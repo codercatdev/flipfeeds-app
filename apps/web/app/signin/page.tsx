@@ -1,40 +1,31 @@
 'use client';
 
-import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  onAuthStateChanged,
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { GoogleSignInButton, SignInAuthScreen } from '@firebase-ui/react';
+import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { auth } from '@/lib/firebase';
 
 export default function SignIn() {
-  const router = useRouter();
+    const router = useRouter();
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        router.push('/');
-      }
-    });
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                router.push('/');
+            }
+        });
 
-    return () => unsubscribe();
-  }, [router]);
+        return () => unsubscribe();
+    }, [router]);
 
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error('Error signing in with Google', error);
-    }
-  };
-
-  return (
-    <div>
-      <h1>Sign In</h1>
-      <button onClick={signInWithGoogle}>Sign in with Google</button>
-    </div>
-  );
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen py-2">
+            <div className="p-6 mt-8 text-left border w-96 rounded-xl">
+                <SignInAuthScreen>
+                    <GoogleSignInButton />
+                </SignInAuthScreen>
+            </div>
+        </div>
+    );
 }

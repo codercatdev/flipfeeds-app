@@ -7,6 +7,7 @@
  *
  * Usage:
  *   node functions/scripts/seed-test-data.js
+ *   node functions/scripts/seed-test-data.js --clear  (clear all data first)
  *
  * Prerequisites:
  *   - Firebase emulators must be running (pnpm emulators)
@@ -14,6 +15,7 @@
  */
 
 const admin = require('firebase-admin');
+const readline = require('readline');
 
 // Initialize Firebase Admin with emulator
 process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
@@ -28,28 +30,103 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const auth = admin.auth();
 
+/**
+ * Prompt user for confirmation
+ */
+function askQuestion(query) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(query, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase().trim());
+    });
+  });
+}
+
+/**
+ * Clear all Firestore data
+ */
+async function clearFirestore() {
+  console.log('🗑️  Clearing Firestore data...');
+
+  const collections = await db.listCollections();
+  const deletePromises = [];
+
+  for (const collection of collections) {
+    console.log(`   Deleting collection: ${collection.id}`);
+    const snapshot = await collection.get();
+    for (const doc of snapshot.docs) {
+      deletePromises.push(doc.ref.delete());
+    }
+  }
+
+  await Promise.all(deletePromises);
+  console.log('✅ Firestore cleared');
+}
+
+/**
+ * Clear all Auth users
+ */
+async function clearAuth() {
+  console.log('🗑️  Clearing Auth users...');
+
+  const listUsersResult = await auth.listUsers();
+  const deletePromises = [];
+
+  for (const user of listUsersResult.users) {
+    deletePromises.push(auth.deleteUser(user.uid));
+  }
+
+  await Promise.all(deletePromises);
+  console.log(`✅ Deleted ${deletePromises.length} auth users`);
+}
+
+/**
+ * Clear all emulator data
+ */
+async function clearAllData() {
+  try {
+    await clearFirestore();
+    await clearAuth();
+    console.log('');
+  } catch (error) {
+    console.error('❌ Error clearing data:', error);
+    throw error;
+  }
+}
+
 // Test user data
 const TEST_USERS = [
   {
     uid: 'test-user-1',
     email: 'alice@test.com',
+    password: 'TestPassword123!',
     displayName: 'Alice Johnson',
-    photoURL: 'https://i.pravatar.cc/150?img=1',
+    photoURL: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
     bio: 'Tech enthusiast and video creator',
+    provider: 'google.com',
   },
   {
     uid: 'test-user-2',
     email: 'bob@test.com',
+    password: 'TestPassword123!',
     displayName: 'Bob Smith',
-    photoURL: 'https://i.pravatar.cc/150?img=2',
+    photoURL: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
     bio: 'Developer and open source contributor',
+    provider: 'google.com',
   },
   {
     uid: 'test-user-3',
     email: 'charlie@test.com',
+    password: 'TestPassword123!',
     displayName: 'Charlie Davis',
-    photoURL: 'https://i.pravatar.cc/150?img=3',
+    photoURL: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
     bio: 'Content creator and educator',
+    provider: 'google.com',
   },
 ];
 
@@ -61,12 +138,28 @@ async function createTestUsers() {
 
   for (const userData of TEST_USERS) {
     try {
-      // Create in Auth emulator
+      // Create in Auth emulator with Google provider
       await auth.createUser({
         uid: userData.uid,
         email: userData.email,
+        emailVerified: true,
         displayName: userData.displayName,
         photoURL: userData.photoURL,
+        password: userData.password,
+      });
+
+      // Set Google provider data in the user record
+      // This makes it appear as if the user signed in with Google
+      await auth.updateUser(userData.uid, {
+        providerData: [
+          {
+            uid: userData.email,
+            email: userData.email,
+            displayName: userData.displayName,
+            photoURL: userData.photoURL,
+            providerId: 'google.com',
+          },
+        ],
       });
 
       // Create user profile in Firestore
@@ -85,7 +178,7 @@ async function createTestUsers() {
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
-      console.log(`✅ Created user: ${userData.displayName} (${userData.email})`);
+      console.log(`✅ Created user: ${userData.displayName} (${userData.email}) [Google Auth]`);
     } catch (error) {
       if (error.code === 'auth/uid-already-exists') {
         console.log(`⚠️  User already exists: ${userData.displayName}`);
@@ -202,6 +295,17 @@ async function seedTestData() {
   console.log('🌱 Starting test data seeding...\n');
 
   try {
+    // Check if user wants to clear existing data
+    const shouldClear = await askQuestion(
+      '⚠️  Do you want to clear all existing Auth users and Firestore data? (yes/no): '
+    );
+
+    if (shouldClear === 'yes' || shouldClear === 'y') {
+      await clearAllData();
+    } else {
+      console.log('ℹ️  Keeping existing data\n');
+    }
+
     // 1. Create test users
     await createTestUsers();
     console.log('');
@@ -368,6 +472,11 @@ async function seedTestData() {
     console.log('   - Flips: 11');
     console.log('');
     console.log('🔗 Access the Emulator UI: http://localhost:4000');
+    console.log('');
+    console.log('💡 Test User Credentials:');
+    for (const user of TEST_USERS) {
+      console.log(`   - ${user.email} / ${user.password}`);
+    }
     console.log('');
   } catch (error) {
     console.error('❌ Error seeding test data:', error);

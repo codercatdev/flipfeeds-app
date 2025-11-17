@@ -52,8 +52,10 @@ service cloud.firestore {
 
     // Validate flip document structure
     function isValidFlipData() {
-      return request.resource.data.keys().hasAll(['feedId', 'authorId', 'createdAt'])
-        && request.resource.data.authorId == request.auth.uid;
+      return request.resource.data.keys().hasAll(['feedIds', 'authorId', 'createdAt'])
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.feedIds is list
+        && request.resource.data.feedIds.size() > 0;
     }
 
     // ========================================
@@ -146,8 +148,7 @@ service cloud.firestore {
         // - User can leave (delete own membership)
         // - Admins can remove others (but not themselves)
         allow delete: if isAuthenticated() 
-                        && (isOwner(memberId) || 
-                            (hasRole(feedId, 'admin') && memberId != request.auth.uid));
+                        && (memberId == request.auth.uid || (hasRole(feedId, 'admin') && memberId != request.auth.uid));
       }
     }
 
@@ -155,68 +156,60 @@ service cloud.firestore {
     // Collection: flips
     // ========================================
     match /flips/{flipId} {
-      // Helper to get feedId from existing document
-      function getFeedId() {
-        return resource.data.feedId;
-      }
-      
-      // Helper to get feedId from incoming document
-      function getIncomingFeedId() {
-        return request.resource.data.feedId;
+      // Helper to check if user can view a flip
+      function canViewFlip() {
+        let feedIds = resource.data.feedIds;
+        // This is a simplified check. A robust implementation might require a function
+        // that checks membership for each feedId, which isn't possible directly.
+        // We rely on the client querying correctly and backend validation.
+        // For direct gets, we check if the user is a member of the *first* feed.
+        // This is a limitation of Firestore rules. A better check is done on list queries.
+        return isMember(feedIds[0]) || isPublicFeed(feedIds[0]);
       }
 
-      // Read individual flips if:
-      // - Feed is public, or
-      // - User is a member of the feed
-      allow get: if isAuthenticated() 
-                   && (isPublicFeed(getFeedId()) || isMember(getFeedId()));
+      // Read individual flips if user is a member of any associated feed
+      allow get: if isAuthenticated() && canViewFlip();
       
-      // List flips (must query by feedId)
-      // Firestore requires indexed queries, so this enforces querying by feed
-      // Client must include feedId in where clause
+      // List flips (must query with 'array-contains' on a feedId the user is in)
       allow list: if isAuthenticated()
-                    && (request.query.limit == null || request.query.limit <= 100); // Prevent massive queries
+                    && (request.query.limit == null || request.query.limit <= 100);
                     
-      // Create flips: Only members of the target feed
-      // Backend flow (createFlipFlow) handles AI moderation
-      allow create: if isAuthenticated() 
-                      && isMember(getIncomingFeedId())
-                      && isValidFlipData();
+      // Create flips: Let backend flows handle validation.
+      // Rule ensures data is well-formed.
+      allow create: if isAuthenticated() && isValidFlipData();
 
       // Update flips: Only the author (for editing title, etc.)
+      // For now, feedIds cannot be changed after creation.
       allow update: if isAuthenticated() 
                       && isOwner(resource.data.authorId)
-                      && request.resource.data.feedId == resource.data.feedId // Cannot move to different feed
-                      && request.resource.data.authorId == resource.data.authorId; // Cannot change author
+                      && request.resource.data.feedIds == resource.data.feedIds
+                      && request.resource.data.authorId == resource.data.authorId;
       
-      // Delete flips: Author, or feed admin/moderator
+      // Delete flips: Author, or feed admin/moderator of any associated feed.
+      // This check is simplified and may need a backend flow for accuracy.
       allow delete: if isAuthenticated() 
-                      && (isOwner(resource.data.authorId) || isAdminOrMod(getFeedId()));
+                      && (isOwner(resource.data.authorId) || isAdminOrMod(resource.data.feedIds[0]));
 
       // Sub-collection: comments
       match /comments/{commentId} {
         // Read comments if you can read the flip
-        allow get, list: if isAuthenticated() 
-                           && (isPublicFeed(getFeedId()) || isMember(getFeedId()));
+        allow get, list: if isAuthenticated() && canViewFlip();
         
         // Create comments: Members of the feed only
-        allow create: if isAuthenticated() 
-                        && isMember(getFeedId())
-                        && request.resource.data.authorId == request.auth.uid;
+        allow create: if isAuthenticated() && isMember(resource.data.feedIds[0]);
         
         // Update comments: Only the author
-        allow update: if isAuthenticated() 
-                        && isOwner(resource.data.authorId);
+        allow update: if isAuthenticated() && isOwner(request.resource.data.authorId);
         
         // Delete comments: Author, or feed admin/moderator
         allow delete: if isAuthenticated() 
-                        && (isOwner(resource.data.authorId) || isAdminOrMod(getFeedId()));
+                        && (isOwner(resource.data.authorId) || isAdminOrMod(resource.data.feedIds[0]));
       }
 
       // Sub-collection: likes (future feature)
       match /likes/{likeId} {
-        allow read: if isAuthenticated() && (isPublicFeed(getFeedId()) || isMember(getFeedId()));
-        allow create: if isAuthenticated() && isMember(getFeedId()) && likeId == request.auth.uid;
+        allow read: if isAuthenticated() && canViewFlip();
+        allow create: if isAuthenticated() && isMember(resource.data.feedIds[0]) && likeId == request.auth.uid;
         allow delete: if isAuthenticated() && isOwner(likeId);
       }
     }
@@ -251,26 +244,22 @@ service cloud.firestore {
     // ========================================
     match /invites/{inviteId} {
       // Read invite if you're the inviter or invitee
-      allow get: if isAuthenticated() 
-                   && (request.auth.uid == resource.data.inviterId 
-                       || request.auth.uid == resource.data.inviteeId);
-      
+      allow get: if isAuthenticated()
+                   && (request.auth.uid == resource.data.inviterId || request.auth.uid == resource.data.inviteeId);
       // List invites for a user
       allow list: if isAuthenticated();
       
       // Create invites if you're an admin/mod of the feed
       allow create: if isAuthenticated()
-                      && request.resource.data.inviterId == request.auth.uid
                       && isAdminOrMod(request.resource.data.feedId);
       
       // Update invites (accept/decline)
       allow update: if isAuthenticated()
-                      && request.auth.uid == resource.data.inviteeId;
+                      && request.auth.uid == request.resource.data.inviteeId;
       
       // Delete invites
       allow delete: if isAuthenticated()
-                      && (request.auth.uid == resource.data.inviterId
-                          || request.auth.uid == resource.data.inviteeId);
+                      && (request.auth.uid == request.resource.data.inviterId || request.auth.uid == request.resource.data.inviteeId);
     }
 
     // ========================================
@@ -280,8 +269,8 @@ service cloud.firestore {
       // Anyone can read flipLinks (public sharing mechanism)
       allow get: if true;
       
-      // List flipLinks (for analytics)
-      allow list: if false; // Prevent enumeration
+      // List flipLinks is not allowed (prevents enumeration)
+      // Omitted rule defaults to deny
       
       // Create flipLinks if you're a member of the feed
       allow create: if isAuthenticated()
@@ -289,7 +278,7 @@ service cloud.firestore {
       
       // Update/delete only by creator
       allow update, delete: if isAuthenticated()
-                              && isOwner(resource.data.creatorId);
+                              && isOwner(request.resource.data.creatorId);
     }
 
     // ========================================

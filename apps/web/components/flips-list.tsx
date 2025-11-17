@@ -4,6 +4,7 @@ import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestor
 import { Heart, MessageCircle, Video } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { db } from '@/lib/firebase';
 
 interface Flip {
@@ -38,7 +39,7 @@ export function FlipsList({ feedId }: FlipsListProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!feedId) {
+    if (!feedId || !db) {
       setLoading(false);
       return;
     }
@@ -97,29 +98,37 @@ export function FlipsList({ feedId }: FlipsListProps) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {flips.map((flip) => (
-        <div
-          key={flip.id}
-          className="bg-card rounded-lg overflow-hidden border shadow-sm hover:shadow-md transition-shadow"
-        >
-          <div className="aspect-video bg-muted relative">
-            {flip.media?.thumbnail?.url ? (
-              <Image
-                src={flip.media.thumbnail.url}
-                alt={flip.title}
-                fill
-                className="object-cover"
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <Video className="size-12 text-muted-foreground" />
-              </div>
-            )}
-          </div>
-          <div className="p-4">
-            <h3 className="font-semibold line-clamp-2 mb-2">{flip.title}</h3>
-            <div className="flex items-center gap-2 mb-3">
+        <Card key={flip.id} className="overflow-hidden">
+          <CardContent className="p-0">
+            <div className="aspect-9/16 bg-muted relative">
+              {flip.media?.video?.url ? (
+                // biome-ignore lint/a11y/useMediaCaption: Captions will be added in future implementation
+                <video
+                  src={flip.media.video.url}
+                  poster={flip.media.thumbnail?.url}
+                  className="w-full h-full object-cover"
+                  controls
+                  aria-label={flip.title}
+                />
+              ) : flip.media?.thumbnail?.url ? (
+                <Image
+                  src={flip.media.thumbnail.url}
+                  alt={flip.title}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <Video className="size-12 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+          </CardContent>
+          <CardHeader>
+            <h3 className="font-semibold line-clamp-2">{flip.title}</h3>
+            <div className="flex items-center gap-2">
               <div className="relative size-6 rounded-full overflow-hidden">
                 <Image
                   src={flip.authorInfo.photoURL}
@@ -130,6 +139,8 @@ export function FlipsList({ feedId }: FlipsListProps) {
               </div>
               <span className="text-sm text-muted-foreground">{flip.authorInfo.displayName}</span>
             </div>
+          </CardHeader>
+          <CardFooter>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Heart className="size-4" />
@@ -140,8 +151,8 @@ export function FlipsList({ feedId }: FlipsListProps) {
                 <span>{flip.stats.commentCount}</span>
               </div>
             </div>
-          </div>
-        </div>
+          </CardFooter>
+        </Card>
       ))}
     </div>
   );

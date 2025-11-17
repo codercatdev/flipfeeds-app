@@ -3,17 +3,17 @@
 This document provides context and guidelines for AI agents (like GitHub Copilot, Jules, etc.) working on the FlipFeeds codebase.
 
 ## 1. Project Overview
-**FlipFeeds** is a video-first, "intentional" social media platform. Unlike algorithmic feeds, users start with an empty feed and must explicitly "flip" (subscribe to/join) specific Feeds.
+**FlipFeeds** is a video-first, "intentional" social platform where users share content to curated audiences called "Feeds." Instead of broadcasting to all followers, users create Flips (videos) and choose which of their Feeds (e.g., "Family," "Work," "Friends") to share them with.
 
 ### 1.1. Core Philosophy
 - **Firebase-First:** Utilize the **full suite of Firebase tools** for all aspects of build, run, and AI. If a Firebase solution exists (e.g., App Hosting, Genkit, Firestore), use it over third-party alternatives.
-- **Intentionality:** No "For You" page by default. Users curate their own experience.
+- **Intentional Sharing:** No public-by-default feed. Users have granular control over who sees their content by sharing to specific Feeds.
 - **AI-First:** AI is a visible tool for users (summaries, title generation) and admins, driven entirely by Firebase Genkit.
 
 ### 1.2. High-Level Goals
 - **Viral Growth:** Achieve frictionless user acquisition through a "Flip Link" mechanism, similar to the "Yo" app's simplicity.
 - **Stickiness through AI:** Retain users by providing immediate, tangible value with AI features like video summaries and title generation.
-- **Monetization:** Implement a "Feeds-as-a-Service" model with free and pro tiers for Feed creators.
+- **Monetization:** Implement a freemium model for users (pro features) and creators managing large Feeds.
 
 ---
 
@@ -95,8 +95,9 @@ These are the primary commands to run, build, and test the project from the mono
 ## 6. Architecture & Data Patterns
 
 ### 6.1. The "Feed" Model
-- **Public/Private Feeds:** Managed via Firestore.
-- **Personal Feed:** A private "Feed of One" created on signup.
+- **Feeds as Audiences:** A "Feed" is a user-defined list of other users (e.g., "Family," "Coworkers"). It's like a private playlist or contact group.
+- **Flips have multiple Feeds:** A "Flip" (video) document contains an array of `feedIds` it has been shared with.
+- **Personal Feed:** A private "Feed of One" created on signup for saving/drafting content.
 
 ### 6.2. Authentication & Security
 - **Provider:** Firebase Authentication.
@@ -109,11 +110,12 @@ These are the primary commands to run, build, and test the project from the mono
 - **Flows:**
     - `summarizeVideoFlow`: Auto-generates text summaries.
     - `generateTitleFlow`: Suggests titles.
-    - `moderateContentFlow`: Mandatory check for public uploads.
+    - `moderateContentFlow`: Mandatory check for Flips shared to public Feeds.
 
 ### 6.4. Data & State Management (Firebase Native)
 - **Philosophy:** Rely entirely on the **Firebase Client SDKs**.
-- **Fetching:** Use `onSnapshot` for real-time feeds and `getDoc` for static data.
+- **Fetching Flips:** To get a user's main content stream, query the `flips` collection where `feedIds` array contains any of the user's joined `feedId`s.
+- **Fetching Feeds:** A user's list of Feeds is stored in a sub-collection like `users/{userId}/feeds`.
 - **Caching:** Leverage Firestore's native offline persistence and caching.
 - **Avoid:** Do not use TanStack Query or SWR. Trust the SDK.
 

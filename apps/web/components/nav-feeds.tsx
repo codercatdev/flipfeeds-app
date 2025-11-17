@@ -1,7 +1,7 @@
 'use client';
 
 import { collection, onSnapshot, query } from 'firebase/firestore';
-import { MoreHorizontal, Settings, Star, Users } from 'lucide-react';
+import { MoreHorizontal, Settings, Star } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   DropdownMenu,
@@ -104,10 +104,6 @@ export function NavFeeds({ userId }: NavFeedsProps) {
                 side={isMobile ? 'bottom' : 'right'}
                 align={isMobile ? 'end' : 'start'}
               >
-                <DropdownMenuItem>
-                  <Users className="text-muted-foreground" />
-                  <span>View Feed</span>
-                </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Settings className="text-muted-foreground" />
                   <span>Feed Settings</span>

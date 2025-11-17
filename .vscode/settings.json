@@ -1,5 +1,6 @@
 {
     "chat.tools.autoApprove": true,
+    "chat.useAgentsMdFile": true,
 
     // Biome Configuration
     "editor.defaultFormatter": "biomejs.biome",

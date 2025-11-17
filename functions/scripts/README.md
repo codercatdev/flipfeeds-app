@@ -1,5 +1,58 @@
 # Firebase Functions Scripts
 
+## Test Data Seeding
+
+### Seed Test Data
+
+Populates the Firestore emulator with test users, feeds (including nested feeds), and flips.
+
+**Usage:**
+```bash
+cd functions
+node scripts/seed-test-data.js
+```
+
+**What it creates:**
+- 3 test users (Alice, Bob, Charlie)
+- 5 feeds (3 public, 1 private, 2 nested under main feed)
+- 11 flips across all feeds
+- Proper member relationships and permissions
+
+**Test Users:**
+- alice@test.com (test-user-1) - Admin of Tech Talks
+- bob@test.com (test-user-2) - Moderator of Tech Talks, Admin of React Feed
+- charlie@test.com (test-user-3) - Admin of Gaming Central
+
+**Nested Structure:**
+```
+Tech Talks (Public)
+├── JavaScript Deep Dive (Nested)
+└── React Mastery (Nested)
+Gaming Central (Public)
+Team Internal (Private)
+```
+
+### Test Firestore Rules
+
+Validates Firestore security rules by testing various access patterns.
+
+**Usage:**
+```bash
+cd functions
+node scripts/test-firestore-rules.js
+```
+
+**Tests:**
+- User profile read/write access
+- Public vs private feed access
+- Feed member permissions
+- Flip creation and querying
+- Nested feed relationships
+
+**Note:** These scripts use the Admin SDK which bypasses security rules. For true security rule testing, use the Firebase Emulator Suite's rule testing tools.
+
+---
+
 ## Set User Claims
 
 This script allows you to set custom claims for users to control access to specific Genkit functions.

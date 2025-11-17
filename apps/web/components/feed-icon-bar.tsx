@@ -69,7 +69,7 @@ export function FeedIconBar({ userId }: FeedIconBarProps) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-2 p-2">
+    <div className="flex flex-col items-center gap-2 p-2 h-full">
       {feeds.map((feed) => (
         <button
           type="button"

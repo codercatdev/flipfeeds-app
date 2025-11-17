@@ -12,6 +12,8 @@
         "deploy": "firebase deploy --only functions",
         "logs": "firebase functions:log",
         "set-claims": "node scripts/set-user-claims.js",
+        "seed": "node scripts/seed-test-data.js",
+        "test-rules": "node scripts/test-firestore-rules.js",
         "genkit:dev": "bash scripts/run-genkit-dev.sh",
         "genkit:dev:build": "tsc && bash scripts/run-genkit-build.sh",
         "genkit:open": "bash scripts/run-genkit-open.sh",

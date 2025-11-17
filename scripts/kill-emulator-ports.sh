@@ -31,6 +31,10 @@ if (emulators.hosting?.port) ports.push(emulators.hosting.port);
 if (emulators.ui?.port) ports.push(emulators.ui.port);
 if (emulators.pubsub?.port) ports.push(emulators.pubsub.port);
 if (emulators.database?.port) ports.push(emulators.database.port);
+if (emulators.apphosting?.port) ports.push(emulators.apphosting.port);
+
+// Add Firebase Emulator Hub default port (4400)
+ports.push(4400);
 
 console.log(ports.join(' '));
 ")
@@ -45,7 +49,7 @@ echo "📍 Found emulator ports: $PORTS"
 echo ""
 
 # Kill processes on each port
-for PORT in ${=PORTS}; do
+for PORT in $PORTS; do
   PID=$(lsof -ti:$PORT 2>/dev/null)
   if [ ! -z "$PID" ]; then
     echo "  🔪 Killing process on port $PORT (PID: $PID)"
@@ -54,6 +58,14 @@ for PORT in ${=PORTS}; do
     echo "  ✓ Port $PORT is free"
   fi
 done
+
+# Clean up Next.js dev lock file if it exists
+NEXT_LOCK="${PROJECT_ROOT}/apps/web/.next/dev/lock"
+if [ -f "$NEXT_LOCK" ]; then
+  echo ""
+  echo "  🧹 Removing Next.js dev lock file"
+  rm -f "$NEXT_LOCK"
+fi
 
 echo ""
 echo "✅ All emulator ports cleaned"

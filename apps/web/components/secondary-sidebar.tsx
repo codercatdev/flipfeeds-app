@@ -44,7 +44,7 @@ export function SecondarySidebar({ ...props }: React.ComponentProps<typeof Sideb
   }
 
   return (
-    <Sidebar variant="sidebar" collapsible="none" {...props}>
+    <Sidebar variant="sidebar" collapsible="none" className="hidden md:flex" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>

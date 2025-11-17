@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 import { AuthProvider } from '@/hooks/use-auth';
+import { USE_EMULATORS } from '@/lib/firebase';
 
 export default function RootLayout({
   children,
@@ -27,6 +28,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {USE_EMULATORS && (
+          <div className="bg-orange-500 text-white px-4 py-1 text-center text-sm font-semibold fixed bottom-0 left-0 right-0 z-50">
+            🔧 EMULATOR MODE - Connected to Firebase Emulators
+          </div>
+        )}
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

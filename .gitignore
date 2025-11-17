@@ -29,6 +29,9 @@ firebase-debug.log
 .env.local
 .env.*.local
 
+# Firebase Emulator Data
+.firebase-emulator-data/
+
 # Genkit
 .genkit/
 dev.log

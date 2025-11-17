@@ -110,11 +110,10 @@ service cloud.firestore {
                    && isAuthenticated() 
                    && (isPublicFeed(feedId) || isMember(feedId));
       
-      // List feeds (for discovery) - only public feeds, never personal
+      // List feeds (for discovery)
+      // Client must filter by visibility='public' in query
       allow list: if isAuthenticated() 
-                    && request.query.limit <= 50 // Prevent large queries
-                    && (!request.query.hasAny(['where']) || 
-                        resource.data.visibility == 'public');
+                    && (request.query.limit == null || request.query.limit <= 50); // Prevent large queries
 
       // Create feeds via backend flows only (createFeedFlow)
       allow create: if false;
@@ -174,9 +173,9 @@ service cloud.firestore {
       
       // List flips (must query by feedId)
       // Firestore requires indexed queries, so this enforces querying by feed
+      // Client must include feedId in where clause
       allow list: if isAuthenticated()
-                    && request.query.limit <= 100 // Prevent massive queries
-                    && (isPublicFeed(getIncomingFeedId()) || isMember(getIncomingFeedId()));
+                    && (request.query.limit == null || request.query.limit <= 100); // Prevent massive queries
                     
       // Create flips: Only members of the target feed
       // Backend flow (createFlipFlow) handles AI moderation

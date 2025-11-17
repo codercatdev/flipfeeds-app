@@ -3,53 +3,302 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ========================================
+    // Helper Functions
+    // ========================================
+    
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function isOwner(uid) {
-      return request.auth.uid == uid;
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
 
+    // Get user's role in a specific feed
+    function getMemberData(feedId) {
+      return get(/databases/$(database)/documents/feeds/$(feedId)/members/$(request.auth.uid)).data;
+    }
+
+    // Check if user is a member of a feed
+    function isMember(feedId) {
+      return exists(/databases/$(database)/documents/feeds/$(feedId)/members/$(request.auth.uid));
+    }
+
+    // Check if user has a specific role in a feed
+    function hasRole(feedId, role) {
+      return isMember(feedId) && getMemberData(feedId).role == role;
+    }
+
+    // Check if user is admin or moderator
+    function isAdminOrMod(feedId) {
+      return isMember(feedId) && getMemberData(feedId).role in ['admin', 'moderator'];
+    }
+
+    // Check if a feed is public
+    function isPublicFeed(feedId) {
+      return get(/databases/$(database)/documents/feeds/$(feedId)).data.visibility == 'public';
+    }
+
+    // Check if a feed is a personal feed
+    function isPersonalFeed(feedId) {
+      return feedId.matches('personal_.*');
+    }
+
+    // Check if user owns a personal feed
+    function ownsPersonalFeed(feedId) {
+      return feedId == 'personal_' + request.auth.uid;
+    }
+
+    // Validate flip document structure
+    function isValidFlipData() {
+      return request.resource.data.keys().hasAll(['feedId', 'authorId', 'createdAt'])
+        && request.resource.data.authorId == request.auth.uid;
+    }
+
+    // ========================================
+    // Collection: users
+    // ========================================
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      // Anyone authenticated can read user profiles
+      allow get: if isAuthenticated();
+      
+      // List users with pagination (for search/discovery)
+      allow list: if isAuthenticated();
+      
+      // Users can create their own profile (via userFlows)
       allow create: if isAuthenticated() && isOwner(userId);
+      
+      // Users can update their own profile
       allow update: if isAuthenticated() && isOwner(userId);
+      
+      // Users cannot delete their profile (use functions/genkit flows)
       allow delete: if false;
 
-      // Username history subcollection
+      // Sub-collection: usernameHistory (immutable audit log)
       match /usernameHistory/{historyId} {
         allow read: if isAuthenticated() && isOwner(userId);
         allow create: if isAuthenticated() && isOwner(userId);
         allow update, delete: if false; // Username history is immutable
       }
+
+      // Sub-collection: feeds (reverse lookup - user's joined feeds)
+      match /feeds/{feedId} {
+        // Users can read their own feed memberships
+        allow read: if isAuthenticated() && isOwner(userId);
+        
+        // Only backend flows can write (createFeedFlow, joinFeedFlow)
+        allow write: if false;
+      }
+
+      // Document: personalFeed reference
+      match /personalFeed {
+        allow read: if isAuthenticated() && isOwner(userId);
+        allow write: if false; // Only backend on user creation
+      }
     }
 
-    match /friendships/{friendshipId} {
-      // Allow reading individual friendship documents if user is a participant
-      allow get: if isAuthenticated() && 
-      request.auth.uid in resource.data.users;
+    // ========================================
+    // Collection: feeds
+    // ========================================
+    match /feeds/{feedId} {
+      // Personal Feeds: Only owner can read
+      allow get: if isPersonalFeed(feedId) && ownsPersonalFeed(feedId);
+      
+      // Regular Feeds: Public feeds readable by anyone, private by members only
+      allow get: if !isPersonalFeed(feedId) 
+                   && isAuthenticated() 
+                   && (isPublicFeed(feedId) || isMember(feedId));
+      
+      // List feeds (for discovery) - only public feeds, never personal
+      allow list: if isAuthenticated() 
+                    && request.query.limit <= 50 // Prevent large queries
+                    && (!request.query.hasAny(['where']) || 
+                        resource.data.visibility == 'public');
 
-      // Allow listing friendships - the query uses .where('users', 'array-contains', user.uid)
-      // which means only friendships containing the user will be returned
+      // Create feeds via backend flows only (createFeedFlow)
+      allow create: if false;
+      
+      // Update feed metadata: Only admins
+      allow update: if isAuthenticated() 
+                      && !isPersonalFeed(feedId)
+                      && hasRole(feedId, 'admin')
+                      && request.resource.data.owner == resource.data.owner; // Cannot change owner
+      
+      // Delete feeds: Only admins
+      allow delete: if isAuthenticated() 
+                      && !isPersonalFeed(feedId)
+                      && hasRole(feedId, 'admin');
+
+      // Sub-collection: members
+      match /members/{memberId} {
+        // Members can read the member list
+        allow get, list: if isAuthenticated() && isMember(feedId);
+        
+        // Create memberships via backend flows only (joinFeedFlow)
+        allow create: if false;
+        
+        // Update member roles: Only admins (cannot promote yourself)
+        allow update: if isAuthenticated() 
+                        && hasRole(feedId, 'admin')
+                        && memberId != request.auth.uid;
+        
+        // Delete membership:
+        // - User can leave (delete own membership)
+        // - Admins can remove others (but not themselves)
+        allow delete: if isAuthenticated() 
+                        && (isOwner(memberId) || 
+                            (hasRole(feedId, 'admin') && memberId != request.auth.uid));
+      }
+    }
+
+    // ========================================
+    // Collection: flips
+    // ========================================
+    match /flips/{flipId} {
+      // Helper to get feedId from existing document
+      function getFeedId() {
+        return resource.data.feedId;
+      }
+      
+      // Helper to get feedId from incoming document
+      function getIncomingFeedId() {
+        return request.resource.data.feedId;
+      }
+
+      // Read individual flips if:
+      // - Feed is public, or
+      // - User is a member of the feed
+      allow get: if isAuthenticated() 
+                   && (isPublicFeed(getFeedId()) || isMember(getFeedId()));
+      
+      // List flips (must query by feedId)
+      // Firestore requires indexed queries, so this enforces querying by feed
+      allow list: if isAuthenticated()
+                    && request.query.limit <= 100 // Prevent massive queries
+                    && (isPublicFeed(getIncomingFeedId()) || isMember(getIncomingFeedId()));
+                    
+      // Create flips: Only members of the target feed
+      // Backend flow (createFlipFlow) handles AI moderation
+      allow create: if isAuthenticated() 
+                      && isMember(getIncomingFeedId())
+                      && isValidFlipData();
+
+      // Update flips: Only the author (for editing title, etc.)
+      allow update: if isAuthenticated() 
+                      && isOwner(resource.data.authorId)
+                      && request.resource.data.feedId == resource.data.feedId // Cannot move to different feed
+                      && request.resource.data.authorId == resource.data.authorId; // Cannot change author
+      
+      // Delete flips: Author, or feed admin/moderator
+      allow delete: if isAuthenticated() 
+                      && (isOwner(resource.data.authorId) || isAdminOrMod(getFeedId()));
+
+      // Sub-collection: comments
+      match /comments/{commentId} {
+        // Read comments if you can read the flip
+        allow get, list: if isAuthenticated() 
+                           && (isPublicFeed(getFeedId()) || isMember(getFeedId()));
+        
+        // Create comments: Members of the feed only
+        allow create: if isAuthenticated() 
+                        && isMember(getFeedId())
+                        && request.resource.data.authorId == request.auth.uid;
+        
+        // Update comments: Only the author
+        allow update: if isAuthenticated() 
+                        && isOwner(resource.data.authorId);
+        
+        // Delete comments: Author, or feed admin/moderator
+        allow delete: if isAuthenticated() 
+                        && (isOwner(resource.data.authorId) || isAdminOrMod(getFeedId()));
+      }
+
+      // Sub-collection: likes (future feature)
+      match /likes/{likeId} {
+        allow read: if isAuthenticated() && (isPublicFeed(getFeedId()) || isMember(getFeedId()));
+        allow create: if isAuthenticated() && isMember(getFeedId()) && likeId == request.auth.uid;
+        allow delete: if isAuthenticated() && isOwner(likeId);
+      }
+    }
+
+    // ========================================
+    // Collection: friendships
+    // ========================================
+    match /friendships/{friendshipId} {
+      // Read individual friendship if user is a participant
+      allow get: if isAuthenticated() 
+                   && request.auth.uid in resource.data.users;
+
+      // List friendships - query filters by array-contains
       allow list: if isAuthenticated();
 
-      // Allow creating friendships if the user is the requester and one of the participants
-      allow create: if isAuthenticated() && 
-      request.auth.uid == request.resource.data.requesterId && 
-      request.auth.uid in request.resource.data.users;
+      // Create friendships if user is the requester and a participant
+      allow create: if isAuthenticated() 
+                      && request.auth.uid == request.resource.data.requesterId 
+                      && request.auth.uid in request.resource.data.users;
 
-      // Allow updating friendships if the user is one of the participants
-      allow update: if isAuthenticated() && 
-      request.auth.uid in resource.data.users;
+      // Update friendships if user is a participant (accepting, etc.)
+      allow update: if isAuthenticated() 
+                      && request.auth.uid in resource.data.users;
 
-      // Allow deleting friendships if the user is one of the participants
-      allow delete: if isAuthenticated() && 
-      request.auth.uid in resource.data.users;
+      // Delete friendships if user is a participant
+      allow delete: if isAuthenticated() 
+                      && request.auth.uid in resource.data.users;
     }
 
+    // ========================================
+    // Collection: invites (future feature)
+    // ========================================
+    match /invites/{inviteId} {
+      // Read invite if you're the inviter or invitee
+      allow get: if isAuthenticated() 
+                   && (request.auth.uid == resource.data.inviterId 
+                       || request.auth.uid == resource.data.inviteeId);
+      
+      // List invites for a user
+      allow list: if isAuthenticated();
+      
+      // Create invites if you're an admin/mod of the feed
+      allow create: if isAuthenticated()
+                      && request.resource.data.inviterId == request.auth.uid
+                      && isAdminOrMod(request.resource.data.feedId);
+      
+      // Update invites (accept/decline)
+      allow update: if isAuthenticated()
+                      && request.auth.uid == resource.data.inviteeId;
+      
+      // Delete invites
+      allow delete: if isAuthenticated()
+                      && (request.auth.uid == resource.data.inviterId
+                          || request.auth.uid == resource.data.inviteeId);
+    }
+
+    // ========================================
+    // Collection: flipLinks (future feature - viral sharing)
+    // ========================================
+    match /flipLinks/{linkId} {
+      // Anyone can read flipLinks (public sharing mechanism)
+      allow get: if true;
+      
+      // List flipLinks (for analytics)
+      allow list: if false; // Prevent enumeration
+      
+      // Create flipLinks if you're a member of the feed
+      allow create: if isAuthenticated()
+                      && isMember(request.resource.data.feedId);
+      
+      // Update/delete only by creator
+      allow update, delete: if isAuthenticated()
+                              && isOwner(resource.data.creatorId);
+    }
+
+    // ========================================
+    // Deny all other paths
+    // ========================================
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
+

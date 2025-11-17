@@ -17,7 +17,15 @@ This document provides context and guidelines for AI agents (like GitHub Copilot
 
 ---
 
-## 2. Monorepo Structure & Workspaces
+## 2. AI Agent Instructions
+- **Adhere to Conventions:** All code written must follow the rules outlined in this document, especially in the "Coding Conventions & Rules" section.
+- **Run Formatters:** Before finalizing any code changes, run `pnpm format` to ensure all files are correctly formatted with Biome.
+- **Verify with Linter:** After formatting, run `pnpm check` to catch any linting errors. Fix any issues that are introduced.
+- **Use pnpm:** Always use `pnpm` for package management. Do not use `npm` or `yarn`.
+
+---
+
+## 3. Monorepo Structure & Workspaces
 
 This is a `pnpm` monorepo. The workspaces are defined in `pnpm-workspace.yaml`.
 
@@ -31,24 +39,24 @@ This is a `pnpm` monorepo. The workspaces are defined in `pnpm-workspace.yaml`.
 
 ---
 
-## 3. Key Scripts & Commands
+## 4. Key Scripts & Commands
 
 These are the primary commands to run, build, and test the project from the monorepo root.
 
-### 3.1. Development
+### 4.1. Development
 - **Run all apps:** `pnpm dev`
 - **Run web app only:** `pnpm dev:web`
 - **Run mobile app only:** `pnpm dev:mobile`
 - **Start Genkit Developer UI:** `pnpm genkit:dev` (runs build and starts UI)
 - **Start Firebase Emulators:** `pnpm emulators` (for Functions, Firestore, Hosting, etc.)
 
-### 3.2. Building
+### 4.2. Building
 - **Build all apps and packages:** `pnpm build`
 - **Build web app:** `pnpm build:web`
 - **Build mobile app:** `pnpm build:mobile`
 - **Build shared packages:** `pnpm build:packages`
 
-### 3.3. Testing & Linting
+### 4.3. Testing & Linting
 - **Run all tests:** `pnpm test`
 - **Lint all files:** `pnpm lint`
 - **Fix linting issues:** `pnpm lint:fix`
@@ -56,27 +64,27 @@ These are the primary commands to run, build, and test the project from the mono
 
 ---
 
-## 4. Tech Stack & Versions
+## 5. Tech Stack & Versions
 **Strictly adhere to these versions and frameworks.**
 
-### 4.1. Monorepo
+### 5.1. Monorepo
 - **Package Manager:** `pnpm` (Workspaces enabled). **Always use `pnpm` commands.**
 - **Build System:** Turborepo is used for orchestrating builds, but commands are run via pnpm.
 
-### 4.2. `apps/web` (Web Client)
+### 5.2. `apps/web` (Web Client)
 - **Framework:** Next.js (App Router).
 - **Hosting/Build:** **Firebase App Hosting** (serverless Next.js support).
 - **Styling:** Tailwind CSS v4 (Zero-runtime, CSS-first configuration).
 - **UI Library:** shadcn/ui.
 - **AI Client State:** Vercel AI SDK - Used solely for managing client-side streaming/chat state, connected to Firebase Genkit backends.
 
-### 4.3. `apps/mobile` (Mobile Client)
+### 5.3. `apps/mobile` (Mobile Client)
 - **Framework:** Expo (Managed Workflow).
 - **Platform:** React Native Firebase (`@react-native-firebase/*`).
 - **Navigation:** Expo Router.
 - **Styling:** NativeWind v4.
 
-### 4.4. `functions` (Backend & AI)
+### 5.4. `functions` (Backend & AI)
 - **Runtime:** Firebase Cloud Functions (2nd Gen).
 - **AI Framework:** **Firebase Genkit** (Strict requirement for all AI logic).
 - **Model Layer:** Vertex AI (via Firebase).
@@ -84,18 +92,18 @@ These are the primary commands to run, build, and test the project from the mono
 
 ---
 
-## 5. Architecture & Data Patterns
+## 6. Architecture & Data Patterns
 
-### 5.1. The "Feed" Model
+### 6.1. The "Feed" Model
 - **Public/Private Feeds:** Managed via Firestore.
 - **Personal Feed:** A private "Feed of One" created on signup.
 
-### 5.2. Authentication & Security
+### 6.2. Authentication & Security
 - **Provider:** Firebase Authentication.
 - **Requirement:** Phone Number verification is mandatory.
 - **Context:** `auth.uid` must be propagated to all Genkit flows.
 
-### 5.3. AI Implementation (Firebase Genkit)
+### 6.3. AI Implementation (Firebase Genkit)
 - **Rule:** All AI logic must be encapsulated in **Genkit Flows** deployed as Firebase Functions.
 - **Tools:** External integrations must be defined as Genkit Tools or MCP servers.
 - **Flows:**
@@ -103,7 +111,7 @@ These are the primary commands to run, build, and test the project from the mono
     - `generateTitleFlow`: Suggests titles.
     - `moderateContentFlow`: Mandatory check for public uploads.
 
-### 5.4. Data & State Management (Firebase Native)
+### 6.4. Data & State Management (Firebase Native)
 - **Philosophy:** Rely entirely on the **Firebase Client SDKs**.
 - **Fetching:** Use `onSnapshot` for real-time feeds and `getDoc` for static data.
 - **Caching:** Leverage Firestore's native offline persistence and caching.
@@ -111,35 +119,35 @@ These are the primary commands to run, build, and test the project from the mono
 
 ---
 
-## 6. Coding Conventions & Rules
+## 7. Coding Conventions & Rules
 
-### 6.1. General
+### 7.1. General
 - **TypeScript:** Strict mode enabled. No `any` types.
 - **Exports:** Named exports only.
 - **Path Aliases:** Use `~/*` or `@/*` as defined in `tsconfig.json`.
 - **Linting/Formatting:** Biome is used for linting and formatting. Use `pnpm check` and `pnpm format`.
 
-### 6.2. Styling (Tailwind v4)
+### 7.2. Styling (Tailwind v4)
 - Use the CSS-first `@theme` directive. Do not use `tailwind.config.js`.
 - Use `shadcn/ui` primitives.
 
-### 6.3. Growth Mechanics
+### 7.3. Growth Mechanics
 - **Deep Links:** Prioritize "One Tap" joining via Firebase Dynamic Links (or native equivalent handled by Expo/Next.js).
 
 ---
 
-## 7. Development Workflow
+## 8. Development Workflow
 1. **Install:** `pnpm install`
 2. **Dev:** `pnpm dev` (Runs all apps).
 3. **AI/Backend Dev:** `pnpm genkit:dev` (in root) to launch the **Genkit Developer UI**.
 4. **Emulators:** Use `pnpm emulators` for local testing of Firestore/Auth/Functions.
 
-## 8. Deployment
+## 9. Deployment
 - **CI/CD:** GitHub Actions are used for continuous integration.
 - **Versioning:** `changesets` is used for versioning and changelogs. To create a new version, run `pnpm changeset`.
 - **Deployment:** Deployment is handled via Firebase CLI. See `firebase.json` and the root `package.json` for deploy scripts (`deploy:functions`, `deploy:hosting`).
 
-## 9. Documentation References
+## 10. Documentation References
 - **Philosophy:** `documents/philosophy.md`
 - **Business Logic:** `documents/business_plan.md`
 - **CI/CD Guide:** `documents/CICD_GUIDE.md`

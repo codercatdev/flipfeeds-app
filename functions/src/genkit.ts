@@ -109,6 +109,7 @@ export { vertexAI };
 
 // User management flows
 import { registerUserFlows } from './flows/userFlows';
+
 const { conversationalProfileFlowAction } = registerUserFlows(ai);
 export const conversationalProfileFlow = onCallGenkit(
     genKitGoogleAiOptions,

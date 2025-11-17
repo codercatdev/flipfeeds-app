@@ -1,7 +1,7 @@
 'use client';
 
+import { signOut } from 'firebase/auth';
 import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut, Sparkles } from 'lucide-react';
-
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { auth } from '@/lib/firebase';
 
 export function NavUser({
   user,
@@ -29,6 +30,15 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // The auth hook will handle clearing the cookie and redirecting to /signin
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
     <SidebarMenu>
@@ -91,7 +101,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>

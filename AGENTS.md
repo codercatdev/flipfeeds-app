@@ -29,7 +29,7 @@ This document provides context and guidelines for AI agents (like GitHub Copilot
 
 This is a `pnpm` monorepo. The workspaces are defined in `pnpm-workspace.yaml`.
 
-- **`apps/web`**: The Next.js web application. This is the primary web client.
+- **`apps/web`**: The Next.js web application must use version 16+. This is the primary web client.
 - **`apps/mobile`**: The Expo (React Native) mobile application for iOS and Android.
 - **`functions`**: The backend, built with Firebase Cloud Functions and Firebase Genkit for all AI logic.
 - **`packages/*`**: Shared libraries used across the monorepo.

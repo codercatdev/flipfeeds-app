@@ -2,15 +2,24 @@
 
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/use-auth';
 import { auth } from '@/lib/firebase';
 
 export default function SignIn() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.push('/feeds');
+    }
+  }, [user, authLoading, router]);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -23,16 +32,17 @@ export default function SignIn() {
       // User signed in successfully
       console.log('User signed in:', result.user.email);
 
-      // Set session cookie
-      const idToken = await result.user.getIdToken();
+      // Wait for the ID token and create session cookie
+      const token = await result.user.getIdToken();
+
       await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({ token }),
       });
 
-      // Redirect to home
-      router.push('/');
+      // Now session cookie is set, safe to redirect
+      router.push('/feeds');
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Sign in failed';
       console.error('Sign in error:', err);
@@ -40,6 +50,23 @@ export default function SignIn() {
       setLoading(false);
     }
   };
+
+  // Show loading while checking auth state
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't show signin form if already authenticated
+  if (user) {
+    return null;
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">

@@ -18,7 +18,6 @@ export const metadata: Metadata = {
 };
 
 import { AuthProvider } from '@/hooks/use-auth';
-import { FirebaseUIProvider } from './firebase-ui-provider';
 
 export default function RootLayout({
     children,
@@ -28,9 +27,7 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-                <FirebaseUIProvider>
-                    <AuthProvider>{children}</AuthProvider>
-                </FirebaseUIProvider>
+                <AuthProvider>{children}</AuthProvider>
             </body>
         </html>
     );

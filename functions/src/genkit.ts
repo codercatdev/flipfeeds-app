@@ -110,7 +110,10 @@ export { vertexAI };
 // User management flows
 import { registerUserFlows } from './flows/userFlows';
 const { conversationalProfileFlowAction } = registerUserFlows(ai);
-export const conversationalProfileFlow = onCallGenkit(genKitGoogleAiOptions, conversationalProfileFlowAction);
+export const conversationalProfileFlow = onCallGenkit(
+    genKitGoogleAiOptions,
+    conversationalProfileFlowAction
+);
 
 // Feed management flows
 import { createFeedFlow as createFeedFlowDef } from './flows/feedFlows';
@@ -119,7 +122,6 @@ export const createFeedFlow = onCallGenkit(genKitGoogleAiOptions, createFeedFlow
 // Flip (video) management flows
 import { createFlipFlow as createFlipFlowDef } from './flows/flipFlows';
 export const createFlipFlow = onCallGenkit(genKitGoogleAiOptions, createFlipFlowDef);
-
 
 // ============================================================================
 // TOOL REGISTRATION

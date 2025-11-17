@@ -1,6 +1,17 @@
 {
     "$schema": "https://biomejs.dev/schemas/2.3.5/schema.json",
-    "assist": { "actions": { "source": { "organizeImports": "on" } } },
+    "vcs": {
+        "enabled": true,
+        "clientKind": "git",
+        "useIgnoreFile": true
+    },
+    "assist": {
+        "actions": {
+            "source": {
+                "organizeImports": "on"
+            }
+        }
+    },
     "linter": {
         "enabled": true,
         "rules": {
@@ -10,18 +21,23 @@
                 "useExhaustiveDependencies": "warn"
             },
             "suspicious": {
-                "noExplicitAny": "off"
+                "noExplicitAny": "off",
+                "noUnknownAtRules": "off"
             },
             "style": {
                 "noNonNullAssertion": "off"
             }
+        },
+        "domains": {
+            "next": "recommended",
+            "react": "recommended"
         }
     },
     "formatter": {
         "enabled": true,
-        "formatWithErrors": false,
+        "formatWithErrors": true,
         "indentStyle": "space",
-        "indentWidth": 4,
+        "indentWidth": 2,
         "lineEnding": "lf",
         "lineWidth": 100
     },
@@ -51,30 +67,28 @@
     "css": {
         "parser": {
             "cssModules": false,
-            "allowWrongLineComments": true
+            "allowWrongLineComments": true,
+            "tailwindDirectives": true
         },
         "formatter": {
             "enabled": true
         }
     },
     "files": {
-        "ignoreUnknown": false,
+        "ignoreUnknown": true,
         "includes": [
             "**",
-            "!**/node_modules",
-            "!**/dist",
-            "!**/build",
-            "!**/.next",
-            "!**/.expo",
-            "!**/coverage",
-            "!**/*.log",
-            "!**/.DS_Store",
-            "!**/android/build",
-            "!**/ios/build",
-            "!**/.next",
-            "!**/.expo",
-            "!**/dist",
-            "!**/build"
+            "!node_modules",
+            "!dist",
+            "!build",
+            "!.next",
+            "!.expo",
+            "!coverage",
+            "!.DS_Store",
+            "!android/build",
+            "!ios/build",
+            "!*.log",
+            "!apps/web/components/ui"
         ]
     }
 }

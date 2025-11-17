@@ -16,18 +16,18 @@ const app = express();
  * authorization requirements. Required by MCP specification.
  */
 app.get('/.well-known/oauth-protected-resource', (_req, res) => {
-    const mcpServerUrl = getMcpServerUrl();
-    const authServerUrl = getAuthServerUrl();
+  const mcpServerUrl = getMcpServerUrl();
+  const authServerUrl = getAuthServerUrl();
 
-    res.json({
-        resource: mcpServerUrl,
-        authorization_servers: [authServerUrl],
-        scopes_supported: ['openid', 'profile', 'email'],
-        bearer_methods_supported: ['header'],
-        resource_signing_alg_values_supported: ['RS256'],
-        resource_documentation: `${mcpServerUrl}/docs`,
-        resource_policy_uri: `${mcpServerUrl}/policy`,
-    });
+  res.json({
+    resource: mcpServerUrl,
+    authorization_servers: [authServerUrl],
+    scopes_supported: ['openid', 'profile', 'email'],
+    bearer_methods_supported: ['header'],
+    resource_signing_alg_values_supported: ['RS256'],
+    resource_documentation: `${mcpServerUrl}/docs`,
+    resource_policy_uri: `${mcpServerUrl}/policy`,
+  });
 });
 
 /**
@@ -35,11 +35,11 @@ app.get('/.well-known/oauth-protected-resource', (_req, res) => {
  * Required for browser-based MCP clients
  */
 app.options('/.well-known/oauth-protected-resource', (_req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-    res.status(204).send();
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  res.status(204).send();
 });
 
 // Export as Firebase Function

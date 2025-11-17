@@ -2,32 +2,55 @@
     "chat.tools.autoApprove": true,
     "chat.useAgentsMdFile": true,
 
-    // Biome Configuration
+    // Biome Configuration - Format and Fix on Save
     "editor.defaultFormatter": "biomejs.biome",
     "editor.formatOnSave": true,
     "editor.formatOnPaste": true,
     "editor.codeActionsOnSave": {
-        "source.fixAll.biome": "explicit"
+        "source.fixAll.biome": "explicit",
+        "source.organizeImports.biome": "explicit"
     },
 
     // File-specific formatters (Biome for everything)
     "[javascript]": {
-        "editor.defaultFormatter": "biomejs.biome"
+        "editor.defaultFormatter": "biomejs.biome",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.biome": "explicit"
+        }
     },
     "[javascriptreact]": {
-        "editor.defaultFormatter": "biomejs.biome"
+        "editor.defaultFormatter": "biomejs.biome",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.biome": "explicit"
+        }
     },
     "[typescript]": {
-        "editor.defaultFormatter": "biomejs.biome"
+        "editor.defaultFormatter": "biomejs.biome",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.biome": "explicit"
+        }
     },
     "[typescriptreact]": {
-        "editor.defaultFormatter": "biomejs.biome"
+        "editor.defaultFormatter": "biomejs.biome",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.biome": "explicit"
+        }
     },
     "[json]": {
-        "editor.defaultFormatter": "biomejs.biome"
+        "editor.defaultFormatter": "biomejs.biome",
+        "editor.formatOnSave": true
     },
     "[jsonc]": {
-        "editor.defaultFormatter": "biomejs.biome"
+        "editor.defaultFormatter": "biomejs.biome",
+        "editor.formatOnSave": true
+    },
+    "[css]": {
+        "editor.defaultFormatter": "biomejs.biome",
+        "editor.formatOnSave": true
     },
 
     // TypeScript

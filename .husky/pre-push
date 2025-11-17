@@ -1,0 +1,12 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Running pre-push checks (lint, format, typecheck)..."
+pnpm precheck
+
+if [ $? -ne 0 ]; then
+  echo "❌ Pre-push checks failed. Fix the issues and try again."
+  exit 1
+fi
+
+echo "✅ All pre-push checks passed!"

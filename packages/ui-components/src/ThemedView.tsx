@@ -1,10 +1,10 @@
 import { View, type ViewProps } from 'react-native';
 
 export type ThemedViewProps = ViewProps & {
-    lightColor?: string;
-    darkColor?: string;
-    /** Optional background color override */
-    backgroundColor?: string;
+  lightColor?: string;
+  darkColor?: string;
+  /** Optional background color override */
+  backgroundColor?: string;
 };
 
 /**
@@ -21,15 +21,15 @@ export type ThemedViewProps = ViewProps & {
  * ```
  */
 export function ThemedView({
-    style,
-    lightColor,
-    darkColor,
-    backgroundColor,
-    ...otherProps
+  style,
+  lightColor,
+  darkColor,
+  backgroundColor,
+  ...otherProps
 }: ThemedViewProps) {
-    // Use provided backgroundColor or default to theme-aware color
-    // In a full implementation, you'd use a theme hook here
-    const bgColor = backgroundColor || lightColor || 'transparent';
+  // Use provided backgroundColor or default to theme-aware color
+  // In a full implementation, you'd use a theme hook here
+  const bgColor = backgroundColor || lightColor || 'transparent';
 
-    return <View style={[{ backgroundColor: bgColor }, style]} {...otherProps} />;
+  return <View style={[{ backgroundColor: bgColor }, style]} {...otherProps} />;
 }

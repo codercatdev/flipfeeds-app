@@ -3,23 +3,23 @@ import { getAuth } from 'firebase-admin/auth';
 import { onRequest } from 'firebase-functions/v2/https';
 import { getAuthServerUrl, jwtSecret, OAuth2Config } from './config';
 import {
-    consumeAuthorizationCode,
-    getClient,
-    isTokenRevoked,
-    revokeToken,
-    storeAuthorizationCode,
-    storeClient,
+  consumeAuthorizationCode,
+  getClient,
+  isTokenRevoked,
+  revokeToken,
+  storeAuthorizationCode,
+  storeClient,
 } from './storage';
 import {
-    type AuthorizationCode as AuthCodeData,
-    generateAccessToken,
-    generateAuthorizationCode,
-    generateClientId,
-    generateRefreshToken,
-    isValidRedirectUri,
-    type RegisteredClient,
-    verifyCodeChallenge,
-    verifyRefreshToken,
+  type AuthorizationCode as AuthCodeData,
+  generateAccessToken,
+  generateAuthorizationCode,
+  generateClientId,
+  generateRefreshToken,
+  isValidRedirectUri,
+  type RegisteredClient,
+  verifyCodeChallenge,
+  verifyRefreshToken,
 } from './tokens';
 
 const app = express();
@@ -35,20 +35,20 @@ app.use(express.urlencoded({ extended: true }));
  * https://datatracker.ietf.org/doc/html/rfc8414
  */
 app.get('/.well-known/oauth-authorization-server', (_req, res) => {
-    const baseUrl = getAuthServerUrl();
+  const baseUrl = getAuthServerUrl();
 
-    res.json({
-        issuer: baseUrl,
-        authorization_endpoint: `${baseUrl}/authorize`,
-        token_endpoint: `${baseUrl}/token`,
-        registration_endpoint: `${baseUrl}/register`,
-        revocation_endpoint: `${baseUrl}/revoke`,
-        response_types_supported: OAuth2Config.RESPONSE_TYPES,
-        grant_types_supported: OAuth2Config.GRANT_TYPES,
-        token_endpoint_auth_methods_supported: OAuth2Config.TOKEN_ENDPOINT_AUTH_METHODS,
-        code_challenge_methods_supported: OAuth2Config.CODE_CHALLENGE_METHODS,
-        scopes_supported: OAuth2Config.SCOPES,
-    });
+  res.json({
+    issuer: baseUrl,
+    authorization_endpoint: `${baseUrl}/authorize`,
+    token_endpoint: `${baseUrl}/token`,
+    registration_endpoint: `${baseUrl}/register`,
+    revocation_endpoint: `${baseUrl}/revoke`,
+    response_types_supported: OAuth2Config.RESPONSE_TYPES,
+    grant_types_supported: OAuth2Config.GRANT_TYPES,
+    token_endpoint_auth_methods_supported: OAuth2Config.TOKEN_ENDPOINT_AUTH_METHODS,
+    code_challenge_methods_supported: OAuth2Config.CODE_CHALLENGE_METHODS,
+    scopes_supported: OAuth2Config.SCOPES,
+  });
 });
 
 /**
@@ -56,28 +56,28 @@ app.get('/.well-known/oauth-authorization-server', (_req, res) => {
  * Required for browser-based MCP clients
  */
 app.options('/.well-known/oauth-authorization-server', (_req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-    res.status(204).send();
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  res.status(204).send();
 });
 
 /**
  * MCP-specific metadata endpoint
  */
 app.get('/.well-known/mcp-authorization-server', (_req, res) => {
-    const baseUrl = getAuthServerUrl();
+  const baseUrl = getAuthServerUrl();
 
-    res.json({
-        issuer: baseUrl,
-        authorization_endpoint: `${baseUrl}/authorize`,
-        token_endpoint: `${baseUrl}/token`,
-        registration_endpoint: `${baseUrl}/register`,
-        revocation_endpoint: `${baseUrl}/revoke`,
-        grant_types_supported: OAuth2Config.GRANT_TYPES,
-        code_challenge_methods_supported: OAuth2Config.CODE_CHALLENGE_METHODS,
-    });
+  res.json({
+    issuer: baseUrl,
+    authorization_endpoint: `${baseUrl}/authorize`,
+    token_endpoint: `${baseUrl}/token`,
+    registration_endpoint: `${baseUrl}/register`,
+    revocation_endpoint: `${baseUrl}/revoke`,
+    grant_types_supported: OAuth2Config.GRANT_TYPES,
+    code_challenge_methods_supported: OAuth2Config.CODE_CHALLENGE_METHODS,
+  });
 });
 
 /**
@@ -85,31 +85,31 @@ app.get('/.well-known/mcp-authorization-server', (_req, res) => {
  * Some OAuth clients look for this endpoint
  */
 app.get('/.well-known/openid-configuration', (_req, res) => {
-    const baseUrl = getAuthServerUrl();
+  const baseUrl = getAuthServerUrl();
 
-    res.json({
-        issuer: baseUrl,
-        authorization_endpoint: `${baseUrl}/authorize`,
-        token_endpoint: `${baseUrl}/token`,
-        registration_endpoint: `${baseUrl}/register`,
-        revocation_endpoint: `${baseUrl}/revoke`,
-        response_types_supported: OAuth2Config.RESPONSE_TYPES,
-        grant_types_supported: OAuth2Config.GRANT_TYPES,
-        token_endpoint_auth_methods_supported: OAuth2Config.TOKEN_ENDPOINT_AUTH_METHODS,
-        code_challenge_methods_supported: OAuth2Config.CODE_CHALLENGE_METHODS,
-        scopes_supported: OAuth2Config.SCOPES,
-    });
+  res.json({
+    issuer: baseUrl,
+    authorization_endpoint: `${baseUrl}/authorize`,
+    token_endpoint: `${baseUrl}/token`,
+    registration_endpoint: `${baseUrl}/register`,
+    revocation_endpoint: `${baseUrl}/revoke`,
+    response_types_supported: OAuth2Config.RESPONSE_TYPES,
+    grant_types_supported: OAuth2Config.GRANT_TYPES,
+    token_endpoint_auth_methods_supported: OAuth2Config.TOKEN_ENDPOINT_AUTH_METHODS,
+    code_challenge_methods_supported: OAuth2Config.CODE_CHALLENGE_METHODS,
+    scopes_supported: OAuth2Config.SCOPES,
+  });
 });
 
 /**
  * CORS preflight handler for OpenID configuration
  */
 app.options('/.well-known/openid-configuration', (_req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-    res.status(204).send();
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  res.status(204).send();
 });
 
 // ============================================================================
@@ -121,45 +121,45 @@ app.options('/.well-known/openid-configuration', (_req, res) => {
  * https://datatracker.ietf.org/doc/html/rfc7591
  */
 app.post('/register', async (req, res) => {
-    try {
-        const { client_name, redirect_uris } = req.body;
+  try {
+    const { client_name, redirect_uris } = req.body;
 
-        if (!client_name || !redirect_uris || !Array.isArray(redirect_uris)) {
-            return res.status(400).json({
-                error: 'invalid_request',
-                error_description: 'client_name and redirect_uris are required',
-            });
-        }
-
-        const clientId = generateClientId();
-
-        const client: RegisteredClient = {
-            client_id: clientId,
-            client_name,
-            redirect_uris,
-            grant_types: [...OAuth2Config.GRANT_TYPES],
-            response_types: [...OAuth2Config.RESPONSE_TYPES],
-            token_endpoint_auth_method: 'none',
-            created_at: Date.now(),
-        };
-
-        await storeClient(client);
-
-        return res.status(201).json({
-            client_id: client.client_id,
-            client_name: client.client_name,
-            redirect_uris: client.redirect_uris,
-            grant_types: client.grant_types,
-            response_types: client.response_types,
-            token_endpoint_auth_method: client.token_endpoint_auth_method,
-        });
-    } catch (error) {
-        console.error('Registration error:', error);
-        return res.status(500).json({
-            error: 'server_error',
-            error_description: 'Failed to register client',
-        });
+    if (!client_name || !redirect_uris || !Array.isArray(redirect_uris)) {
+      return res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'client_name and redirect_uris are required',
+      });
     }
+
+    const clientId = generateClientId();
+
+    const client: RegisteredClient = {
+      client_id: clientId,
+      client_name,
+      redirect_uris,
+      grant_types: [...OAuth2Config.GRANT_TYPES],
+      response_types: [...OAuth2Config.RESPONSE_TYPES],
+      token_endpoint_auth_method: 'none',
+      created_at: Date.now(),
+    };
+
+    await storeClient(client);
+
+    return res.status(201).json({
+      client_id: client.client_id,
+      client_name: client.client_name,
+      redirect_uris: client.redirect_uris,
+      grant_types: client.grant_types,
+      response_types: client.response_types,
+      token_endpoint_auth_method: client.token_endpoint_auth_method,
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    return res.status(500).json({
+      error: 'server_error',
+      error_description: 'Failed to register client',
+    });
+  }
 });
 
 // ============================================================================
@@ -170,152 +170,152 @@ app.post('/register', async (req, res) => {
  * Authorization Endpoint - initiates the OAuth flow
  */
 app.get('/authorize', async (req, res) => {
-    const {
-        client_id,
-        redirect_uri,
-        response_type,
-        state,
-        code_challenge,
-        code_challenge_method,
-        scope = 'mcp:access',
-    } = req.query as Record<string, string>;
+  const {
+    client_id,
+    redirect_uri,
+    response_type,
+    state,
+    code_challenge,
+    code_challenge_method,
+    scope = 'mcp:access',
+  } = req.query as Record<string, string>;
 
-    // Validate required parameters
-    if (!client_id || !redirect_uri || !response_type) {
-        return res
-            .status(400)
-            .send('Missing required parameters: client_id, redirect_uri, or response_type');
-    }
+  // Validate required parameters
+  if (!client_id || !redirect_uri || !response_type) {
+    return res
+      .status(400)
+      .send('Missing required parameters: client_id, redirect_uri, or response_type');
+  }
 
-    if (response_type !== 'code') {
-        return res.status(400).send('Unsupported response_type. Only "code" is supported.');
-    }
+  if (response_type !== 'code') {
+    return res.status(400).send('Unsupported response_type. Only "code" is supported.');
+  }
 
-    // Validate client
-    const client = await getClient(client_id);
-    if (!client) {
-        return res.status(400).send('Invalid client_id');
-    }
+  // Validate client
+  const client = await getClient(client_id);
+  if (!client) {
+    return res.status(400).send('Invalid client_id');
+  }
 
-    // Validate redirect URI
-    if (!isValidRedirectUri(redirect_uri, client.redirect_uris)) {
-        return res.status(400).send('Invalid redirect_uri');
-    }
+  // Validate redirect URI
+  if (!isValidRedirectUri(redirect_uri, client.redirect_uris)) {
+    return res.status(400).send('Invalid redirect_uri');
+  }
 
-    // PKCE is required
-    if (!code_challenge || !code_challenge_method) {
-        return res
-            .status(400)
-            .send('PKCE is required: code_challenge and code_challenge_method must be provided');
-    }
+  // PKCE is required
+  if (!code_challenge || !code_challenge_method) {
+    return res
+      .status(400)
+      .send('PKCE is required: code_challenge and code_challenge_method must be provided');
+  }
 
-    if (code_challenge_method !== 'S256') {
-        return res.status(400).send('Only S256 code_challenge_method is supported');
-    }
+  if (code_challenge_method !== 'S256') {
+    return res.status(400).send('Only S256 code_challenge_method is supported');
+  }
 
-    // Store authorization request in session/state
-    // For now, pass parameters to the login page
-    const loginUrl = `${getAuthServerUrl()}/login?${new URLSearchParams({
-        client_id,
-        redirect_uri,
-        state: state || '',
-        code_challenge,
-        code_challenge_method,
-        scope,
-    }).toString()}`;
+  // Store authorization request in session/state
+  // For now, pass parameters to the login page
+  const loginUrl = `${getAuthServerUrl()}/login?${new URLSearchParams({
+    client_id,
+    redirect_uri,
+    state: state || '',
+    code_challenge,
+    code_challenge_method,
+    scope,
+  }).toString()}`;
 
-    return res.redirect(loginUrl);
+  return res.redirect(loginUrl);
 });
 
 /**
  * Login page endpoint - serves the Firebase authentication UI
  */
 app.get('/login', (req, res) => {
-    const params = req.query as Record<string, string>;
+  const params = req.query as Record<string, string>;
 
-    // This will serve an HTML page with FirebaseUI
-    // The HTML page will be created separately
-    res.send(getLoginPageHtml(params));
+  // This will serve an HTML page with FirebaseUI
+  // The HTML page will be created separately
+  res.send(getLoginPageHtml(params));
 });
 
 /**
  * Callback endpoint after Firebase authentication
  */
 app.post('/auth-callback', async (req, res) => {
-    try {
-        const {
-            firebase_id_token,
-            client_id,
-            redirect_uri,
-            state,
-            code_challenge,
-            code_challenge_method,
-            scope,
-        } = req.body;
+  try {
+    const {
+      firebase_id_token,
+      client_id,
+      redirect_uri,
+      state,
+      code_challenge,
+      code_challenge_method,
+      scope,
+    } = req.body;
 
-        if (!firebase_id_token) {
-            return res.status(400).json({ error: 'Missing firebase_id_token' });
-        }
-
-        // Verify the Firebase ID token
-        const decodedToken = await getAuth().verifyIdToken(firebase_id_token);
-
-        // Fetch full user record to get complete profile data
-        const userRecord = await getAuth().getUser(decodedToken.uid);
-
-        // Extract Firebase-specific data from token
-        const firebase = {
-            sign_in_provider: decodedToken.firebase?.sign_in_provider,
-            sign_in_second_factor: decodedToken.firebase?.sign_in_second_factor,
-            identities: decodedToken.firebase?.identities,
-            tenant: decodedToken.firebase?.tenant,
-        };
-
-        // Extract metadata
-        const metadata = {
-            creationTime: userRecord.metadata.creationTime,
-            lastSignInTime: userRecord.metadata.lastSignInTime,
-            lastRefreshTime: userRecord.metadata.lastRefreshTime ?? undefined,
-        };
-
-        // Generate authorization code
-        const code = generateAuthorizationCode();
-
-        const authCode: AuthCodeData = {
-            code,
-            uid: userRecord.uid,
-            email: userRecord.email,
-            displayName: userRecord.displayName,
-            photoURL: userRecord.photoURL,
-            emailVerified: userRecord.emailVerified,
-            phoneNumber: userRecord.phoneNumber,
-            disabled: userRecord.disabled,
-            firebase,
-            metadata,
-            providerData: userRecord.providerData,
-            customClaims: userRecord.customClaims,
-            clientId: client_id,
-            redirectUri: redirect_uri,
-            codeChallenge: code_challenge,
-            codeChallengeMethod: code_challenge_method,
-            scope: scope || 'mcp:access',
-            expiresAt: Date.now() + OAuth2Config.AUTHORIZATION_CODE_EXPIRY * 1000,
-        };
-
-        await storeAuthorizationCode(authCode);
-
-        // Build redirect URL with code
-        const redirectUrl = new URL(redirect_uri);
-        redirectUrl.searchParams.set('code', code);
-        if (state) {
-            redirectUrl.searchParams.set('state', state);
-        }
-
-        return res.json({ redirect_url: redirectUrl.toString() });
-    } catch (error) {
-        console.error('Auth callback error:', error);
-        return res.status(500).json({ error: 'Authentication failed' });
+    if (!firebase_id_token) {
+      return res.status(400).json({ error: 'Missing firebase_id_token' });
     }
+
+    // Verify the Firebase ID token
+    const decodedToken = await getAuth().verifyIdToken(firebase_id_token);
+
+    // Fetch full user record to get complete profile data
+    const userRecord = await getAuth().getUser(decodedToken.uid);
+
+    // Extract Firebase-specific data from token
+    const firebase = {
+      sign_in_provider: decodedToken.firebase?.sign_in_provider,
+      sign_in_second_factor: decodedToken.firebase?.sign_in_second_factor,
+      identities: decodedToken.firebase?.identities,
+      tenant: decodedToken.firebase?.tenant,
+    };
+
+    // Extract metadata
+    const metadata = {
+      creationTime: userRecord.metadata.creationTime,
+      lastSignInTime: userRecord.metadata.lastSignInTime,
+      lastRefreshTime: userRecord.metadata.lastRefreshTime ?? undefined,
+    };
+
+    // Generate authorization code
+    const code = generateAuthorizationCode();
+
+    const authCode: AuthCodeData = {
+      code,
+      uid: userRecord.uid,
+      email: userRecord.email,
+      displayName: userRecord.displayName,
+      photoURL: userRecord.photoURL,
+      emailVerified: userRecord.emailVerified,
+      phoneNumber: userRecord.phoneNumber,
+      disabled: userRecord.disabled,
+      firebase,
+      metadata,
+      providerData: userRecord.providerData,
+      customClaims: userRecord.customClaims,
+      clientId: client_id,
+      redirectUri: redirect_uri,
+      codeChallenge: code_challenge,
+      codeChallengeMethod: code_challenge_method,
+      scope: scope || 'mcp:access',
+      expiresAt: Date.now() + OAuth2Config.AUTHORIZATION_CODE_EXPIRY * 1000,
+    };
+
+    await storeAuthorizationCode(authCode);
+
+    // Build redirect URL with code
+    const redirectUrl = new URL(redirect_uri);
+    redirectUrl.searchParams.set('code', code);
+    if (state) {
+      redirectUrl.searchParams.set('state', state);
+    }
+
+    return res.json({ redirect_url: redirectUrl.toString() });
+  } catch (error) {
+    console.error('Auth callback error:', error);
+    return res.status(500).json({ error: 'Authentication failed' });
+  }
 });
 
 // ============================================================================
@@ -326,195 +326,190 @@ app.post('/auth-callback', async (req, res) => {
  * Token Endpoint - exchanges authorization code for access token
  */
 app.post('/token', async (req, res) => {
-    try {
-        const { grant_type, code, redirect_uri, client_id, code_verifier, refresh_token } =
-            req.body;
+  try {
+    const { grant_type, code, redirect_uri, client_id, code_verifier, refresh_token } = req.body;
 
-        if (!grant_type) {
-            return res.status(400).json({
-                error: 'invalid_request',
-                error_description: 'grant_type is required',
-            });
-        }
-
-        const secret = jwtSecret.value();
-        if (!secret) {
-            throw new Error('JWT_SECRET not configured');
-        }
-
-        if (grant_type === 'authorization_code') {
-            // Validate required parameters
-            if (!code || !redirect_uri || !client_id || !code_verifier) {
-                return res.status(400).json({
-                    error: 'invalid_request',
-                    error_description: 'Missing required parameters',
-                });
-            }
-
-            // Consume the authorization code
-            const authCode = await consumeAuthorizationCode(code);
-
-            if (!authCode) {
-                return res.status(400).json({
-                    error: 'invalid_grant',
-                    error_description: 'Invalid or expired authorization code',
-                });
-            }
-
-            // Validate client_id and redirect_uri
-            if (authCode.clientId !== client_id || authCode.redirectUri !== redirect_uri) {
-                return res.status(400).json({
-                    error: 'invalid_grant',
-                    error_description: 'Invalid client_id or redirect_uri',
-                });
-            }
-
-            // Verify PKCE code verifier
-            if (authCode.codeChallenge && authCode.codeChallengeMethod) {
-                if (
-                    !verifyCodeChallenge(
-                        code_verifier,
-                        authCode.codeChallenge,
-                        authCode.codeChallengeMethod
-                    )
-                ) {
-                    return res.status(400).json({
-                        error: 'invalid_grant',
-                        error_description: 'Invalid code_verifier',
-                    });
-                }
-            }
-
-            // Generate tokens with profile data
-            const accessToken = await generateAccessToken(
-                authCode.uid,
-                authCode.email,
-                authCode.scope,
-                secret,
-                {
-                    displayName: authCode.displayName,
-                    photoURL: authCode.photoURL,
-                    emailVerified: authCode.emailVerified,
-                    phoneNumber: authCode.phoneNumber,
-                    disabled: authCode.disabled,
-                    firebase: authCode.firebase,
-                    metadata: authCode.metadata,
-                    providerData: authCode.providerData,
-                    customClaims: authCode.customClaims,
-                }
-            );
-
-            const refreshToken = await generateRefreshToken(authCode.uid, secret);
-
-            return res.json({
-                access_token: accessToken,
-                token_type: 'Bearer',
-                expires_in: OAuth2Config.ACCESS_TOKEN_EXPIRY,
-                refresh_token: refreshToken,
-                scope: authCode.scope,
-            });
-        } else if (grant_type === 'refresh_token') {
-            if (!refresh_token) {
-                return res.status(400).json({
-                    error: 'invalid_request',
-                    error_description: 'refresh_token is required',
-                });
-            }
-
-            // Verify refresh token
-            const payload = await verifyRefreshToken(refresh_token, secret);
-
-            // Check if token is revoked
-            if (payload.jti && (await isTokenRevoked(payload.jti))) {
-                return res.status(400).json({
-                    error: 'invalid_grant',
-                    error_description: 'Token has been revoked',
-                });
-            }
-
-            // Fetch current user data from Firebase to get latest profile info
-            let userProfile:
-                | {
-                      displayName?: string;
-                      photoURL?: string;
-                      emailVerified?: boolean;
-                      phoneNumber?: string;
-                      disabled?: boolean;
-                      firebase?: {
-                          sign_in_provider?: string;
-                          sign_in_second_factor?: string;
-                          identities?: Record<string, unknown>;
-                          tenant?: string;
-                      };
-                      metadata?: {
-                          creationTime?: string;
-                          lastSignInTime?: string;
-                          lastRefreshTime?: string;
-                      };
-                      providerData?: Array<{
-                          uid: string;
-                          displayName?: string;
-                          email?: string;
-                          photoURL?: string;
-                          providerId: string;
-                          phoneNumber?: string;
-                      }>;
-                      customClaims?: Record<string, unknown>;
-                  }
-                | undefined;
-            try {
-                const userRecord = await getAuth().getUser(payload.uid);
-                userProfile = {
-                    displayName: userRecord.displayName,
-                    photoURL: userRecord.photoURL,
-                    emailVerified: userRecord.emailVerified,
-                    phoneNumber: userRecord.phoneNumber,
-                    disabled: userRecord.disabled,
-                    firebase: {
-                        sign_in_provider: userRecord.providerData[0]?.providerId,
-                    },
-                    metadata: {
-                        creationTime: userRecord.metadata.creationTime,
-                        lastSignInTime: userRecord.metadata.lastSignInTime,
-                        lastRefreshTime: userRecord.metadata.lastRefreshTime ?? undefined,
-                    },
-                    providerData: userRecord.providerData,
-                    customClaims: userRecord.customClaims,
-                };
-            } catch (error) {
-                console.error('Error fetching user profile:', error);
-                // Continue without profile data if user fetch fails
-                userProfile = undefined;
-            }
-
-            // Generate new access token with fresh profile data
-            const accessToken = await generateAccessToken(
-                payload.uid,
-                undefined,
-                'mcp:access',
-                secret,
-                userProfile
-            );
-
-            return res.json({
-                access_token: accessToken,
-                token_type: 'Bearer',
-                expires_in: OAuth2Config.ACCESS_TOKEN_EXPIRY,
-                scope: 'mcp:access',
-            });
-        } else {
-            return res.status(400).json({
-                error: 'unsupported_grant_type',
-                error_description: `Grant type ${grant_type} is not supported`,
-            });
-        }
-    } catch (error) {
-        console.error('Token endpoint error:', error);
-        return res.status(400).json({
-            error: 'invalid_grant',
-            error_description: error instanceof Error ? error.message : 'Token generation failed',
-        });
+    if (!grant_type) {
+      return res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'grant_type is required',
+      });
     }
+
+    const secret = jwtSecret.value();
+    if (!secret) {
+      throw new Error('JWT_SECRET not configured');
+    }
+
+    if (grant_type === 'authorization_code') {
+      // Validate required parameters
+      if (!code || !redirect_uri || !client_id || !code_verifier) {
+        return res.status(400).json({
+          error: 'invalid_request',
+          error_description: 'Missing required parameters',
+        });
+      }
+
+      // Consume the authorization code
+      const authCode = await consumeAuthorizationCode(code);
+
+      if (!authCode) {
+        return res.status(400).json({
+          error: 'invalid_grant',
+          error_description: 'Invalid or expired authorization code',
+        });
+      }
+
+      // Validate client_id and redirect_uri
+      if (authCode.clientId !== client_id || authCode.redirectUri !== redirect_uri) {
+        return res.status(400).json({
+          error: 'invalid_grant',
+          error_description: 'Invalid client_id or redirect_uri',
+        });
+      }
+
+      // Verify PKCE code verifier
+      if (authCode.codeChallenge && authCode.codeChallengeMethod) {
+        if (
+          !verifyCodeChallenge(code_verifier, authCode.codeChallenge, authCode.codeChallengeMethod)
+        ) {
+          return res.status(400).json({
+            error: 'invalid_grant',
+            error_description: 'Invalid code_verifier',
+          });
+        }
+      }
+
+      // Generate tokens with profile data
+      const accessToken = await generateAccessToken(
+        authCode.uid,
+        authCode.email,
+        authCode.scope,
+        secret,
+        {
+          displayName: authCode.displayName,
+          photoURL: authCode.photoURL,
+          emailVerified: authCode.emailVerified,
+          phoneNumber: authCode.phoneNumber,
+          disabled: authCode.disabled,
+          firebase: authCode.firebase,
+          metadata: authCode.metadata,
+          providerData: authCode.providerData,
+          customClaims: authCode.customClaims,
+        }
+      );
+
+      const refreshToken = await generateRefreshToken(authCode.uid, secret);
+
+      return res.json({
+        access_token: accessToken,
+        token_type: 'Bearer',
+        expires_in: OAuth2Config.ACCESS_TOKEN_EXPIRY,
+        refresh_token: refreshToken,
+        scope: authCode.scope,
+      });
+    } else if (grant_type === 'refresh_token') {
+      if (!refresh_token) {
+        return res.status(400).json({
+          error: 'invalid_request',
+          error_description: 'refresh_token is required',
+        });
+      }
+
+      // Verify refresh token
+      const payload = await verifyRefreshToken(refresh_token, secret);
+
+      // Check if token is revoked
+      if (payload.jti && (await isTokenRevoked(payload.jti))) {
+        return res.status(400).json({
+          error: 'invalid_grant',
+          error_description: 'Token has been revoked',
+        });
+      }
+
+      // Fetch current user data from Firebase to get latest profile info
+      let userProfile:
+        | {
+            displayName?: string;
+            photoURL?: string;
+            emailVerified?: boolean;
+            phoneNumber?: string;
+            disabled?: boolean;
+            firebase?: {
+              sign_in_provider?: string;
+              sign_in_second_factor?: string;
+              identities?: Record<string, unknown>;
+              tenant?: string;
+            };
+            metadata?: {
+              creationTime?: string;
+              lastSignInTime?: string;
+              lastRefreshTime?: string;
+            };
+            providerData?: Array<{
+              uid: string;
+              displayName?: string;
+              email?: string;
+              photoURL?: string;
+              providerId: string;
+              phoneNumber?: string;
+            }>;
+            customClaims?: Record<string, unknown>;
+          }
+        | undefined;
+      try {
+        const userRecord = await getAuth().getUser(payload.uid);
+        userProfile = {
+          displayName: userRecord.displayName,
+          photoURL: userRecord.photoURL,
+          emailVerified: userRecord.emailVerified,
+          phoneNumber: userRecord.phoneNumber,
+          disabled: userRecord.disabled,
+          firebase: {
+            sign_in_provider: userRecord.providerData[0]?.providerId,
+          },
+          metadata: {
+            creationTime: userRecord.metadata.creationTime,
+            lastSignInTime: userRecord.metadata.lastSignInTime,
+            lastRefreshTime: userRecord.metadata.lastRefreshTime ?? undefined,
+          },
+          providerData: userRecord.providerData,
+          customClaims: userRecord.customClaims,
+        };
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        // Continue without profile data if user fetch fails
+        userProfile = undefined;
+      }
+
+      // Generate new access token with fresh profile data
+      const accessToken = await generateAccessToken(
+        payload.uid,
+        undefined,
+        'mcp:access',
+        secret,
+        userProfile
+      );
+
+      return res.json({
+        access_token: accessToken,
+        token_type: 'Bearer',
+        expires_in: OAuth2Config.ACCESS_TOKEN_EXPIRY,
+        scope: 'mcp:access',
+      });
+    } else {
+      return res.status(400).json({
+        error: 'unsupported_grant_type',
+        error_description: `Grant type ${grant_type} is not supported`,
+      });
+    }
+  } catch (error) {
+    console.error('Token endpoint error:', error);
+    return res.status(400).json({
+      error: 'invalid_grant',
+      error_description: error instanceof Error ? error.message : 'Token generation failed',
+    });
+  }
 });
 
 // ============================================================================
@@ -525,38 +520,38 @@ app.post('/token', async (req, res) => {
  * Token Revocation Endpoint
  */
 app.post('/revoke', async (req, res) => {
-    try {
-        const { token } = req.body;
+  try {
+    const { token } = req.body;
 
-        if (!token) {
-            return res.status(400).json({
-                error: 'invalid_request',
-                error_description: 'token is required',
-            });
-        }
-
-        const secret = jwtSecret.value();
-        if (!secret) {
-            throw new Error('JWT_SECRET not configured');
-        }
-
-        try {
-            // Try to verify as refresh token
-            const payload = await verifyRefreshToken(token, secret);
-            if (payload.jti && payload.exp) {
-                await revokeToken(payload.jti, payload.exp * 1000);
-            }
-        } catch (_error) {
-            // Token might be invalid or already expired, which is fine
-            console.log('Token revocation attempted for invalid/expired token');
-        }
-
-        // Always return 200 per spec
-        return res.status(200).send();
-    } catch (error) {
-        console.error('Revocation error:', error);
-        return res.status(200).send(); // Still return 200 per spec
+    if (!token) {
+      return res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'token is required',
+      });
     }
+
+    const secret = jwtSecret.value();
+    if (!secret) {
+      throw new Error('JWT_SECRET not configured');
+    }
+
+    try {
+      // Try to verify as refresh token
+      const payload = await verifyRefreshToken(token, secret);
+      if (payload.jti && payload.exp) {
+        await revokeToken(payload.jti, payload.exp * 1000);
+      }
+    } catch (_error) {
+      // Token might be invalid or already expired, which is fine
+      console.log('Token revocation attempted for invalid/expired token');
+    }
+
+    // Always return 200 per spec
+    return res.status(200).send();
+  } catch (error) {
+    console.error('Revocation error:', error);
+    return res.status(200).send(); // Still return 200 per spec
+  }
 });
 
 // ============================================================================
@@ -564,9 +559,9 @@ app.post('/revoke', async (req, res) => {
 // ============================================================================
 
 function getLoginPageHtml(params: Record<string, string>): string {
-    const authServerUrl = getAuthServerUrl();
+  const authServerUrl = getAuthServerUrl();
 
-    return `
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -687,9 +682,9 @@ const firebaseConfig = {
 // ============================================================================
 
 export const mcpAuthServer = onRequest(
-    {
-        cors: true,
-        secrets: [jwtSecret],
-    },
-    app
+  {
+    cors: true,
+    secrets: [jwtSecret],
+  },
+  app
 );

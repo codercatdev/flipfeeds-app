@@ -16,10 +16,10 @@ import type { FlipFeedsAuthContext } from './contextProvider';
  * Mirrors: function isOwner(uid) in firestore.rules
  */
 export function isOwner(context: { auth?: FlipFeedsAuthContext }, resourceUserId: string): boolean {
-    if (!context.auth?.uid) {
-        return false;
-    }
-    return context.auth.uid === resourceUserId;
+  if (!context.auth?.uid) {
+    return false;
+  }
+  return context.auth.uid === resourceUserId;
 }
 
 /**
@@ -27,20 +27,20 @@ export function isOwner(context: { auth?: FlipFeedsAuthContext }, resourceUserId
  * Throws an error if the user is not the owner
  */
 export function requireOwner(
-    context: { auth?: FlipFeedsAuthContext },
-    resourceUserId: string,
-    resourceType = 'resource'
+  context: { auth?: FlipFeedsAuthContext },
+  resourceUserId: string,
+  resourceType = 'resource'
 ): void {
-    if (!context.auth?.uid) {
-        throw new UserFacingError('UNAUTHENTICATED', 'Authentication required');
-    }
+  if (!context.auth?.uid) {
+    throw new UserFacingError('UNAUTHENTICATED', 'Authentication required');
+  }
 
-    if (!isOwner(context, resourceUserId)) {
-        throw new UserFacingError(
-            'PERMISSION_DENIED',
-            `You do not have permission to access this ${resourceType}`
-        );
-    }
+  if (!isOwner(context, resourceUserId)) {
+    throw new UserFacingError(
+      'PERMISSION_DENIED',
+      `You do not have permission to access this ${resourceType}`
+    );
+  }
 }
 
 /**
@@ -48,32 +48,32 @@ export function requireOwner(
  * Mirrors: request.auth.uid in resource.data.users check in firestore.rules
  */
 export function isFriendshipParticipant(
-    context: { auth?: FlipFeedsAuthContext },
-    friendshipUsers: string[]
+  context: { auth?: FlipFeedsAuthContext },
+  friendshipUsers: string[]
 ): boolean {
-    if (!context.auth?.uid) {
-        return false;
-    }
-    return friendshipUsers.includes(context.auth.uid);
+  if (!context.auth?.uid) {
+    return false;
+  }
+  return friendshipUsers.includes(context.auth.uid);
 }
 
 /**
  * Require that the authenticated user is a participant in a friendship
  */
 export function requireFriendshipParticipant(
-    context: { auth?: FlipFeedsAuthContext },
-    friendshipUsers: string[]
+  context: { auth?: FlipFeedsAuthContext },
+  friendshipUsers: string[]
 ): void {
-    if (!context.auth?.uid) {
-        throw new UserFacingError('UNAUTHENTICATED', 'Authentication required');
-    }
+  if (!context.auth?.uid) {
+    throw new UserFacingError('UNAUTHENTICATED', 'Authentication required');
+  }
 
-    if (!isFriendshipParticipant(context, friendshipUsers)) {
-        throw new UserFacingError(
-            'PERMISSION_DENIED',
-            'You do not have permission to access this friendship'
-        );
-    }
+  if (!isFriendshipParticipant(context, friendshipUsers)) {
+    throw new UserFacingError(
+      'PERMISSION_DENIED',
+      'You do not have permission to access this friendship'
+    );
+  }
 }
 
 /**
@@ -103,10 +103,10 @@ export function requireFriendshipParticipant(
  * Throws an error if not authenticated
  */
 export function getAuthenticatedUserId(context?: { auth?: FlipFeedsAuthContext }): string {
-    if (!context?.auth?.uid) {
-        throw new UserFacingError('UNAUTHENTICATED', 'Authentication required');
-    }
-    return context.auth.uid;
+  if (!context?.auth?.uid) {
+    throw new UserFacingError('UNAUTHENTICATED', 'Authentication required');
+  }
+  return context.auth.uid;
 }
 
 /**

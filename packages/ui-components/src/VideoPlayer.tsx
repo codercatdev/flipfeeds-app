@@ -8,24 +8,25 @@
  * or by checking the platform at runtime.
  */
 
-import type React from 'react';
+// biome-ignore lint/style/useImportType: Fails lower
+import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 export interface VideoPlayerProps {
-    /** Video source URL */
-    source: string;
-    /** Whether the video should autoplay */
-    autoPlay?: boolean;
-    /** Whether the video should loop */
-    loop?: boolean;
-    /** Whether to show controls */
-    controls?: boolean;
-    /** Callback when video ends */
-    onEnd?: () => void;
-    /** Callback when video is ready */
-    onReady?: () => void;
-    /** Additional styles */
-    style?: any;
+  /** Video source URL */
+  source: string;
+  /** Whether the video should autoplay */
+  autoPlay?: boolean;
+  /** Whether the video should loop */
+  loop?: boolean;
+  /** Whether to show controls */
+  controls?: boolean;
+  /** Callback when video ends */
+  onEnd?: () => void;
+  /** Callback when video is ready */
+  onReady?: () => void;
+  /** Additional styles */
+  style?: any;
 }
 
 /**
@@ -42,40 +43,42 @@ export interface VideoPlayerProps {
  * ```
  */
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
-    source,
-    autoPlay = false,
-    loop = false,
-    controls = true,
-    onEnd,
-    onReady,
-    style,
+  source,
+  autoPlay = false,
+  loop = false,
+  controls = true,
+  onEnd,
+  onReady,
+  style,
 }) => {
-    // For this example, we'll create a simple stub
-    // In production, you would use:
-    // - react-player for web
-    // - expo-av or react-native-video for mobile
+  // For this example, we'll create a simple stub
+  // In production, you would use:
+  // - react-player for web
+  // - expo-av or react-native-video for mobile
 
-    if (Platform.OS === 'web') {
-        // Web implementation using HTML5 video
-        return (
-            <View style={[styles.container, style]}>
-                <video
-                    src={source}
-                    autoPlay={autoPlay}
-                    loop={loop}
-                    controls={controls}
-                    onEnded={onEnd}
-                    onLoadedData={onReady}
-                    style={styles.video}
-                />
-            </View>
-        );
-    }
-
-    // Mobile implementation (stub - replace with actual implementation)
+  if (Platform.OS === 'web') {
+    // Web implementation using HTML5 video
     return (
-        <View style={[styles.container, style]}>
-            {/* 
+      <View style={[styles.container, style]}>
+        <video
+          src={source}
+          autoPlay={autoPlay}
+          loop={loop}
+          controls={controls}
+          onEnded={onEnd}
+          onLoadedData={onReady}
+          style={styles.video}
+        >
+          <track kind="captions" />
+        </video>
+      </View>
+    );
+  }
+
+  // Mobile implementation (stub - replace with actual implementation)
+  return (
+    <View style={[styles.container, style]}>
+      {/* 
         In production, use expo-av or react-native-video:
         
         <Video
@@ -91,18 +94,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           style={styles.video}
         />
       */}
-        </View>
-    );
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        width: '100%',
-        aspectRatio: 16 / 9,
-        backgroundColor: '#000',
-    },
-    video: {
-        width: '100%',
-        height: '100%',
-    },
+  container: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: '#000',
+  },
+  video: {
+    width: '100%',
+    height: '100%',
+  },
 });

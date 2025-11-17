@@ -14,9 +14,9 @@ console.log(`Syncing Android version to: ${version} (versionCode ${versionCode})
 const buildGradlePath = path.join(__dirname, '../android/app/build.gradle');
 
 if (!fs.existsSync(buildGradlePath)) {
-    console.error('❌ Error: android/app/build.gradle not found');
-    console.log('   Run "expo prebuild" first to generate native folders');
-    process.exit(1);
+  console.error('❌ Error: android/app/build.gradle not found');
+  console.log('   Run "expo prebuild" first to generate native folders');
+  process.exit(1);
 }
 
 let buildGradle = fs.readFileSync(buildGradlePath, 'utf8');

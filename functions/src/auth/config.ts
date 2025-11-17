@@ -10,28 +10,28 @@ export const jwtSecret = defineSecret('JWT_SECRET');
 
 // Configuration constants
 export const OAuth2Config = {
-    // Token expiry times (in seconds)
-    ACCESS_TOKEN_EXPIRY: 3600, // 1 hour
-    REFRESH_TOKEN_EXPIRY: 2592000, // 30 days
-    AUTHORIZATION_CODE_EXPIRY: 600, // 10 minutes
+  // Token expiry times (in seconds)
+  ACCESS_TOKEN_EXPIRY: 3600, // 1 hour
+  REFRESH_TOKEN_EXPIRY: 2592000, // 30 days
+  AUTHORIZATION_CODE_EXPIRY: 600, // 10 minutes
 
-    // JWT issuer
-    ISSUER: 'flipfeeds-mcp-auth-server',
+  // JWT issuer
+  ISSUER: 'flipfeeds-mcp-auth-server',
 
-    // Supported grant types
-    GRANT_TYPES: ['authorization_code', 'refresh_token'],
+  // Supported grant types
+  GRANT_TYPES: ['authorization_code', 'refresh_token'],
 
-    // Supported response types
-    RESPONSE_TYPES: ['code'],
+  // Supported response types
+  RESPONSE_TYPES: ['code'],
 
-    // Supported scopes
-    SCOPES: ['mcp:access'],
+  // Supported scopes
+  SCOPES: ['mcp:access'],
 
-    // Token endpoint auth methods
-    TOKEN_ENDPOINT_AUTH_METHODS: ['none'], // Public clients (no client secret required)
+  // Token endpoint auth methods
+  TOKEN_ENDPOINT_AUTH_METHODS: ['none'], // Public clients (no client secret required)
 
-    // Code challenge methods for PKCE
-    CODE_CHALLENGE_METHODS: ['S256'],
+  // Code challenge methods for PKCE
+  CODE_CHALLENGE_METHODS: ['S256'],
 } as const;
 
 /**
@@ -40,13 +40,13 @@ export const OAuth2Config = {
  * In production, use the Firebase Hosting URL
  */
 export function getHostingBaseUrl(): string {
-    if (process.env.FUNCTIONS_EMULATOR === 'true') {
-        // Local emulator - use localhost (not 127.0.0.1) for OAuth compatibility
-        return 'http://localhost:5002';
-    }
-    // Production - use your Firebase Hosting domain
-    const projectId = process.env.GCLOUD_PROJECT || 'flipfeeds-app';
-    return `https://${projectId}.web.app`;
+  if (process.env.FUNCTIONS_EMULATOR === 'true') {
+    // Local emulator - use localhost (not 127.0.0.1) for OAuth compatibility
+    return 'http://localhost:5002';
+  }
+  // Production - use your Firebase Hosting domain
+  const projectId = process.env.GCLOUD_PROJECT || 'flipfeeds-app';
+  return `https://${projectId}.web.app`;
 }
 
 /**
@@ -54,15 +54,15 @@ export function getHostingBaseUrl(): string {
  * This will differ between emulator and production
  */
 export function getBaseUrl(): string {
-    if (process.env.FUNCTIONS_EMULATOR === 'true') {
-        // Local emulator
-        const projectId = process.env.GCLOUD_PROJECT || 'flipfeeds-app';
-        return `http://localhost:5001/${projectId}/us-central1`;
-    }
-    // Production
-    const region = process.env.FUNCTION_REGION || 'us-central1';
+  if (process.env.FUNCTIONS_EMULATOR === 'true') {
+    // Local emulator
     const projectId = process.env.GCLOUD_PROJECT || 'flipfeeds-app';
-    return `https://${region}-${projectId}.cloudfunctions.net`;
+    return `http://localhost:5001/${projectId}/us-central1`;
+  }
+  // Production
+  const region = process.env.FUNCTION_REGION || 'us-central1';
+  const projectId = process.env.GCLOUD_PROJECT || 'flipfeeds-app';
+  return `https://${region}-${projectId}.cloudfunctions.net`;
 }
 
 /**
@@ -70,7 +70,7 @@ export function getBaseUrl(): string {
  * Uses hosting URL for OAuth endpoints (via rewrites)
  */
 export function getAuthServerUrl(): string {
-    return getHostingBaseUrl();
+  return getHostingBaseUrl();
 }
 
 /**
@@ -78,5 +78,5 @@ export function getAuthServerUrl(): string {
  * Uses hosting URL for MCP endpoint (via rewrites)
  */
 export function getMcpServerUrl(): string {
-    return `${getHostingBaseUrl()}/mcp`;
+  return `${getHostingBaseUrl()}/mcp`;
 }

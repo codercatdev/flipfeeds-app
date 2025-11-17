@@ -15,23 +15,23 @@ console.log(`Syncing iOS version to: ${version} (build ${buildNumber})`);
 const infoPlistPath = path.join(__dirname, '../ios/flipfeedsapp/Info.plist');
 
 if (!fs.existsSync(infoPlistPath)) {
-    console.error('❌ Error: ios/flipfeedsapp/Info.plist not found');
-    console.log('   Run "expo prebuild" first to generate native folders');
-    process.exit(1);
+  console.error('❌ Error: ios/flipfeedsapp/Info.plist not found');
+  console.log('   Run "expo prebuild" first to generate native folders');
+  process.exit(1);
 }
 
 let infoPlist = fs.readFileSync(infoPlistPath, 'utf8');
 
 // Update CFBundleShortVersionString (version)
 infoPlist = infoPlist.replace(
-    /<key>CFBundleShortVersionString<\/key>\s*<string>.*?<\/string>/,
-    `<key>CFBundleShortVersionString</key>\n\t<string>${version}</string>`
+  /<key>CFBundleShortVersionString<\/key>\s*<string>.*?<\/string>/,
+  `<key>CFBundleShortVersionString</key>\n\t<string>${version}</string>`
 );
 
 // Update CFBundleVersion (build number)
 infoPlist = infoPlist.replace(
-    /<key>CFBundleVersion<\/key>\s*<string>.*?<\/string>/,
-    `<key>CFBundleVersion</key>\n\t<string>${buildNumber}</string>`
+  /<key>CFBundleVersion<\/key>\s*<string>.*?<\/string>/,
+  `<key>CFBundleVersion</key>\n\t<string>${buildNumber}</string>`
 );
 
 fs.writeFileSync(infoPlistPath, infoPlist, 'utf8');

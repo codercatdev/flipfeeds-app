@@ -35,31 +35,31 @@ import { genkit } from 'genkit';
  * In dev/emulator: Set FIRESTORE_EMulator_HOST and GCLOUD_PROJECT env vars
  */
 if (!admin.apps.length) {
-    const projectId = process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT;
-    const storageBucket = process.env.STORAGE_BUCKET || 'flipfeeds-app.firebasestorage.app';
+  const projectId = process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT;
+  const storageBucket = process.env.STORAGE_BUCKET || 'flipfeeds-app.firebasestorage.app';
 
-    if (projectId) {
-        admin.initializeApp({
-            projectId,
-            storageBucket,
-        });
-    } else {
-        admin.initializeApp({
-            storageBucket,
-        });
-    }
+  if (projectId) {
+    admin.initializeApp({
+      projectId,
+      storageBucket,
+    });
+  } else {
+    admin.initializeApp({
+      storageBucket,
+    });
+  }
 
-    // Log emulator configuration for debugging
-    if (process.env.FIRESTORE_EMULATOR_HOST) {
-        console.log('🔧 Using Firestore Emulator:', process.env.FIRESTORE_EMULATOR_HOST);
-    }
+  // Log emulator configuration for debugging
+  if (process.env.FIRESTORE_EMULATOR_HOST) {
+    console.log('🔧 Using Firestore Emulator:', process.env.FIRESTORE_EMULATOR_HOST);
+  }
 }
 
 const googleAIapiKey = defineSecret('GEMINI_API_KEY');
 export const genKitGoogleAiOptions: CallableOptions = {
-    secrets: [googleAIapiKey],
-    enforceAppCheck: false,
-    consumeAppCheckToken: false,
+  secrets: [googleAIapiKey],
+  enforceAppCheck: false,
+  consumeAppCheckToken: false,
 };
 
 // ============================================================================
@@ -79,17 +79,16 @@ export const genKitGoogleAiOptions: CallableOptions = {
  * - vertexai/imagen-3.0-fast-generate-001 (image generation)
  */
 export const ai = genkit({
-    plugins: [
-        googleAI({
-            apiKey: process.env.GEMINI_API_KEY,
-        }),
-        vertexAI({
-            projectId:
-                process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT || 'flipfeeds-app',
-            location: 'us-central1',
-        }),
-    ],
-    model: 'googleai/gemini-1.5-flash',
+  plugins: [
+    googleAI({
+      apiKey: process.env.GEMINI_API_KEY,
+    }),
+    vertexAI({
+      projectId: process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT || 'flipfeeds-app',
+      location: 'us-central1',
+    }),
+  ],
+  model: 'googleai/gemini-1.5-flash',
 });
 
 // Export vertexAI for use in flows
@@ -109,10 +108,11 @@ export { vertexAI };
 
 // User management flows
 import { registerUserFlows } from './flows/userFlows';
+
 const { conversationalProfileFlowAction } = registerUserFlows(ai);
 export const conversationalProfileFlow = onCallGenkit(
-    genKitGoogleAiOptions,
-    conversationalProfileFlowAction
+  genKitGoogleAiOptions,
+  conversationalProfileFlowAction
 );
 
 // Feed management flows

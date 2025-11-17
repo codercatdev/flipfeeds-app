@@ -136,33 +136,43 @@ const TEST_USERS = [
 async function createTestUsers() {
   console.log('📝 Creating test users...');
 
-  for (const userData of TEST_USERS) {
-    try {
-      // Create in Auth emulator with Google provider
-      await auth.createUser({
-        uid: userData.uid,
+  // Use importUsers to properly set provider data for Google-authenticated users
+  // Note: We don't need passwords for Google auth users, but including them for flexibility
+  const usersToImport = TEST_USERS.map((userData) => ({
+    uid: userData.uid,
+    email: userData.email,
+    emailVerified: true,
+    displayName: userData.displayName,
+    photoURL: userData.photoURL,
+    providerData: [
+      {
+        uid: userData.email,
         email: userData.email,
-        emailVerified: true,
         displayName: userData.displayName,
         photoURL: userData.photoURL,
-        password: userData.password,
-      });
+        providerId: 'google.com',
+      },
+    ],
+  }));
 
-      // Set Google provider data in the user record
-      // This makes it appear as if the user signed in with Google
-      await auth.updateUser(userData.uid, {
-        providerData: [
-          {
-            uid: userData.email,
-            email: userData.email,
-            displayName: userData.displayName,
-            photoURL: userData.photoURL,
-            providerId: 'google.com',
-          },
-        ],
+  try {
+    // Import users without password hashes since they use Google auth
+    const result = await auth.importUsers(usersToImport);
+    console.log(`✅ Successfully imported ${result.successCount} users with Google auth`);
+    if (result.failureCount > 0) {
+      console.log(`⚠️  Failed to import ${result.failureCount} users`);
+      result.errors.forEach((error) => {
+        console.error(`   Error for index ${error.index}:`, error.error.message);
       });
+    }
+  } catch (error) {
+    console.error('❌ Error importing users:', error.message);
+    throw error;
+  }
 
-      // Create user profile in Firestore
+  // Create user profiles in Firestore
+  for (const userData of TEST_USERS) {
+    try {
       await db
         .collection('users')
         .doc(userData.uid)
@@ -178,13 +188,9 @@ async function createTestUsers() {
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
-      console.log(`✅ Created user: ${userData.displayName} (${userData.email}) [Google Auth]`);
+      console.log(`✅ Created Firestore profile: ${userData.displayName} (${userData.email})`);
     } catch (error) {
-      if (error.code === 'auth/uid-already-exists') {
-        console.log(`⚠️  User already exists: ${userData.displayName}`);
-      } else {
-        console.error(`❌ Error creating user ${userData.email}:`, error.message);
-      }
+      console.error(`❌ Error creating Firestore profile for ${userData.email}:`, error.message);
     }
   }
 }

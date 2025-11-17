@@ -8,7 +8,7 @@ The Firestore security rules implement a **multi-tenant, feed-based permission s
 - **Feeds** are the primary organizational unit (tenants)
 - **Users** can be members of multiple Feeds with different roles
 - **Personal Feeds** provide private spaces for each user
-- **Flips** (posts/videos) inherit permissions from their parent Feed
+- **Flips** (short-form videos) inherit permissions from their parent Feed
 - All sensitive operations are handled by **backend Genkit flows**
 
 ## Core Security Principles
@@ -115,7 +115,7 @@ allow update: if isAuthenticated() && hasRole(feedId, 'admin');
 
 ### `/flips/{flipId}`
 
-**Purpose**: Store all flips (videos, images, text posts) across all feeds.
+**Purpose**: Store all flips (short-form videos) across all feeds.
 
 **Read Access**:
 - ✅ Public feed flips: All authenticated users

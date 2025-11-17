@@ -4,11 +4,11 @@
 
 Our business and growth strategy stems directly from our product philosophy.
 
-**Traditional Social:** "Find everyone you know, follow everyone you find." This is a pull model that creates noisy, algorithmic feeds.
+**Traditional Social (TikTok, YouTube Shorts):** "Endless algorithmic feed of strangers' content." This is a discovery model that creates addictive but impersonal experiences.
 
-**FlipFeeds:** "Start with one trusted Feed." This is an invite model. A user's experience is intentionally empty until a trusted source "flips" their feed by inviting them.
+**FlipFeeds:** "Start with one trusted Feed." This is an invite model combining Google+ Circles with TikTok-style video. A user's experience is intentionally empty until a trusted source "flips" their feed by inviting them.
 
-Our growth is not based on "friending" but on "sharing."
+Our growth is not based on "following creators" but on "sharing with your people."
 
 ---
 

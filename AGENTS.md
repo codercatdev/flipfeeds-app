@@ -3,7 +3,7 @@
 This document provides context and guidelines for AI agents (like GitHub Copilot, Jules, etc.) working on the FlipFeeds codebase.
 
 ## 1. Project Overview
-**FlipFeeds** is a video-first, "intentional" social platform where users share content to curated audiences called "Feeds." Instead of broadcasting to all followers, users create Flips (videos) and choose which of their Feeds (e.g., "Family," "Work," "Friends") to share them with.
+**FlipFeeds** is a video-only, "intentional" social platform designed as a replacement for Google+, TikTok, and YouTube Shorts. Users share videos to curated audiences called "Feeds." Instead of broadcasting to all followers, users create Flips (short-form videos) and choose which of their Feeds (e.g., "Family," "Work," "Friends") to share them with.
 
 ### 1.1. Core Philosophy
 - **Firebase-First:** Utilize the **full suite of Firebase tools** for all aspects of build, run, and AI. If a Firebase solution exists (e.g., App Hosting, Genkit, Firestore), use it over third-party alternatives.

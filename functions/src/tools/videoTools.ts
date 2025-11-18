@@ -1,11 +1,5 @@
-import { getStorage } from 'firebase-admin/storage';
 import type { Genkit } from 'genkit';
 import { z } from 'zod';
-
-/**
- * Get Storage instance lazily
- */
-const storage = () => getStorage();
 
 // ============================================================================
 // SCHEMAS
@@ -19,13 +13,7 @@ export const VideoModerationResultSchema = z.object({
 
 export type VideoModerationResult = z.infer<typeof VideoModerationResultSchema>;
 
-export const GeneratedVideoResultSchema = z.object({
-  videoUrl: z.string().describe('Public URL to the generated video'),
-  storagePath: z.string().describe('Storage path in Firebase Storage'),
-  prompt: z.string().describe('The prompt used to generate the video'),
-});
-
-export type GeneratedVideoResult = z.infer<typeof GeneratedVideoResultSchema>;
+// Video generation schemas moved to videoGenerationTools.ts
 
 // ============================================================================
 // TOOL IMPLEMENTATION FUNCTIONS
@@ -134,93 +122,13 @@ The title should:
   return title;
 }
 
-/**
- * Generate a vertical video (9:16) using Google Veo 3.1
- * 🔒 SECURE: Gets uid from context for storage path organization
- */
-export async function generateVerticalVideoTool(
-  input: {
-    prompt: string;
-  },
-  ai: Genkit,
-  context?: { auth?: { uid: string } }
-): Promise<GeneratedVideoResult> {
-  console.log('[generateVerticalVideoTool] Generating video with prompt:', input.prompt);
-
-  const uid = context?.auth?.uid;
-  if (!uid) {
-    console.error('[generateVerticalVideoTool] Unauthorized: No authenticated user in context');
-    throw new Error('Unauthorized: No authenticated user in context');
-  }
-
-  // Generate video using Veo 3.1 with 9:16 aspect ratio
-  const result = await ai.generate({
-    model: 'googleai/veo-3.1-generate-preview',
-    prompt: input.prompt,
-    config: {
-      aspectRatio: '9:16', // Vertical format for mobile/social
-    },
-  });
-
-  console.log('[generateVerticalVideoTool] Video generated, processing result');
-
-  // The result should contain video data as a media part
-  const videoData = result.media;
-
-  if (!videoData || !videoData.url) {
-    throw new Error('Failed to generate video: No video data in response');
-  }
-
-  // Generate unique filename
-  const timestamp = Date.now();
-  const videoId = `${timestamp}_${Math.random().toString(36).substring(7)}`;
-  const storagePath = `generated-videos/${uid}/${videoId}.mp4`;
-
-  console.log('[generateVerticalVideoTool] Uploading to storage:', storagePath);
-
-  // Download the generated video
-  const videoResponse = await fetch(videoData.url);
-  if (!videoResponse.ok) {
-    throw new Error('Failed to download generated video');
-  }
-  const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
-
-  // Upload to Firebase Storage
-  const bucket = storage().bucket();
-  const file = bucket.file(storagePath);
-
-  await file.save(videoBuffer, {
-    metadata: {
-      contentType: 'video/mp4',
-      metadata: {
-        generatedBy: 'veo-3.1',
-        prompt: input.prompt,
-        userId: uid,
-        generatedAt: new Date().toISOString(),
-      },
-    },
-  });
-
-  // Make the file publicly readable
-  await file.makePublic();
-
-  const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
-
-  console.log('[generateVerticalVideoTool] Video uploaded successfully:', publicUrl);
-
-  return {
-    videoUrl: publicUrl,
-    storagePath,
-    prompt: input.prompt,
-  };
-}
-
 // ============================================================================
 // GENKIT TOOLS REGISTRATION
 // ============================================================================
 
 /**
  * Register all video processing tools with the provided Genkit instance.
+ * Note: Video generation tools are in videoGenerationTools.ts
  */
 export function registerVideoTools(ai: Genkit) {
   /**
@@ -275,28 +183,5 @@ export function registerVideoTools(ai: Genkit) {
     }
   );
 
-  /**
-   * Generate vertical video (9:16) using Google Veo 3.1
-   * 🔒 SECURE: Gets uid from context for storage path organization
-   */
-  ai.defineTool(
-    {
-      name: 'generateVerticalVideo',
-      description:
-        'Generate a vertical format (9:16) video using Google Veo 3.1 model. Perfect for mobile and social media content.',
-      inputSchema: z.object({
-        prompt: z
-          .string()
-          .describe(
-            'Detailed description of the video to generate. Be specific about visual elements, actions, style, and mood.'
-          ),
-      }),
-      outputSchema: GeneratedVideoResultSchema,
-    },
-    async (input, { context }) => {
-      return generateVerticalVideoTool(input, ai, {
-        auth: context?.auth as { uid: string } | undefined,
-      });
-    }
-  );
+  console.log('✅ Video processing tools registered (moderation, summary, title)');
 }

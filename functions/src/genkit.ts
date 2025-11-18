@@ -129,10 +129,9 @@ export const feedManagementAgent = onCallGenkit(genKitGoogleAiOptions, feedManag
 // Flip (video) management agents
 import { registerFlipFlows } from './flows/flipFlows';
 
-const { flipCreationAgentAction, flipBrowserAgentAction } = registerFlipFlows(ai);
+const { flipAgentAction } = registerFlipFlows(ai);
 
-export const flipCreationAgent = onCallGenkit(genKitGoogleAiOptions, flipCreationAgentAction);
-export const flipBrowserAgent = onCallGenkit(genKitGoogleAiOptions, flipBrowserAgentAction);
+export const flipAgent = onCallGenkit(genKitGoogleAiOptions, flipAgentAction);
 
 // ============================================================================
 // TOOL REGISTRATION
@@ -144,6 +143,7 @@ import { registerFlipTools } from './tools/flipTools';
  * Import and register all tool registration functions
  */
 import { registerUserTools } from './tools/userTools';
+import { registerVideoGenerationTools } from './tools/videoGenerationTools';
 import { registerVideoTools } from './tools/videoTools';
 
 // Register user management tools
@@ -158,6 +158,9 @@ registerFlipTools(ai);
 // Register video processing tools
 registerVideoTools(ai);
 
+// Register video generation tools
+registerVideoGenerationTools(ai);
+
 export { FeedSchema } from './tools/feedTools';
 export { FlipSchema } from './tools/flipTools';
 /**
@@ -165,4 +168,5 @@ export { FlipSchema } from './tools/flipTools';
  * (actual tools are registered dynamically with Genkit)
  */
 export { UserProfileSchema } from './tools/userTools';
+export { VideoGenerationJobSchema } from './tools/videoGenerationTools';
 export { VideoModerationResultSchema } from './tools/videoTools';

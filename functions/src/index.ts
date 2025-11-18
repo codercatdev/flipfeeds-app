@@ -10,12 +10,11 @@ export { mcpProtectedResource } from './auth/protectedResource';
 // Export Genkit agents as Cloud Functions
 // User agents
 // Feed agents
-// Flip (video) agents
+// Unified Flip agent (handles all flip/video operations)
 export {
   feedCreationAgent,
   feedManagementAgent,
-  flipBrowserAgent,
-  flipCreationAgent,
+  flipAgent,
   imageAgent,
   onboardingAgent,
   profileAgent,

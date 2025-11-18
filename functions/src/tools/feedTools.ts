@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import type { Genkit } from 'genkit';
+import type { ActionContext, Genkit } from 'genkit';
 import { z } from 'zod';
+import type { FlipFeedsAuthContext } from '../auth/contextProvider';
 
 /**
  * Get Firestore instance lazily
@@ -54,17 +55,18 @@ export async function createFeedTool(
     description: string;
     visibility: 'public' | 'private';
   },
-  context?: { auth?: { uid: string; token?: { displayName?: string; photoURL?: string } } }
+  { context }: { context?: ActionContext }
 ): Promise<{ feedId: string }> {
   console.log('[createFeedTool] Starting');
 
-  const uid = context?.auth?.uid;
+  const auth = context?.auth as FlipFeedsAuthContext | undefined;
+  const uid = auth?.uid;
   if (!uid) {
     throw new Error('Unauthorized: No authenticated user in context');
   }
 
   const { name, description, visibility } = input;
-  const { displayName, photoURL } = context?.auth?.token || {};
+  const { displayName, photoURL } = auth || {};
 
   const newFeedRef = db().collection('feeds').doc();
   const feedId = newFeedRef.id;
@@ -109,11 +111,12 @@ export async function createFeedTool(
  */
 export async function getFeedTool(
   input: { feedId: string },
-  context?: { auth?: { uid: string } }
+  { context }: { context?: ActionContext }
 ): Promise<Feed | null> {
-  console.log('[getFeedTool] Fetching feed:', input.feedId);
+  console.log('[getFeedTool] Getting feed:', input.feedId);
 
-  const uid = context?.auth?.uid;
+  const auth = context?.auth as FlipFeedsAuthContext | undefined;
+  const uid = auth?.uid;
   if (!uid) {
     throw new Error('Unauthorized: No authenticated user in context');
   }
@@ -176,11 +179,12 @@ export async function getFeedTool(
  */
 export async function listUserFeedsTool(
   _input: unknown,
-  context?: { auth?: { uid: string } }
+  { context }: { context?: ActionContext }
 ): Promise<Feed[]> {
   console.log('[listUserFeedsTool] Fetching user feeds');
 
-  const uid = context?.auth?.uid;
+  const auth = context?.auth as FlipFeedsAuthContext | undefined;
+  const uid = auth?.uid;
   if (!uid) {
     throw new Error('Unauthorized: No authenticated user in context');
   }
@@ -233,11 +237,12 @@ export async function addMemberToFeedTool(
     userId: string;
     role?: 'admin' | 'moderator' | 'member';
   },
-  context?: { auth?: { uid: string } }
+  { context }: { context?: ActionContext }
 ): Promise<{ success: boolean }> {
-  console.log('[addMemberToFeedTool] Adding member to feed:', input.feedId);
+  console.log('[addMemberToFeedTool] Adding member to feed');
 
-  const uid = context?.auth?.uid;
+  const auth = context?.auth as FlipFeedsAuthContext | undefined;
+  const uid = auth?.uid;
   if (!uid) {
     throw new Error('Unauthorized: No authenticated user in context');
   }
@@ -304,11 +309,12 @@ export async function removeMemberFromFeedTool(
     feedId: string;
     userId: string;
   },
-  context?: { auth?: { uid: string } }
+  { context }: { context?: ActionContext }
 ): Promise<{ success: boolean }> {
-  console.log('[removeMemberFromFeedTool] Removing member from feed:', input.feedId);
+  console.log('[removeMemberFromFeedTool] Removing member from feed');
 
-  const uid = context?.auth?.uid;
+  const auth = context?.auth as FlipFeedsAuthContext | undefined;
+  const uid = auth?.uid;
   if (!uid) {
     throw new Error('Unauthorized: No authenticated user in context');
   }
@@ -378,7 +384,7 @@ export function registerFeedTools(ai: Genkit) {
       outputSchema: z.object({ feedId: z.string() }),
     },
     async (input, { context }) => {
-      return createFeedTool(input, { auth: context?.auth as any });
+      return createFeedTool(input, { context });
     }
   );
 
@@ -395,7 +401,7 @@ export function registerFeedTools(ai: Genkit) {
       outputSchema: FeedSchema.nullable(),
     },
     async (input, { context }) => {
-      return getFeedTool(input, { auth: context?.auth as any });
+      return getFeedTool(input, { context });
     }
   );
 
@@ -410,7 +416,7 @@ export function registerFeedTools(ai: Genkit) {
       outputSchema: z.array(FeedSchema),
     },
     async (_input, { context }) => {
-      return listUserFeedsTool(_input, { auth: context?.auth as any });
+      return listUserFeedsTool(_input, { context });
     }
   );
 
@@ -432,7 +438,7 @@ export function registerFeedTools(ai: Genkit) {
       outputSchema: z.object({ success: z.boolean() }),
     },
     async (input, { context }) => {
-      return addMemberToFeedTool(input, { auth: context?.auth as any });
+      return addMemberToFeedTool(input, { context });
     }
   );
 
@@ -451,7 +457,7 @@ export function registerFeedTools(ai: Genkit) {
       outputSchema: z.object({ success: z.boolean() }),
     },
     async (input, { context }) => {
-      return removeMemberFromFeedTool(input, { auth: context?.auth as any });
+      return removeMemberFromFeedTool(input, { context });
     }
   );
 }

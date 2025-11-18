@@ -282,6 +282,29 @@ service cloud.firestore {
     }
 
     // ========================================
+    // Collection: videoGenerationJobs (async video generation tracking)
+    // ========================================
+    match /videoGenerationJobs/{jobId} {
+      // Read job if you own it
+      allow get: if isAuthenticated()
+                   && request.auth.uid == resource.data.userId;
+      
+      // List your own jobs
+      allow list: if isAuthenticated();
+      
+      // Create jobs only through backend (Cloud Functions)
+      // Backend uses Admin SDK which bypasses rules
+      allow create: if false;
+      
+      // Update jobs only through backend
+      allow update: if false;
+      
+      // Delete your own jobs (cleanup)
+      allow delete: if isAuthenticated()
+                      && request.auth.uid == resource.data.userId;
+    }
+
+    // ========================================
     // Deny all other paths
     // ========================================
     match /{document=**} {

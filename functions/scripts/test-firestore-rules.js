@@ -239,7 +239,7 @@ async function runTests() {
     await testFlipAccess();
     await testNestedFeeds();
 
-    console.log('\n' + '='.repeat(50));
+    console.log(`\n${'='.repeat(50)}`);
     console.log('📊 Test Results Summary');
     console.log('='.repeat(50));
     console.log(`Total Tests: ${testResults.passed + testResults.failed}`);

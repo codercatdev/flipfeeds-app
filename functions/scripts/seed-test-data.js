@@ -15,7 +15,7 @@
  */
 
 const admin = require('firebase-admin');
-const readline = require('readline');
+const readline = require('node:readline');
 
 // Initialize Firebase Admin with emulator
 process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';

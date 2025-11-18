@@ -1,192 +1,227 @@
 import type { Genkit } from 'genkit';
 import { z } from 'zod';
 import { requireAuth } from '../auth/contextProvider';
-import { FlipSchema } from '../tools/flipTools';
 
 /**
- * Register all flip agents with the provided Genkit instance.
+ * Register the unified Flip Agent with the provided Genkit instance.
  */
 export function registerFlipFlows(ai: Genkit) {
   /**
-   * Flip Creation Agent (Video Publishing)
+   * Unified Flip Agent
    *
-   * Handles video publishing with AI-powered moderation, summary, and title generation.
-   * Now supports AI video generation using Veo 3.1!
+   * An intelligent assistant that can handle ALL flip-related tasks:
+   * - Create flips from existing videos
+   * - Generate videos with AI (Veo 3.1) and create flips
+   * - Check video generation status and complete workflow
+   * - Browse and discover flips in feeds
+   * - Manage user feeds and profiles
+   * - Handle video moderation, summaries, and titles
    *
-   * Workflow:
-   * - With existing video: moderate → generate summary → generate title → create flip
-   * - With prompt: generate video → moderate → generate summary → generate title → create flip
+   * The agent has access to all necessary tools and will intelligently
+   * choose the right ones based on the user's request.
    */
-  const flipCreationAgentAction = ai.defineFlow(
+  const flipAgentAction = ai.defineFlow(
     {
-      name: 'flipCreationAgent',
+      name: 'flipAgent',
       metadata: {
         description:
-          'An intelligent assistant for creating video posts. Can use existing videos or generate new ones from text prompts using AI.',
+          'Unified intelligent assistant for all flip-related tasks: creating flips, generating videos, browsing content, managing feeds, and user profiles.',
       },
       inputSchema: z.object({
-        feedIds: z.array(z.string()).min(1).describe('Array of feed IDs to share to'),
+        request: z
+          .string()
+          .describe(
+            'Natural language request describing what you want to do. Examples: "Create a flip from my video", "Generate a dragon video and share to family", "Check status of job veo_123", "Show me flips in my feed", "Get my profile"'
+          ),
+        // Optional context for specific operations
         videoStoragePath: z
           .string()
           .optional()
-          .describe('Path to existing video in Firebase Storage (OR use videoPrompt)'),
-        videoPrompt: z
-          .string()
-          .optional()
-          .describe(
-            'Text prompt to generate a video using AI (OR use videoStoragePath). Creates vertical 9:16 video.'
-          ),
-        videoDuration: z
-          .number()
-          .min(1)
-          .max(10)
-          .optional()
-          .describe('Duration in seconds for generated video (1-10, default 5)'),
-        title: z.string().optional().describe('Optional title (will be generated if not provided)'),
+          .describe('Path to existing video in Firebase Storage (for creating flips)'),
+        videoPrompt: z.string().optional().describe('Prompt for AI video generation'),
+        feedIds: z.array(z.string()).optional().describe('Feed IDs to share to or browse'),
+        jobId: z.string().optional().describe('Video generation job ID to check or resume'),
+        title: z.string().optional().describe('Custom title for flip'),
+        aspectRatio: z.string().optional().describe('Video aspect ratio (default: 9:16)'),
+        resolution: z.string().optional().describe('Video resolution (default: 720p)'),
       }),
       outputSchema: z.object({
-        flipId: z.string(),
-        title: z.string(),
-        summary: z.string(),
-        videoStoragePath: z.string().describe('Path to the video (generated or provided)'),
-        wasGenerated: z.boolean().describe('Whether the video was AI-generated'),
-        moderationResult: z.object({
-          isSafe: z.boolean(),
-          reasons: z.array(z.string()).optional(),
-        }),
+        success: z.boolean().describe('Whether the operation succeeded'),
+        message: z.string().describe('Human-readable response message'),
+        data: z
+          .any()
+          .optional()
+          .describe(
+            'Operation result data - could be flip, job info, flips list, profile, feeds, etc.'
+          ),
       }),
     },
     async (data, { context }) => {
       const auth = requireAuth(context);
 
-      const { feedIds, videoStoragePath, videoPrompt, videoDuration, title } = data;
+      try {
+        console.log('[flipAgent] Processing request:', data.request);
 
-      // Validate input: must have either videoStoragePath OR videoPrompt
-      if (!videoStoragePath && !videoPrompt) {
-        throw new Error(
-          'Must provide either videoStoragePath (existing video) or videoPrompt (generate new video)'
-        );
-      }
-      if (videoStoragePath && videoPrompt) {
-        throw new Error('Cannot provide both videoStoragePath and videoPrompt. Choose one.');
-      }
+        // Dynamically determine which tools to load based on request context
+        const tools: string[] = [];
 
-      // Use ai.generate() with tools to handle the entire flip creation workflow
-      const result = await ai.generate({
-        model: 'googleai/gemini-2.5-flash',
-        prompt: `Create a new flip (video post) for user ${auth.uid}.
+        // Always include core flip tools
+        tools.push('createFlip', 'getFeedFlips', 'deleteFlip');
 
-${
-  videoPrompt
-    ? `STEP 1 - GENERATE VIDEO:
-Use generateVerticalVideo tool to create a vertical (9:16) video from this prompt:
-"${videoPrompt}"
-${videoDuration ? `Duration: ${videoDuration} seconds` : 'Duration: 5 seconds (default)'}
+        // Add video processing tools if we have a video or are creating content
+        if (data.videoStoragePath || data.videoPrompt || data.jobId) {
+          tools.push('moderateVideo', 'generateVideoSummary', 'generateVideoTitle');
+        }
 
-The tool will return videoUrl and storagePath. Use the storagePath for the next steps.
+        // Add video generation tools if generating or checking jobs
+        if (data.videoPrompt || data.jobId) {
+          tools.push(
+            'generateVerticalVideo',
+            'checkVideoGeneration',
+            'uploadGeneratedVideo',
+            'listVideoGenerationJobs'
+          );
+        }
 
-`
-    : `Video already exists at: ${videoStoragePath}
+        // Add feed tools if managing feeds or need feed context
+        if (data.feedIds || data.request.toLowerCase().includes('feed')) {
+          tools.push(
+            'createFeed',
+            'updateFeed',
+            'deleteFeed',
+            'getUserFeeds',
+            'addFeedMember',
+            'removeFeedMember',
+            'getFeedMembers'
+          );
+        }
 
-`
-}WORKFLOW:
-1. ${videoPrompt ? 'After generating video, moderate it' : 'Moderate the video'} using moderateVideo tool
-2. If video is not safe, stop and return the moderation result with isSafe: false
-3. If video is safe, generate a summary using generateVideoSummary tool
-4. If no title was provided, generate an engaging title using generateVideoTitle tool (pass the summary to it)
-5. Create the flip using createFlip tool with:
-   - feedIds: ${feedIds.join(', ')}
-   - videoStoragePath: ${videoPrompt ? 'the storagePath from generated video' : videoStoragePath}
-   - title: ${title || 'the generated title'}
-   - summary: the generated summary
+        // Add user tools if managing profile or username
+        if (
+          data.request.toLowerCase().includes('profile') ||
+          data.request.toLowerCase().includes('username') ||
+          data.request.toLowerCase().includes('user')
+        ) {
+          tools.push(
+            'getUserProfile',
+            'updateUserProfile',
+            'checkUsernameAvailability',
+            'reserveUsername'
+          );
+        }
 
-Return:
-- flipId: The created flip ID
-- title: The final title (generated or provided)
-- summary: The generated summary
-- videoStoragePath: Path to the video (${videoPrompt ? 'generated' : 'provided'})
-- wasGenerated: ${videoPrompt ? 'true' : 'false'}
-- moderationResult: The moderation result with isSafe and optional reasons`,
-        tools: [
-          ...(videoPrompt ? ['generateVerticalVideo'] : []),
-          'moderateVideo',
-          'generateVideoSummary',
-          'generateVideoTitle',
-          'createFlip',
-        ],
-        output: {
-          schema: z.object({
-            flipId: z.string(),
-            title: z.string(),
-            summary: z.string(),
-            videoStoragePath: z.string(),
-            wasGenerated: z.boolean(),
-            moderationResult: z.object({
-              isSafe: z.boolean(),
-              reasons: z.array(z.string()).optional(),
+        console.log('[flipAgent] Dynamically loaded tools:', tools);
+
+        // The agent intelligently chooses tools based on the request
+        const result = await ai.generate({
+          model: 'googleai/gemini-2.5-flash',
+          prompt: `You are an intelligent assistant helping user ${auth.uid} with flip-related tasks.
+
+User Request: "${data.request}"
+
+Available Context:
+${data.videoStoragePath ? `- Video Storage Path: ${data.videoStoragePath}` : ''}
+${data.videoPrompt ? `- Video Generation Prompt: ${data.videoPrompt}` : ''}
+${data.feedIds ? `- Feed IDs: ${data.feedIds.join(', ')}` : ''}
+${data.jobId ? `- Job ID: ${data.jobId}` : ''}
+${data.title ? `- Title: ${data.title}` : ''}
+${data.aspectRatio ? `- Aspect Ratio: ${data.aspectRatio}` : ''}
+${data.resolution ? `- Resolution: ${data.resolution}` : ''}
+
+You have access to ALL tools needed to complete this request:
+
+USER TOOLS:
+- getUserProfile: Get the current user's profile
+- updateUserProfile: Update user profile (displayName, bio, etc.)
+- checkUsernameAvailability: Check if a username is available
+- reserveUsername: Reserve a username for the user
+
+FEED TOOLS:
+- createFeed: Create a new feed (e.g., "Family", "Friends")
+- updateFeed: Update feed name or visibility
+- deleteFeed: Delete a feed
+- getUserFeeds: Get all feeds owned by user
+- addFeedMember: Add someone to a feed
+- removeFeedMember: Remove someone from a feed
+- getFeedMembers: Get members of a feed
+
+FLIP TOOLS (Video Posts):
+- createFlip: Create a flip from an existing video
+- getFeedFlips: Browse flips in a feed
+- deleteFlip: Delete a flip
+
+VIDEO PROCESSING TOOLS:
+- moderateVideo: Check video for safety/content moderation
+- generateVideoSummary: Create AI summary of video
+- generateVideoTitle: Generate engaging title for video
+
+VIDEO GENERATION TOOLS (AI):
+- generateVerticalVideo: Start AI video generation (returns jobId)
+- checkVideoGeneration: Check status of video generation job
+- uploadGeneratedVideo: Upload completed video to storage
+- listVideoGenerationJobs: List user's video generation jobs
+
+INTELLIGENT WORKFLOW PATTERNS:
+
+1. CREATE FLIP FROM EXISTING VIDEO:
+   - moderateVideo → generateVideoSummary → generateVideoTitle → createFlip
+
+2. GENERATE VIDEO AND CREATE FLIP:
+   - generateVerticalVideo (returns jobId)
+   - Tell user to check back later with the jobId
+   - When they return: checkVideoGeneration → uploadGeneratedVideo → (then pattern 1)
+
+3. RESUME VIDEO GENERATION:
+   - checkVideoGeneration with jobId
+   - If completed: uploadGeneratedVideo → createFlip workflow
+   - If still processing: tell user to check back later
+
+4. BROWSE CONTENT:
+   - getFeedFlips to show videos in a feed
+
+5. MANAGE USER:
+   - getUserProfile, updateUserProfile, etc.
+
+6. MANAGE FEEDS:
+   - getUserFeeds, createFeed, addFeedMember, etc.
+
+IMPORTANT GUIDELINES:
+- Always check video generation status before trying to upload
+- Always moderate videos before creating flips
+- Auto-generate summaries and titles if not provided
+- Return clear, actionable messages to the user
+- Include relevant data in your response (flip IDs, job IDs, etc.)
+- If operation is async (video generation), explain next steps clearly
+
+Analyze the request and use the appropriate tools to complete it. Return a clear success message and relevant data.`,
+          tools, // Dynamically loaded tools based on request context
+          output: {
+            schema: z.object({
+              success: z.boolean(),
+              message: z.string(),
+              data: z.any().optional(),
             }),
-          }),
-        },
-      });
+          },
+        });
 
-      if (!result.output?.moderationResult.isSafe) {
-        throw new Error(
-          `Video failed moderation: ${result.output?.moderationResult.reasons?.join(', ') || 'Unknown reasons'}`
-        );
+        console.log('[flipAgent] Operation completed:', result.output?.success);
+
+        return {
+          success: result.output?.success ?? false,
+          message: result.output?.message ?? 'Operation completed',
+          data: result.output?.data,
+        };
+      } catch (error: any) {
+        console.error('[flipAgent] Error:', error);
+        return {
+          success: false,
+          message: `Error: ${error.message || 'An unexpected error occurred'}`,
+        };
       }
-
-      return {
-        flipId: result.output?.flipId ?? '',
-        title: result.output?.title ?? '',
-        summary: result.output?.summary ?? '',
-        videoStoragePath: result.output?.videoStoragePath ?? videoStoragePath ?? '',
-        wasGenerated: !!videoPrompt,
-        moderationResult: result.output?.moderationResult ?? { isSafe: false },
-      };
-    }
-  );
-
-  /**
-   * Flip Browser Agent
-   *
-   * Manages browsing and discovering flips in feeds.
-   */
-  const flipBrowserAgentAction = ai.defineFlow(
-    {
-      name: 'flipBrowserAgent',
-      metadata: {
-        description: 'An intelligent assistant for browsing and discovering video content in feeds',
-      },
-      inputSchema: z.object({
-        feedId: z.string(),
-        limit: z.number().min(1).max(100).optional(),
-      }),
-      outputSchema: z.object({
-        flips: z.array(FlipSchema),
-      }),
-    },
-    async (data, { context }) => {
-      requireAuth(context);
-
-      const result = await ai.generate({
-        model: 'googleai/gemini-2.5-flash-lite',
-        prompt: `Get flips for feed ${data.feedId}.
-
-Use the getFeedFlips tool to retrieve the flips${data.limit ? ` with a limit of ${data.limit}` : ''}.
-
-Return the list of flips.`,
-        tools: ['getFeedFlips'],
-        output: {
-          schema: z.object({ flips: z.array(FlipSchema) }),
-        },
-      });
-
-      return { flips: result.output?.flips ?? [] };
     }
   );
 
   return {
-    flipCreationAgentAction,
-    flipBrowserAgentAction,
+    flipAgentAction,
   };
 }

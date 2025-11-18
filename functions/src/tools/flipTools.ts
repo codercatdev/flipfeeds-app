@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import type { Genkit } from 'genkit';
+import type { ActionContext, Genkit } from 'genkit';
 import { z } from 'zod';
+import type { FlipFeedsAuthContext } from '../auth/contextProvider';
 
 /**
  * Get Firestore instance lazily
@@ -43,25 +44,18 @@ export async function createFlipTool(
     title: string;
     summary?: string;
   },
-  context?: {
-    auth?: {
-      uid: string;
-      token?: {
-        displayName?: string;
-        photoURL?: string;
-      };
-    };
-  }
+  { context }: { context?: ActionContext }
 ): Promise<{ flipId: string }> {
   console.log('[createFlipTool] Creating flip');
 
-  const uid = context?.auth?.uid;
+  const auth = context?.auth as FlipFeedsAuthContext | undefined;
+  const uid = auth?.uid;
   if (!uid) {
     throw new Error('Unauthorized: No authenticated user in context');
   }
 
   const { feedIds, videoStoragePath, title, summary } = input;
-  const { displayName, photoURL } = context?.auth?.token || {};
+  const { displayName, photoURL } = auth || {};
 
   // Verify user is a member of all feeds
   for (const feedId of feedIds) {
@@ -113,11 +107,12 @@ export async function createFlipTool(
  */
 export async function getFlipTool(
   input: { flipId: string },
-  context?: { auth?: { uid: string } }
+  { context }: { context?: ActionContext }
 ): Promise<Flip | null> {
-  console.log('[getFlipTool] Fetching flip:', input.flipId);
+  console.log('[getFlipTool] Getting flip:', input.flipId);
 
-  const uid = context?.auth?.uid;
+  const auth = context?.auth as FlipFeedsAuthContext | undefined;
+  const uid = auth?.uid;
   if (!uid) {
     throw new Error('Unauthorized: No authenticated user in context');
   }
@@ -179,11 +174,12 @@ export async function getFeedFlipsTool(
     feedId: string;
     limit?: number;
   },
-  context?: { auth?: { uid: string } }
-): Promise<Flip[]> {
+  { context }: { context?: ActionContext }
+): Promise<{ flips: Flip[] }> {
   console.log('[getFeedFlipsTool] Fetching flips for feed:', input.feedId);
 
-  const uid = context?.auth?.uid;
+  const auth = context?.auth as FlipFeedsAuthContext | undefined;
+  const uid = auth?.uid;
   if (!uid) {
     throw new Error('Unauthorized: No authenticated user in context');
   }
@@ -225,7 +221,7 @@ export async function getFeedFlipsTool(
   });
 
   console.log(`[getFeedFlipsTool] Found ${flips.length} flips`);
-  return flips;
+  return { flips };
 }
 
 /**
@@ -234,11 +230,12 @@ export async function getFeedFlipsTool(
  */
 export async function deleteFlipTool(
   input: { flipId: string },
-  context?: { auth?: { uid: string } }
+  { context }: { context?: ActionContext }
 ): Promise<{ success: boolean }> {
   console.log('[deleteFlipTool] Deleting flip:', input.flipId);
 
-  const uid = context?.auth?.uid;
+  const auth = context?.auth as FlipFeedsAuthContext | undefined;
+  const uid = auth?.uid;
   if (!uid) {
     throw new Error('Unauthorized: No authenticated user in context');
   }
@@ -321,7 +318,7 @@ export function registerFlipTools(ai: Genkit) {
       outputSchema: z.object({ flipId: z.string() }),
     },
     async (input, { context }) => {
-      return createFlipTool(input, { auth: context?.auth as any });
+      return createFlipTool(input, { context });
     }
   );
 
@@ -338,7 +335,7 @@ export function registerFlipTools(ai: Genkit) {
       outputSchema: FlipSchema.nullable(),
     },
     async (input, { context }) => {
-      return getFlipTool(input, { auth: context?.auth as any });
+      return getFlipTool(input, { context });
     }
   );
 
@@ -353,10 +350,10 @@ export function registerFlipTools(ai: Genkit) {
         feedId: z.string().describe('The feed ID'),
         limit: z.number().min(1).max(100).optional().describe('Max number of flips to return'),
       }),
-      outputSchema: z.array(FlipSchema),
+      outputSchema: z.object({ flips: z.array(FlipSchema) }),
     },
     async (input, { context }) => {
-      return getFeedFlipsTool(input, { auth: context?.auth as any });
+      return getFeedFlipsTool(input, { context });
     }
   );
 
@@ -373,7 +370,7 @@ export function registerFlipTools(ai: Genkit) {
       outputSchema: z.object({ success: z.boolean() }),
     },
     async (input, { context }) => {
-      return deleteFlipTool(input, { auth: context?.auth as any });
+      return deleteFlipTool(input, { context });
     }
   );
 }

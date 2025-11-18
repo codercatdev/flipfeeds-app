@@ -87,7 +87,7 @@ export async function getUserProfileTool(
 export async function getUserFeedsTool(
   _input: unknown,
   context?: { auth?: { uid: string } }
-): Promise<Array<{ feedId: string; role: string; joinedAt: Date }>> {
+): Promise<Array<{ feedId: string; role: string; joinedAt: string }>> {
   console.log('[getUserFeedsTool] Starting tool execution');
 
   // 🔒 SECURITY: Only get uid from authenticated context
@@ -105,7 +105,7 @@ export async function getUserFeedsTool(
     return {
       feedId: doc.id,
       role: data.role || 'member',
-      joinedAt: data.joinedAt?.toDate() || new Date(),
+      joinedAt: (data.joinedAt?.toDate() || new Date()).toISOString(),
     };
   });
 
@@ -519,7 +519,7 @@ export function registerUserTools(ai: Genkit) {
         z.object({
           feedId: z.string(),
           role: z.string(),
-          joinedAt: z.date(),
+          joinedAt: z.string().datetime(),
         })
       ),
     },

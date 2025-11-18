@@ -131,6 +131,8 @@ export function FlipsList({ feedId }: FlipsListProps) {
           </CardContent>
           <CardHeader>
             <h3 className="font-semibold line-clamp-2">{flip.title}</h3>
+            <h4 className="text-sm text-muted-foreground">{flip.id}</h4>
+
             {flip.summary && (
               <p className="text-sm text-muted-foreground line-clamp-2">{flip.summary}</p>
             )}

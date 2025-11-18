@@ -251,7 +251,10 @@ async function createFeed(feedData) {
  */
 async function uploadTestVideo(userId, flipId) {
   try {
-    const testVideoPath = path.join(__dirname, 'videos', 'test-video.mp4');
+    // Randomly select from available test videos
+    const testVideos = ['test-video-1.mp4', 'test-video-2.mp4', 'test-video-3.mp4'];
+    const randomVideo = testVideos[Math.floor(Math.random() * testVideos.length)];
+    const testVideoPath = path.join(__dirname, 'videos', randomVideo);
 
     // Check if test video exists
     if (!fs.existsSync(testVideoPath)) {

@@ -364,9 +364,37 @@ export async function uploadGeneratedVideoTool(
     });
 
     await file.makePublic();
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+
+    // Determine if we're using emulator or production
+    const isEmulator = !!(
+      process.env.FIREBASE_STORAGE_EMULATOR_HOST || process.env.STORAGE_EMULATOR_HOST
+    );
+    let publicUrl: string;
+
+    if (isEmulator) {
+      // Emulator format: http://localhost:9199/v0/b/{bucket}/o/{path}?alt=media
+      // Encode each path segment, preserving slashes
+      const emulatorHost =
+        process.env.FIREBASE_STORAGE_EMULATOR_HOST ||
+        process.env.STORAGE_EMULATOR_HOST ||
+        'localhost:9199';
+      const encodedPath = storagePath
+        .split('/')
+        .map((segment) => encodeURIComponent(segment))
+        .join('%2F');
+      publicUrl = `http://${emulatorHost}/v0/b/${bucket.name}/o/${encodedPath}?alt=media`;
+    } else {
+      // Production format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media
+      const encodedPath = storagePath
+        .split('/')
+        .map((segment) => encodeURIComponent(segment))
+        .join('%2F');
+      publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media`;
+    }
 
     console.log('[uploadGeneratedVideoTool] Upload complete:', publicUrl);
+    console.log('[uploadGeneratedVideoTool] Storage path:', storagePath);
+    console.log('[uploadGeneratedVideoTool] Environment:', isEmulator ? 'emulator' : 'production');
 
     // Update job with storage info
     await db().collection('videoGenerationJobs').doc(input.jobId).update({
@@ -382,6 +410,66 @@ export async function uploadGeneratedVideoTool(
     };
   } catch (error: any) {
     console.error('[uploadGeneratedVideoTool] Error uploading:', error);
+    throw error;
+  }
+}
+
+/**
+ * Helper function to generate public URL from storage path
+ * Handles both emulator and production environments
+ */
+export function getPublicUrlFromStoragePath(storagePath: string, bucketName?: string): string {
+  const isEmulator = !!(
+    process.env.FIREBASE_STORAGE_EMULATOR_HOST || process.env.STORAGE_EMULATOR_HOST
+  );
+  const bucket =
+    bucketName || process.env.FIREBASE_STORAGE_BUCKET || 'flipfeeds-app.firebasestorage.app';
+
+  const encodedPath = storagePath
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('%2F');
+
+  if (isEmulator) {
+    // Emulator format: http://localhost:9199/v0/b/{bucket}/o/{path}?alt=media
+    const emulatorHost =
+      process.env.FIREBASE_STORAGE_EMULATOR_HOST ||
+      process.env.STORAGE_EMULATOR_HOST ||
+      'localhost:9199';
+    return `http://${emulatorHost}/v0/b/${bucket}/o/${encodedPath}?alt=media`;
+  } else {
+    // Production format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media
+    return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`;
+  }
+}
+
+/**
+ * Generate public URL from storage path
+ * Useful for updating flips with correct URLs
+ */
+export async function getPublicUrlTool(
+  input: { storagePath: string },
+  { context }: { context?: ActionContext }
+): Promise<{ publicUrl: string }> {
+  console.log('[getPublicUrlTool] Generating public URL for:', input.storagePath);
+
+  const auth = context?.auth as FlipFeedsAuthContext | undefined;
+  const uid = auth?.uid;
+  if (!uid) {
+    throw new Error('Unauthorized: No authenticated user in context');
+  }
+
+  try {
+    const { getStorage } = await import('firebase-admin/storage');
+    const storage = getStorage();
+    const bucket = storage.bucket();
+
+    const publicUrl = getPublicUrlFromStoragePath(input.storagePath, bucket.name);
+
+    console.log('[getPublicUrlTool] Generated URL:', publicUrl);
+    return { publicUrl };
+  } catch (error: any) {
+    console.error('[getPublicUrlTool] Error:', error);
     throw error;
   }
 }
@@ -515,6 +603,28 @@ export function registerVideoGenerationTools(ai: Genkit) {
     },
     async (input, { context }) => {
       return listVideoGenerationJobsTool(input, { context });
+    }
+  );
+
+  /**
+   * Generate public URL from storage path
+   */
+  ai.defineTool(
+    {
+      name: 'getPublicUrl',
+      description:
+        'Generate a public URL from a Firebase Storage path. Automatically uses the correct format for emulator or production. Useful for updating flips with correct video URLs.',
+      inputSchema: z.object({
+        storagePath: z
+          .string()
+          .describe('Firebase Storage path (e.g., generated-videos/user-id/video.mp4)'),
+      }),
+      outputSchema: z.object({
+        publicUrl: z.string().describe('Public URL for accessing the file'),
+      }),
+    },
+    async (input, { context }) => {
+      return getPublicUrlTool(input, { context });
     }
   );
 

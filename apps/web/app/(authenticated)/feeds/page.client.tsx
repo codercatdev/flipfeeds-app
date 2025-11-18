@@ -2,6 +2,7 @@
 
 import { Menu, Plus } from 'lucide-react';
 import { useState } from 'react';
+import { AgentChat } from '@/components/agent-chat';
 import { AuthLayout } from '@/components/auth-layout';
 import { FeedIconBar } from '@/components/feed-icon-bar';
 import { FlipsList } from '@/components/flips-list';
@@ -40,6 +41,7 @@ function FeedsContent() {
   const { user } = useAuth();
   const displayFeedId = selectedNestedFeedId || selectedFeedId;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [agentChatOpen, setAgentChatOpen] = useState(false);
 
   return (
     <SidebarInset>
@@ -107,10 +109,17 @@ function FeedsContent() {
 
       {/* Mobile floating action button */}
       <div className="fixed bottom-4 right-4 z-50">
-        <Button size="lg" className="rounded-full size-14 shadow-lg">
+        <Button
+          size="lg"
+          className="rounded-full size-14 shadow-lg"
+          onClick={() => setAgentChatOpen(true)}
+        >
           <Plus className="size-6" />
         </Button>
       </div>
+
+      {/* Agent Chat Dialog */}
+      <AgentChat open={agentChatOpen} onOpenChange={setAgentChatOpen} />
     </SidebarInset>
   );
 }

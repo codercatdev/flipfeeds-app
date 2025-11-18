@@ -21,6 +21,7 @@ export const FlipSchema = z.object({
   title: z.string(),
   summary: z.string().optional(),
   videoStoragePath: z.string(),
+  publicUrl: z.string().url().optional().describe('Public URL of the video'),
   createdAt: z.string(),
 });
 
@@ -43,6 +44,7 @@ export async function createFlipTool(
     videoStoragePath: string;
     title: string;
     summary?: string;
+    publicUrl?: string;
   },
   { context }: { context?: ActionContext }
 ): Promise<{ flipId: string }> {
@@ -54,7 +56,7 @@ export async function createFlipTool(
     throw new Error('Unauthorized: No authenticated user in context');
   }
 
-  const { feedIds, videoStoragePath, title, summary } = input;
+  const { feedIds, videoStoragePath, title, summary, publicUrl } = input;
   const { displayName, photoURL } = auth || {};
 
   // Verify user is a member of all feeds
@@ -84,6 +86,7 @@ export async function createFlipTool(
       title,
       summary: summary || null,
       videoStoragePath,
+      publicUrl: publicUrl || null,
       createdAt: FieldValue.serverTimestamp(),
     });
 
@@ -225,6 +228,66 @@ export async function getFeedFlipsTool(
 }
 
 /**
+ * Update a flip
+ * 🔒 SECURE: Only the author can update
+ */
+export async function updateFlipTool(
+  input: {
+    flipId: string;
+    title?: string;
+    summary?: string;
+    publicUrl?: string;
+  },
+  { context }: { context?: ActionContext }
+): Promise<{ success: boolean }> {
+  console.log('[updateFlipTool] Updating flip:', input.flipId);
+
+  const auth = context?.auth as FlipFeedsAuthContext | undefined;
+  const uid = auth?.uid;
+  if (!uid) {
+    throw new Error('Unauthorized: No authenticated user in context');
+  }
+
+  const flipDoc = await db().collection('flips').doc(input.flipId).get();
+
+  if (!flipDoc.exists) {
+    throw new Error('Flip not found');
+  }
+
+  const data = flipDoc.data();
+  if (!data) {
+    throw new Error('Flip data not found');
+  }
+
+  // Check if user is the author
+  if (data.authorId !== uid) {
+    throw new Error('Unauthorized: Only the author can update this flip');
+  }
+
+  // Build update object with only provided fields
+  const updates: Record<string, unknown> = {
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  if (input.title !== undefined) {
+    updates.title = input.title;
+  }
+
+  if (input.summary !== undefined) {
+    updates.summary = input.summary;
+  }
+
+  if (input.publicUrl !== undefined) {
+    updates.publicUrl = input.publicUrl;
+  }
+
+  await db().collection('flips').doc(input.flipId).update(updates);
+
+  console.log(`[updateFlipTool] Updated flip ${input.flipId}`);
+  return { success: true };
+}
+
+/**
  * Delete a flip
  * 🔒 SECURE: Only the author or feed admin can delete
  */
@@ -314,6 +377,11 @@ export function registerFlipTools(ai: Genkit) {
         videoStoragePath: z.string().describe('Path to the video in Firebase Storage'),
         title: z.string().min(1).max(200).describe('Video title'),
         summary: z.string().max(500).optional().describe('Optional video summary'),
+        publicUrl: z
+          .string()
+          .url()
+          .optional()
+          .describe('Public URL of the video (use publicUrl from uploadGeneratedVideo)'),
       }),
       outputSchema: z.object({ flipId: z.string() }),
     },
@@ -354,6 +422,30 @@ export function registerFlipTools(ai: Genkit) {
     },
     async (input, { context }) => {
       return getFeedFlipsTool(input, { context });
+    }
+  );
+
+  /**
+   * Update a flip
+   */
+  ai.defineTool(
+    {
+      name: 'updateFlip',
+      description: 'Update a flip title, summary, or public video URL (author only)',
+      inputSchema: z.object({
+        flipId: z.string().describe('The flip ID to update'),
+        title: z.string().min(1).max(200).optional().describe('New video title'),
+        summary: z.string().max(500).optional().describe('New video summary'),
+        publicUrl: z
+          .string()
+          .url()
+          .optional()
+          .describe('Public URL of the video generated from videoStoragePath'),
+      }),
+      outputSchema: z.object({ success: z.boolean() }),
+    },
+    async (input, { context }) => {
+      return updateFlipTool(input, { context });
     }
   );
 

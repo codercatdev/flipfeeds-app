@@ -40,6 +40,22 @@ service firebase.storage {
                 && request.resource.size < 5 * 1024 * 1024;
         }
 
+        // Generated videos structure:
+        // generated-videos/{userId}/{videoId}.mp4 - AI-generated videos
+        match /generated-videos/{userId}/{videoId} {
+            // Allow public read for all generated videos
+            allow read: if true;
+
+            // Allow write only from Cloud Functions (service account)
+            // User-facing clients should NOT write directly to this path
+            // Videos are uploaded via the uploadGeneratedVideoTool
+            allow write: if false;
+            
+            // Allow delete only for video owner
+            allow delete: if request.auth != null 
+                && request.auth.uid == userId;
+        }
+
         // Deny all other access by default
         match /{allPaths=**} {
             allow read, write: if false;

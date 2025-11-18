@@ -54,6 +54,9 @@ export function FlipsList({ feedId }: FlipsListProps) {
             ...doc.data(),
           } as Flip);
         }
+        console.log('Loaded flips:', flipsData.length, 'flips');
+        console.log('First flip publicUrl:', flipsData[0]?.publicUrl);
+        console.log('First flip videoStoragePath:', flipsData[0]?.videoStoragePath);
         setFlips(flipsData);
         setLoading(false);
       },
@@ -106,7 +109,15 @@ export function FlipsList({ feedId }: FlipsListProps) {
                   src={flip.publicUrl}
                   className="w-full h-full object-cover"
                   controls
+                  preload="metadata"
+                  crossOrigin="anonymous"
                   aria-label={flip.title}
+                  onError={(e) => {
+                    console.error('Video load error:', flip.publicUrl, e);
+                  }}
+                  onLoadStart={() => {
+                    console.log('Video loading started:', flip.publicUrl);
+                  }}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full bg-linear-to-br from-primary/10 to-primary/5">

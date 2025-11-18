@@ -19,7 +19,6 @@ This document provides context and guidelines for AI agents (like GitHub Copilot
 
 ## 2. AI Agent Instructions
 - **Adhere to Conventions:** All code written must follow the rules outlined in this document, especially in the "Coding Conventions & Rules" section.
-- **Run Formatters:** Before finalizing any code changes, run `pnpm format` to ensure all files are correctly formatted with Biome.
 - **Verify with Linter:** After formatting, run `pnpm check` to catch any linting errors. Fix any issues that are introduced.
 - **Use pnpm:** Always use `pnpm` for package management. Do not use `npm` or `yarn`.
 

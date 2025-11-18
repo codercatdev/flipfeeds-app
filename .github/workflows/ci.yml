@@ -90,8 +90,8 @@ jobs:
       - name: Run ESLint
         run: pnpm lint
 
-      - name: Check Prettier formatting
-        run: pnpm format:check
+      - name: Check Using Biome
+        run: pnpm check
 
   # ============================================
   # Job 3: Type Checking

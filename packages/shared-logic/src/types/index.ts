@@ -51,27 +51,18 @@ export interface FeedMember {
  */
 export interface Flip {
   id: string;
-  feedId: string;
+  feedIds: string[]; // Array of feed IDs this flip is shared to
   authorId: string;
-  authorName?: string;
-  authorPhotoURL?: string;
+  authorName: string;
+  authorPhotoURL: string;
   title: string;
-  aiSummary?: string;
-  videoURL: string;
-  thumbnailURL?: string;
-  gcsUri?: string;
-  tags: string[];
-  stats: {
-    likeCount: number;
-    commentCount: number;
-    viewCount: number;
+  summary?: string; // AI-generated summary
+  videoStoragePath: string;
+  publicUrl?: string; // Public URL to access the video
+  createdAt: {
+    seconds: number;
+    nanoseconds: number;
   };
-  moderation: {
-    isSafe: boolean;
-    flags: string[];
-  };
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 /**

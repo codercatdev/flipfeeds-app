@@ -16,19 +16,24 @@
 
 const admin = require('firebase-admin');
 const readline = require('node:readline');
+const fs = require('node:fs');
+const path = require('node:path');
 
 // Initialize Firebase Admin with emulator
 process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
 process.env.FIREBASE_AUTH_EMULATOR_HOST = 'localhost:9099';
+process.env.FIREBASE_STORAGE_EMULATOR_HOST = 'localhost:9199';
 
 if (!admin.apps.length) {
   admin.initializeApp({
     projectId: 'flipfeeds-app',
+    storageBucket: 'flipfeeds-app.appspot.com',
   });
 }
 
 const db = admin.firestore();
 const auth = admin.auth();
+const storage = admin.storage();
 
 /**
  * Prompt user for confirmation
@@ -241,56 +246,97 @@ async function createFeed(feedData) {
 }
 
 /**
- * Create a flip (video post) in a feed
+ * Upload test video to Firebase Storage emulator
+ * Mimics the upload pattern from videoGenerationTools.ts
  */
-async function createFlip(feedId, authorId, flipData) {
+async function uploadTestVideo(userId, flipId) {
+  try {
+    const testVideoPath = path.join(__dirname, 'videos', 'test-video.mp4');
+
+    // Check if test video exists
+    if (!fs.existsSync(testVideoPath)) {
+      console.warn(`⚠️  Test video not found at ${testVideoPath}, using placeholder path`);
+      return {
+        storagePath: `generated-videos/${userId}/${Date.now()}_${flipId.substring(0, 7)}.mp4`,
+        publicUrl: null,
+      };
+    }
+
+    // Read the video file
+    const videoBuffer = fs.readFileSync(testVideoPath);
+    console.log(`   📹 Read test video: ${videoBuffer.length} bytes`);
+
+    // Upload to Firebase Storage (emulator)
+    const videoId = `${Date.now()}_${flipId.substring(0, 7)}`;
+    const storagePath = `generated-videos/${userId}/${videoId}.mp4`;
+
+    const bucket = storage.bucket();
+    const file = bucket.file(storagePath);
+
+    await file.save(videoBuffer, {
+      metadata: {
+        contentType: 'video/mp4',
+        metadata: {
+          generatedBy: 'test-seed',
+          userId,
+          uploadedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    // In emulator, make public and get URL
+    await file.makePublic();
+    const publicUrl = `http://localhost:9199/v0/b/${bucket.name}/o/${encodeURIComponent(storagePath)}?alt=media`;
+
+    console.log(`   ✅ Uploaded to storage: ${storagePath}`);
+    return { storagePath, publicUrl };
+  } catch (error) {
+    console.error(`   ❌ Error uploading video:`, error.message);
+    // Return placeholder if upload fails
+    return {
+      storagePath: `generated-videos/${userId}/${Date.now()}_${flipId.substring(0, 7)}.mp4`,
+      publicUrl: null,
+    };
+  }
+}
+
+/**
+ * Create a flip (video post) in one or more feeds
+ */
+async function createFlip(feedIds, authorId, flipData) {
   const flipRef = db.collection('flips').doc();
   const flipId = flipRef.id;
   const author = TEST_USERS.find((u) => u.uid === authorId);
 
+  // Ensure feedIds is an array
+  const feedIdsArray = Array.isArray(feedIds) ? feedIds : [feedIds];
+
+  // Upload test video to storage (emulator)
+  const { storagePath, publicUrl } = await uploadTestVideo(authorId, flipId);
+
   await flipRef.set({
-    feedId,
+    feedIds: feedIdsArray,
     authorId,
-    authorInfo: {
-      displayName: author.displayName,
-      photoURL: author.photoURL,
-    },
-    type: 'video',
+    authorName: author.displayName,
+    authorPhotoURL: author.photoURL,
     title: flipData.title,
-    media: {
-      video: {
-        url: `https://example.com/videos/${flipId}.mp4`,
-        storagePath: `videos/${feedId}/${flipId}/video.mp4`,
-        durationMs: 30000,
-      },
-      thumbnail: {
-        url: `https://picsum.photos/seed/${flipId}/640/360`,
-        storagePath: `videos/${feedId}/${flipId}/thumb.jpg`,
-      },
-    },
-    aiData: {
-      summary: flipData.summary || 'AI-generated summary',
-      isModerated: true,
-      moderationFlags: [],
-      tags: flipData.tags || [],
-    },
-    stats: {
-      likeCount: Math.floor(Math.random() * 50),
-      commentCount: Math.floor(Math.random() * 20),
-      viewCount: Math.floor(Math.random() * 200),
-    },
+    summary: flipData.summary || 'AI-generated summary',
+    videoStoragePath: storagePath,
+    publicUrl: publicUrl || undefined, // Only set if we have a real URL
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  // Update feed flip count
-  await db
-    .collection('feeds')
-    .doc(feedId)
-    .update({
-      'stats.flipCount': admin.firestore.FieldValue.increment(1),
-    });
+  // Update flip count for all feeds
+  for (const feedId of feedIdsArray) {
+    await db
+      .collection('feeds')
+      .doc(feedId)
+      .update({
+        'stats.flipCount': admin.firestore.FieldValue.increment(1),
+      });
+  }
 
+  console.log(`   ✅ Created flip: ${flipData.title}`);
   return flipId;
 }
 
@@ -475,9 +521,13 @@ async function seedTestData() {
     console.log('📊 Summary:');
     console.log(`   - Users: ${TEST_USERS.length}`);
     console.log('   - Feeds: 5 (3 public, 1 private, 2 nested)');
-    console.log('   - Flips: 11');
+    console.log('   - Flips: 11 (with uploaded videos)');
     console.log('');
-    console.log('🔗 Access the Emulator UI: http://localhost:4000');
+    console.log('🔗 Emulator UIs:');
+    console.log('   - Main UI: http://localhost:4000');
+    console.log('   - Firestore: http://localhost:4000/firestore');
+    console.log('   - Storage: http://localhost:4000/storage');
+    console.log('   - Auth: http://localhost:4000/auth');
     console.log('');
     console.log('💡 Test User Credentials:');
     for (const user of TEST_USERS) {

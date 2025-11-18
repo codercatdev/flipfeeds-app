@@ -3,12 +3,18 @@ import { db } from './firebase';
 
 export interface Flip {
   id: string;
-  name: string;
-  description?: string;
-  visibility: 'public' | 'private';
-  owner: string;
-  createdAt: Date;
-  [key: string]: any;
+  feedIds: string[];
+  authorId: string;
+  authorName: string;
+  authorPhotoURL: string;
+  title: string;
+  summary?: string;
+  videoStoragePath: string;
+  publicUrl?: string;
+  createdAt: {
+    seconds: number;
+    nanoseconds: number;
+  };
 }
 
 export async function getFlip(flipId: string): Promise<Flip | null> {
@@ -33,9 +39,9 @@ export async function getFlip(flipId: string): Promise<Flip | null> {
       const flipData = { id: flipSnap.id, ...flipSnap.data() } as Flip;
       console.log('[flips.ts] getFlip: Successfully retrieved flip:', {
         id: flipData.id,
-        name: flipData.name,
-        owner: flipData.owner,
-        visibility: flipData.visibility,
+        title: flipData.title,
+        authorId: flipData.authorId,
+        feedIds: flipData.feedIds,
       });
       return flipData;
     }

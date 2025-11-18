@@ -1,33 +1,26 @@
 'use client';
 
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { Heart, MessageCircle, Video } from 'lucide-react';
+import { Video } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { db } from '@/lib/firebase';
 
 interface Flip {
   id: string;
   title: string;
-  authorInfo: {
-    displayName: string;
-    photoURL: string;
+  summary?: string;
+  feedIds: string[];
+  authorId: string;
+  authorName: string;
+  authorPhotoURL: string;
+  videoStoragePath: string;
+  publicUrl?: string;
+  createdAt: {
+    seconds: number;
+    nanoseconds: number;
   };
-  type: string;
-  media?: {
-    video?: {
-      url: string;
-    };
-    thumbnail?: {
-      url: string;
-    };
-  };
-  stats: {
-    likeCount: number;
-    commentCount: number;
-  };
-  createdAt: any;
 }
 
 interface FlipsListProps {
@@ -45,7 +38,11 @@ export function FlipsList({ feedId }: FlipsListProps) {
     }
 
     const flipsRef = collection(db, 'flips');
-    const q = query(flipsRef, where('feedId', '==', feedId), orderBy('createdAt', 'desc'));
+    const q = query(
+      flipsRef,
+      where('feedIds', 'array-contains', feedId),
+      orderBy('createdAt', 'desc')
+    );
 
     const unsubscribe = onSnapshot(
       q,
@@ -103,55 +100,41 @@ export function FlipsList({ feedId }: FlipsListProps) {
         <Card key={flip.id} className="overflow-hidden">
           <CardContent className="p-0">
             <div className="aspect-9/16 bg-muted relative">
-              {flip.media?.video?.url ? (
+              {flip.publicUrl ? (
                 // biome-ignore lint/a11y/useMediaCaption: Captions will be added in future implementation
                 <video
-                  src={flip.media.video.url}
-                  poster={flip.media.thumbnail?.url}
+                  src={flip.publicUrl}
                   className="w-full h-full object-cover"
                   controls
                   aria-label={flip.title}
                 />
-              ) : flip.media?.thumbnail?.url ? (
-                <Image
-                  src={flip.media.thumbnail.url}
-                  alt={flip.title}
-                  fill
-                  className="object-cover"
-                />
               ) : (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-full bg-linear-to-br from-primary/10 to-primary/5">
                   <Video className="size-12 text-muted-foreground" />
+                  <div className="absolute bottom-2 left-2 right-2 text-xs text-muted-foreground bg-black/50 p-2 rounded">
+                    {flip.videoStoragePath}
+                  </div>
                 </div>
               )}
             </div>
           </CardContent>
           <CardHeader>
             <h3 className="font-semibold line-clamp-2">{flip.title}</h3>
+            {flip.summary && (
+              <p className="text-sm text-muted-foreground line-clamp-2">{flip.summary}</p>
+            )}
             <div className="flex items-center gap-2">
               <div className="relative size-6 rounded-full overflow-hidden">
                 <Image
-                  src={flip.authorInfo.photoURL}
-                  alt={flip.authorInfo.displayName}
+                  src={flip.authorPhotoURL}
+                  alt={flip.authorName}
                   fill
                   className="object-cover"
                 />
               </div>
-              <span className="text-sm text-muted-foreground">{flip.authorInfo.displayName}</span>
+              <span className="text-sm text-muted-foreground">{flip.authorName}</span>
             </div>
           </CardHeader>
-          <CardFooter>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Heart className="size-4" />
-                <span>{flip.stats.likeCount}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <MessageCircle className="size-4" />
-                <span>{flip.stats.commentCount}</span>
-              </div>
-            </div>
-          </CardFooter>
         </Card>
       ))}
     </div>

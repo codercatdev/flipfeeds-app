@@ -171,7 +171,7 @@ async function testFlipAccess() {
 
   const flipId = flipsSnapshot.docs[0].id;
   const flipData = flipsSnapshot.docs[0].data();
-  const feedId = flipData.feedId;
+  const feedId = flipData.feedIds?.[0] || flipData.feedId; // Support both old and new format
 
   // Read flip from public feed
   await runTest('User can read flip from accessible feed', async () => {
@@ -179,9 +179,13 @@ async function testFlipAccess() {
     if (!doc.exists) throw new Error('Flip not found');
   });
 
-  // Query flips by feedId
+  // Query flips by feedId (supports both old feedId and new feedIds format)
   await runTest('User can query flips by feedId', async () => {
-    const snapshot = await db.collection('flips').where('feedId', '==', feedId).limit(10).get();
+    const snapshot = await db
+      .collection('flips')
+      .where('feedIds', 'array-contains', feedId)
+      .limit(10)
+      .get();
     if (snapshot.empty) throw new Error('No flips found');
   });
 
@@ -219,7 +223,10 @@ async function testNestedFeeds() {
     });
 
     // Check if nested feed has flips
-    const flipsSnapshot = await db.collection('flips').where('feedId', '==', doc.id).get();
+    const flipsSnapshot = await db
+      .collection('flips')
+      .where('feedIds', 'array-contains', doc.id)
+      .get();
 
     console.log(`   └─ ${flipsSnapshot.size} flip(s) in nested feed`);
   }

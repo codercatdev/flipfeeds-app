@@ -50,7 +50,10 @@ describe('flipFlows', () => {
       if (feedId) {
         await db.collection('feeds').doc(feedId).delete();
       }
-      const flipQuery = await db.collection('flips').where('feedId', '==', feedId).get();
+      const flipQuery = await db
+        .collection('flips')
+        .where('feedIds', 'array-contains', feedId)
+        .get();
       const deletePromises = [];
       flipQuery.forEach((doc) => {
         deletePromises.push(doc.ref.delete());

@@ -53,6 +53,9 @@ if (!admin.apps.length) {
   if (process.env.FIRESTORE_EMULATOR_HOST) {
     console.log('🔧 Using Firestore Emulator:', process.env.FIRESTORE_EMULATOR_HOST);
   }
+  if (process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+    console.log('🔧 Using Auth Emulator:', process.env.FIREBASE_AUTH_EMULATOR_HOST);
+  }
 }
 
 const googleAIapiKey = defineSecret('GEMINI_API_KEY');

@@ -22,6 +22,12 @@ import {
   verifyRefreshToken,
 } from './tokens';
 
+// Ensure Auth emulator is configured when running in emulator mode
+if (process.env.FUNCTIONS_EMULATOR === 'true' && !process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = 'localhost:9099';
+  console.log('🔧 Auth Emulator configured:', process.env.FIREBASE_AUTH_EMULATOR_HOST);
+}
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -560,6 +566,7 @@ app.post('/revoke', async (req, res) => {
 
 function getLoginPageHtml(params: Record<string, string>): string {
   const authServerUrl = getAuthServerUrl();
+  const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
 
   return `
 <!DOCTYPE html>
@@ -570,107 +577,156 @@ function getLoginPageHtml(params: Record<string, string>): string {
   <title>Sign In - FlipFeeds MCP</title>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.js"></script>
-  <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.css" />
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      margin: 0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-color: #ffffff;
+      color: #020817;
     }
-    .container {
+    .card {
       background: white;
-      padding: 2rem;
-      border-radius: 8px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-      max-width: 400px;
+      padding: 0;
+      border-radius: 0.5rem;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
       width: 100%;
+      max-width: 28rem;
     }
-    h1 {
-      margin: 0 0 1rem 0;
-      color: #333;
+    .card-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .card-title {
       font-size: 1.5rem;
+      font-weight: 600;
+      line-height: 1.2;
+      margin-bottom: 0.5rem;
+      color: #020817;
     }
-    .subtitle {
-      color: #666;
-      margin-bottom: 2rem;
-      font-size: 0.9rem;
+    .card-description {
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+    .card-content {
+      padding: 1.5rem;
+    }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.25rem;
+      border-radius: 0.375rem;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      background-color: #020817;
+      color: #f8fafc;
+    }
+    .button:hover:not(:disabled) {
+      background-color: #0f172a;
+    }
+    .button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .error {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      background-color: #fef2f2;
+      color: #991b1b;
+      font-size: 0.875rem;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🔐 Sign In to FlipFeeds MCP</h1>
-    <p class="subtitle">Authenticate to grant access to your MCP client</p>
-    <div id="firebaseui-auth-container"></div>
-    <div id="loader" style="display:none;">Signing in...</div>
+  <div class="card">
+    <div class="card-header">
+      <h1 class="card-title">Sign In</h1>
+      <p class="card-description">Sign in to your account using Google</p>
+    </div>
+    <div class="card-content">
+      <button id="google-signin-btn" class="button">Sign in with Google</button>
+      <div id="error" class="error" style="display:none;"></div>
+    </div>
   </div>
   
   <script>
-    // Firebase configuration for web
-const firebaseConfig = {
-  apiKey: "AIzaSyD1573e-6QA1z7pzcCVZS8FJjYb3Kywcy0",
-  authDomain: "flipfeeds-app.firebaseapp.com",
-  databaseURL: "https://flipfeeds-app-default-rtdb.firebaseio.com",
-  projectId: "flipfeeds-app",
-  storageBucket: "flipfeeds-app.firebasestorage.app",
-  messagingSenderId: "361402949529",
-  appId: "1:361402949529:web:25b7fc17fde9148cef3d08"
-};
-    
-    firebase.initializeApp(firebaseConfig);
-    
-    const ui = new firebaseui.auth.AuthUI(firebase.auth());
-    
-    const uiConfig = {
-      callbacks: {
-        signInSuccessWithAuthResult: function(authResult) {
-          // Get the Firebase ID token
-          authResult.user.getIdToken().then(function(idToken) {
-            // Send the ID token to our auth callback
-            fetch('${authServerUrl}/auth-callback', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                firebase_id_token: idToken,
-                client_id: '${params.client_id}',
-                redirect_uri: '${params.redirect_uri}',
-                state: '${params.state}',
-                code_challenge: '${params.code_challenge}',
-                code_challenge_method: '${params.code_challenge_method}',
-                scope: '${params.scope}'
-              })
-            })
-            .then(res => res.json())
-            .then(data => {
-              if (data.redirect_url) {
-                window.location.href = data.redirect_url;
-              } else {
-                alert('Authentication failed');
-              }
-            })
-            .catch(err => {
-              console.error('Error:', err);
-              alert('Authentication failed');
-            });
-          });
-          return false;
-        }
-      },
-      signInOptions: [
-        firebase.auth.GoogleAuthProvider.PROVIDER_ID,
-        firebase.auth.EmailAuthProvider.PROVIDER_ID
-      ],
-      signInFlow: 'popup',
-      tosUrl: 'https://flipfeeds.app/terms',
-      privacyPolicyUrl: 'https://flipfeeds.app/privacy'
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyD1573e-6QA1z7pzcCVZS8FJjYb3Kywcy0",
+      authDomain: "flipfeeds-app.firebaseapp.com",
+      databaseURL: "https://flipfeeds-app-default-rtdb.firebaseio.com",
+      projectId: "flipfeeds-app",
+      storageBucket: "flipfeeds-app.firebasestorage.app",
+      messagingSenderId: "361402949529",
+      appId: "1:361402949529:web:25b7fc17fde9148cef3d08"
     };
     
-    ui.start('#firebaseui-auth-container', uiConfig);
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    
+    // Connect to Auth emulator if running locally
+    ${isEmulator ? `auth.useEmulator('http://localhost:9099');` : ''}
+    
+    const button = document.getElementById('google-signin-btn');
+    const errorDiv = document.getElementById('error');
+    
+    button.addEventListener('click', async () => {
+      try {
+        errorDiv.style.display = 'none';
+        button.disabled = true;
+        button.textContent = 'Signing in...';
+        
+        const provider = new firebase.auth.GoogleAuthProvider();
+        const result = await auth.signInWithPopup(provider);
+        
+        // Get the Firebase ID token
+        const idToken = await result.user.getIdToken();
+        
+        // Send the ID token to our auth callback
+        const response = await fetch('${authServerUrl}/auth-callback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firebase_id_token: idToken,
+            client_id: '${params.client_id}',
+            redirect_uri: '${params.redirect_uri}',
+            state: '${params.state}',
+            code_challenge: '${params.code_challenge}',
+            code_challenge_method: '${params.code_challenge_method}',
+            scope: '${params.scope}'
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.redirect_url) {
+          window.location.href = data.redirect_url;
+        } else {
+          throw new Error('Authentication failed');
+        }
+      } catch (err) {
+        console.error('Sign in error:', err);
+        errorDiv.textContent = err.message || 'Sign in failed';
+        errorDiv.style.display = 'block';
+        button.disabled = false;
+        button.textContent = 'Sign in with Google';
+      }
+    });
   </script>
 </body>
 </html>

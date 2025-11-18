@@ -23,7 +23,7 @@ export function FeedIconBar({ userId }: FeedIconBarProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !db) return;
 
     const userFeedsRef = collection(db, `users/${userId}/feeds`);
     const q = query(userFeedsRef);
@@ -87,7 +87,9 @@ export function FeedIconBar({ userId }: FeedIconBarProps) {
               <Image src={feed.logoURL} alt={feed.name} fill className="object-cover" />
             </div>
           ) : (
-            <span className="text-lg font-semibold">{feed.name.substring(0, 2).toUpperCase()}</span>
+            <span className="text-lg font-semibold">
+              {feed?.name?.substring(0, 2).toUpperCase()}
+            </span>
           )}
           {selectedFeedId === feed.id && (
             <div className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-primary-foreground" />

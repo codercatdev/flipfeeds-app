@@ -380,7 +380,6 @@ export function registerFlipTools(ai: Genkit) {
         publicUrl: z
           .string()
           .url()
-          .optional()
           .describe('Public URL of the video (use publicUrl from uploadGeneratedVideo)'),
       }),
       outputSchema: z.object({ flipId: z.string() }),

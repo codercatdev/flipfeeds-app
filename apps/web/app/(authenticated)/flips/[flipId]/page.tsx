@@ -1,21 +1,17 @@
-import { FeedFlipsList } from '@/components/feed-flips-list';
-import { getFlip } from '@/lib/flips';
+import { requireAuth } from '@/lib/auth-server';
+import { FlipPageClient } from './page.client';
 
-interface FeedPageProps {
+export interface FlipPageProps {
   params: {
-    flipdId: string;
+    flipId: string;
   };
 }
 
-export default async function FlipPage({ params }: FeedPageProps) {
-  const { flipdId } = params;
-  const flip = await getFlip(flipdId);
+export default async function FlipPage({ params }: FlipPageProps) {
+  const { flipId } = await params;
+  // Server-side auth check and user data fetch
+  const user = await requireAuth();
 
-  return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">{flip?.name ?? 'Feed'}</h1>
-      <code>{JSON.stringify(flip, null, 2)}</code>
-      <FeedFlipsList feedId={flipdId} />
-    </div>
-  );
+  // Pass server data to client component for hydration
+  return <FlipPageClient initialUser={user} params={{ flipId }} />;
 }

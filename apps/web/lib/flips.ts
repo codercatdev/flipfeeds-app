@@ -12,15 +12,42 @@ export interface Flip {
 }
 
 export async function getFlip(flipId: string): Promise<Flip | null> {
+  console.log('[flips.ts] getFlip called with flipId:', flipId);
+
   if (!db) {
+    console.error('[flips.ts] getFlip: Firebase db is not initialized');
     return null;
   }
-  const flipRef = doc(db, 'flips', flipId);
-  const flipSnap = await getDoc(flipRef);
 
-  if (flipSnap.exists()) {
-    return { id: flipSnap.id, ...flipSnap.data() } as Flip;
+  if (!flipId) {
+    console.error('[flips.ts] getFlip: flipId is required but was not provided');
+    return null;
   }
 
-  return null;
+  try {
+    console.log('[flips.ts] getFlip: Fetching flip document from Firestore');
+    const flipRef = doc(db, 'flips', flipId);
+    const flipSnap = await getDoc(flipRef);
+
+    if (flipSnap.exists()) {
+      const flipData = { id: flipSnap.id, ...flipSnap.data() } as Flip;
+      console.log('[flips.ts] getFlip: Successfully retrieved flip:', {
+        id: flipData.id,
+        name: flipData.name,
+        owner: flipData.owner,
+        visibility: flipData.visibility,
+      });
+      return flipData;
+    }
+
+    console.warn('[flips.ts] getFlip: Flip document not found for flipId:', flipId);
+    return null;
+  } catch (error) {
+    console.error('[flips.ts] getFlip: Error fetching flip:', {
+      flipId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
+  }
 }

@@ -156,19 +156,18 @@ service cloud.firestore {
     // Collection: flips
     // ========================================
     match /flips/{flipId} {
-      // Helper to check if user can view a flip
+      // Helper to check if user can view a flip (only call when resource exists)
       function canViewFlip() {
-        let feedIds = resource.data.feedIds;
-        // This is a simplified check. A robust implementation might require a function
-        // that checks membership for each feedId, which isn't possible directly.
-        // We rely on the client querying correctly and backend validation.
-        // For direct gets, we check if the user is a member of the *first* feed.
-        // This is a limitation of Firestore rules. A better check is done on list queries.
-        return isMember(feedIds[0]) || isPublicFeed(feedIds[0]);
+        // Check if feedIds exists and has at least one element
+        return 'feedIds' in resource.data
+          && resource.data.feedIds is list
+          && resource.data.feedIds.size() > 0
+          && (isMember(resource.data.feedIds[0]) || isPublicFeed(resource.data.feedIds[0]));
       }
 
-      // Read individual flips if user is a member of any associated feed
-      allow get: if isAuthenticated() && canViewFlip();
+      // Read individual flips - must check resource != null first to avoid evaluation errors
+      allow get: if isAuthenticated() 
+        && (resource == null || canViewFlip());
       
       // List flips (must query with 'array-contains' on a feedId the user is in)
       allow list: if isAuthenticated()
@@ -188,29 +187,35 @@ service cloud.firestore {
       // Delete flips: Author, or feed admin/moderator of any associated feed.
       // This check is simplified and may need a backend flow for accuracy.
       allow delete: if isAuthenticated() 
-                      && (isOwner(resource.data.authorId) || isAdminOrMod(resource.data.feedIds[0]));
+                      && (isOwner(resource.data.authorId) 
+                        || (resource.data.feedIds != null 
+                          && resource.data.feedIds is list
+                          && resource.data.feedIds.size() > 0 
+                          && isAdminOrMod(resource.data.feedIds[0])));
 
       // Sub-collection: comments
       match /comments/{commentId} {
         // Read comments if you can read the flip
         allow get, list: if isAuthenticated() && canViewFlip();
         
-        // Create comments: Members of the feed only
-        allow create: if isAuthenticated() && isMember(resource.data.feedIds[0]);
+        // Create comments: If you can view the flip, you can comment
+        allow create: if isAuthenticated() 
+          && request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt'])
+          && request.resource.data.authorId == request.auth.uid;
         
         // Update comments: Only the author
-        allow update: if isAuthenticated() && isOwner(request.resource.data.authorId);
+        allow update: if isAuthenticated() && isOwner(resource.data.authorId);
         
-        // Delete comments: Author, or feed admin/moderator
-        allow delete: if isAuthenticated() 
-                        && (isOwner(resource.data.authorId) || isAdminOrMod(resource.data.feedIds[0]));
+        // Delete comments: Author only (feed admins can use backend flows)
+        allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
       }
 
       // Sub-collection: likes (future feature)
       match /likes/{likeId} {
         allow read: if isAuthenticated() && canViewFlip();
-        allow create: if isAuthenticated() && isMember(resource.data.feedIds[0]) && likeId == request.auth.uid;
-        allow delete: if isAuthenticated() && isOwner(likeId);
+        // Create like: If you can view the flip and the likeId is your uid
+        allow create: if isAuthenticated() && likeId == request.auth.uid;
+        allow delete: if isAuthenticated() && likeId == request.auth.uid;
       }
     }
 

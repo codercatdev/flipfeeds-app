@@ -8,7 +8,7 @@ interface FeedPageProps {
 }
 
 export default async function FeedPage({ params }: FeedPageProps) {
-  const { feedId } = params;
+  const { feedId } = await params;
   const feed = await getFeed(feedId);
 
   return (

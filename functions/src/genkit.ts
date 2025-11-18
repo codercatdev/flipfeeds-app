@@ -76,9 +76,9 @@ export const genKitGoogleAiOptions: CallableOptions = {
  * For production, use Firebase secrets
  *
  * Available models:
- * - googleai/gemini-1.5-flash (stable, fast)
- * - googleai/gemini-1.5-pro (stable, powerful)
- * - googleai/gemini-2.0-flash-exp (experimental)
+ * - googleai/gemini-2.5-flash (stable, fast - default)
+ * - googleai/gemini-2.5-flash-lite (stable, ultra-fast & cost-efficient)
+ * - googleai/gemini-2.5-pro (stable, powerful reasoning)
  * - vertexai/imagen-3.0-fast-generate-001 (image generation)
  */
 export const ai = genkit({
@@ -91,55 +91,78 @@ export const ai = genkit({
       location: 'us-central1',
     }),
   ],
-  model: 'googleai/gemini-1.5-flash',
+  model: 'googleai/gemini-2.5-flash-lite',
 });
 
 // Export vertexAI for use in flows
 export { vertexAI };
 
 // ============================================================================
-// FLOW REGISTRATION (Import to Register)
+// AGENT REGISTRATION (Import to Register)
 // ============================================================================
 
 /**
- * Import all flows to register them with Genkit.
- * This is the ONLY place flows should be imported.
+ * Import all agents (formerly "flows") to register them with Genkit.
+ * This is the ONLY place agents should be imported.
  *
- * When you import a flow file that calls ai.defineFlow(),
+ * When you import an agent file that calls ai.defineFlow(),
  * Genkit automatically registers it in the global registry.
  */
 
-// User management flows
+// User management agents
 import { registerUserFlows } from './flows/userFlows';
 
-const { conversationalProfileFlowAction } = registerUserFlows(ai);
-export const conversationalProfileFlow = onCallGenkit(
-  genKitGoogleAiOptions,
-  conversationalProfileFlowAction
-);
+const { onboardingAgentAction, profileAgentAction, imageAgentAction } = registerUserFlows(ai);
 
-// Feed management flows
-import { createFeedFlow as createFeedFlowDef } from './flows/feedFlows';
-export const createFeedFlow = onCallGenkit(genKitGoogleAiOptions, createFeedFlowDef);
+export const onboardingAgent = onCallGenkit(genKitGoogleAiOptions, onboardingAgentAction);
+export const profileAgent = onCallGenkit(genKitGoogleAiOptions, profileAgentAction);
+export const imageAgent = onCallGenkit(genKitGoogleAiOptions, imageAgentAction);
 
-// Flip (video) management flows
-import { createFlipFlow as createFlipFlowDef } from './flows/flipFlows';
-export const createFlipFlow = onCallGenkit(genKitGoogleAiOptions, createFlipFlowDef);
+// Feed management agents
+import { registerFeedFlows } from './flows/feedFlows';
+
+const { feedCreationAgentAction, feedManagementAgentAction } = registerFeedFlows(ai);
+
+export const feedCreationAgent = onCallGenkit(genKitGoogleAiOptions, feedCreationAgentAction);
+export const feedManagementAgent = onCallGenkit(genKitGoogleAiOptions, feedManagementAgentAction);
+
+// Flip (video) management agents
+import { registerFlipFlows } from './flows/flipFlows';
+
+const { flipCreationAgentAction, flipBrowserAgentAction } = registerFlipFlows(ai);
+
+export const flipCreationAgent = onCallGenkit(genKitGoogleAiOptions, flipCreationAgentAction);
+export const flipBrowserAgent = onCallGenkit(genKitGoogleAiOptions, flipBrowserAgentAction);
 
 // ============================================================================
 // TOOL REGISTRATION
 // ============================================================================
 
+import { registerFeedTools } from './tools/feedTools';
+import { registerFlipTools } from './tools/flipTools';
 /**
  * Import and register all tool registration functions
  */
 import { registerUserTools } from './tools/userTools';
+import { registerVideoTools } from './tools/videoTools';
 
 // Register user management tools
 registerUserTools(ai);
 
+// Register feed management tools
+registerFeedTools(ai);
+
+// Register flip management tools
+registerFlipTools(ai);
+
+// Register video processing tools
+registerVideoTools(ai);
+
+export { FeedSchema } from './tools/feedTools';
+export { FlipSchema } from './tools/flipTools';
 /**
- * Export user tools schema for reference
+ * Export schemas for reference
  * (actual tools are registered dynamically with Genkit)
  */
 export { UserProfileSchema } from './tools/userTools';
+export { VideoModerationResultSchema } from './tools/videoTools';

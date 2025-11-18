@@ -1,56 +1,93 @@
-import * as admin from 'firebase-admin';
-import { HttpsError } from 'firebase-functions/v2/https';
+import type { Genkit } from 'genkit';
 import { z } from 'zod';
-import { ai } from '../genkit';
+import { requireAuth } from '../auth/contextProvider';
+import { FeedSchema } from '../tools/feedTools';
 
-const db = admin.firestore();
+/**
+ * Register all feed agents with the provided Genkit instance.
+ */
+export function registerFeedFlows(ai: Genkit) {
+  /**
+   * Feed Creation Agent
+   *
+   * Handles feed creation with AI-assisted validation and setup.
+   */
+  const feedCreationAgentAction = ai.defineFlow(
+    {
+      name: 'feedCreationAgent',
+      metadata: {
+        description: 'An intelligent assistant for creating and configuring new feeds',
+      },
+      inputSchema: z.object({
+        name: z.string(),
+        description: z.string(),
+        visibility: z.enum(['public', 'private']),
+      }),
+      outputSchema: z.object({ feedId: z.string() }),
+    },
+    async (data, { context }) => {
+      const auth = requireAuth(context);
 
-export const createFeedFlow = ai.defineFlow(
-  {
-    name: 'createFeedFlow',
-    inputSchema: z.object({
-      name: z.string(),
-      description: z.string(),
-      visibility: z.enum(['public', 'private']),
-    }),
-    outputSchema: z.object({ feedId: z.string() }),
-  },
-  async (data, { context }) => {
-    if (!context?.auth) {
-      throw new HttpsError('unauthenticated', 'User must be logged in.');
+      const result = await ai.generate({
+        model: 'googleai/gemini-2.5-flash-lite',
+        prompt: `Create a new feed for user ${auth.uid}.
+
+Feed details:
+- Name: ${data.name}
+- Description: ${data.description}
+- Visibility: ${data.visibility}
+
+Use the createFeed tool to create this feed. The authenticated user will automatically become the owner and admin.
+
+Return the feedId.`,
+        tools: ['createFeed'],
+        output: {
+          schema: z.object({ feedId: z.string() }),
+        },
+      });
+
+      return { feedId: result.output?.feedId ?? '' };
     }
-    const { uid, token } = context.auth;
-    const { displayName, photoURL } = token;
-    const { name, description, visibility } = data;
+  );
 
-    const newFeedRef = db.collection('feeds').doc();
-    const feedId = newFeedRef.id;
+  /**
+   * Feed Management Agent
+   *
+   * Manages feed browsing, member management, and feed queries.
+   */
+  const feedManagementAgentAction = ai.defineFlow(
+    {
+      name: 'feedManagementAgent',
+      metadata: {
+        description: 'An intelligent assistant for managing feeds and memberships',
+      },
+      inputSchema: z.object({}),
+      outputSchema: z.object({
+        feeds: z.array(FeedSchema),
+      }),
+    },
+    async (_data, { context }) => {
+      requireAuth(context);
 
-    await db.runTransaction(async (transaction) => {
-      transaction.set(newFeedRef, {
-        owner: uid,
-        name,
-        description,
-        visibility,
-        stats: { memberCount: 1, flipCount: 0 },
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      const memberRef = newFeedRef.collection('members').doc(uid);
-      transaction.set(memberRef, {
-        role: 'admin',
-        displayName,
-        photoURL,
-        joinedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      const userFeedRef = db.collection('users').doc(uid).collection('feeds').doc(feedId);
-      transaction.set(userFeedRef, {
-        feedId,
-        role: 'admin',
-        joinedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    });
+      const result = await ai.generate({
+        model: 'googleai/gemini-2.5-flash-lite',
+        prompt: `Get all feeds that the authenticated user is a member of.
 
-    return { feedId };
-  }
-);
+Use the listUserFeeds tool to retrieve the feeds.
+
+Return the list of feeds.`,
+        tools: ['listUserFeeds'],
+        output: {
+          schema: z.object({ feeds: z.array(FeedSchema) }),
+        },
+      });
+
+      return { feeds: result.output?.feeds ?? [] };
+    }
+  );
+
+  return {
+    feedCreationAgentAction,
+    feedManagementAgentAction,
+  };
+}

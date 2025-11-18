@@ -1,5 +1,5 @@
-// Import Genkit instance and all flows
-// This ensures flows are registered with Genkit before MCP server starts
+// Import Genkit instance and all agents
+// This ensures agents are registered with Genkit before MCP server starts
 // Note: Firebase Admin is initialized in genkit.ts
 import './genkit';
 
@@ -7,11 +7,23 @@ import './genkit';
 export { mcpAuthServer } from './auth/authServer';
 // Export Protected Resource Metadata (MCP discovery endpoint)
 export { mcpProtectedResource } from './auth/protectedResource';
-// Export Genkit flows as Cloud Functions
-export { conversationalProfileFlow, createFeedFlow, createFlipFlow } from './genkit';
+// Export Genkit agents as Cloud Functions
+// User agents
+// Feed agents
+// Flip (video) agents
+export {
+  feedCreationAgent,
+  feedManagementAgent,
+  flipBrowserAgent,
+  flipCreationAgent,
+  imageAgent,
+  onboardingAgent,
+  profileAgent,
+} from './genkit';
+
 // Export MCP Server (supports both OAuth and Firebase ID token auth)
-// Built with genkitx-mcp package for automatic tool/flow exposure
+// Built with genkitx-mcp package for automatic tool/agent exposure
 export { mcpServerFunc as mcpServer } from './mcpServer';
 
-// Note: Flows are auto-registered when genkit.ts is imported
+// Note: Agents are auto-registered when genkit.ts is imported
 // The mcpServer accesses them via ai.registry.listActions()

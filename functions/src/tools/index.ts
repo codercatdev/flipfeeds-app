@@ -1,13 +1,10 @@
 // User tools
-export * from './userTools';
 
 // Feed tools
-// TODO: Uncomment when feedTools.ts is created
-// export * from './feedTools';
+export * from './feedTools';
 // Flip tools
-// TODO: Uncomment when flipTools.ts is created
-// export * from './flipTools';
+export * from './flipTools';
+export * from './userTools';
 
 // Video processing tools
-// TODO: Uncomment when videoTools.ts is created
-// export * from './videoTools';
+export * from './videoTools';

@@ -1,82 +1,192 @@
-import * as admin from 'firebase-admin';
-import { HttpsError } from 'firebase-functions/v2/https';
+import type { Genkit } from 'genkit';
 import { z } from 'zod';
-import { ai } from '../genkit';
+import { requireAuth } from '../auth/contextProvider';
+import { FlipSchema } from '../tools/flipTools';
 
-const db = admin.firestore();
+/**
+ * Register all flip agents with the provided Genkit instance.
+ */
+export function registerFlipFlows(ai: Genkit) {
+  /**
+   * Flip Creation Agent (Video Publishing)
+   *
+   * Handles video publishing with AI-powered moderation, summary, and title generation.
+   * Now supports AI video generation using Veo 3.1!
+   *
+   * Workflow:
+   * - With existing video: moderate → generate summary → generate title → create flip
+   * - With prompt: generate video → moderate → generate summary → generate title → create flip
+   */
+  const flipCreationAgentAction = ai.defineFlow(
+    {
+      name: 'flipCreationAgent',
+      metadata: {
+        description:
+          'An intelligent assistant for creating video posts. Can use existing videos or generate new ones from text prompts using AI.',
+      },
+      inputSchema: z.object({
+        feedIds: z.array(z.string()).min(1).describe('Array of feed IDs to share to'),
+        videoStoragePath: z
+          .string()
+          .optional()
+          .describe('Path to existing video in Firebase Storage (OR use videoPrompt)'),
+        videoPrompt: z
+          .string()
+          .optional()
+          .describe(
+            'Text prompt to generate a video using AI (OR use videoStoragePath). Creates vertical 9:16 video.'
+          ),
+        videoDuration: z
+          .number()
+          .min(1)
+          .max(10)
+          .optional()
+          .describe('Duration in seconds for generated video (1-10, default 5)'),
+        title: z.string().optional().describe('Optional title (will be generated if not provided)'),
+      }),
+      outputSchema: z.object({
+        flipId: z.string(),
+        title: z.string(),
+        summary: z.string(),
+        videoStoragePath: z.string().describe('Path to the video (generated or provided)'),
+        wasGenerated: z.boolean().describe('Whether the video was AI-generated'),
+        moderationResult: z.object({
+          isSafe: z.boolean(),
+          reasons: z.array(z.string()).optional(),
+        }),
+      }),
+    },
+    async (data, { context }) => {
+      const auth = requireAuth(context);
 
-// TODO: Implement AI tools
-const moderateVideo = async (videoStoragePath: string) => {
-  console.log(`Moderating video at ${videoStoragePath}`);
-  return { isSafe: true };
-};
+      const { feedIds, videoStoragePath, videoPrompt, videoDuration, title } = data;
 
-const generateVideoSummary = async (videoStoragePath: string) => {
-  console.log(`Generating summary for video at ${videoStoragePath}`);
-  return 'This is a summary of the video.';
-};
+      // Validate input: must have either videoStoragePath OR videoPrompt
+      if (!videoStoragePath && !videoPrompt) {
+        throw new Error(
+          'Must provide either videoStoragePath (existing video) or videoPrompt (generate new video)'
+        );
+      }
+      if (videoStoragePath && videoPrompt) {
+        throw new Error('Cannot provide both videoStoragePath and videoPrompt. Choose one.');
+      }
 
-const generateVideoTitle = async (videoStoragePath: string) => {
-  console.log(`Generating title for video at ${videoStoragePath}`);
-  return 'This is a title for the video.';
-};
+      // Use ai.generate() with tools to handle the entire flip creation workflow
+      const result = await ai.generate({
+        model: 'googleai/gemini-2.5-flash',
+        prompt: `Create a new flip (video post) for user ${auth.uid}.
 
-export const createFlipFlow = ai.defineFlow(
-  {
-    name: 'createFlipFlow',
-    inputSchema: z.object({
-      feedId: z.string(),
-      videoStoragePath: z.string(),
-      title: z.string().optional(),
-      auth: z.any(),
-    }),
-    outputSchema: z.object({ flipId: z.string() }),
-  },
-  async (data) => {
-    if (!data.auth) {
-      throw new HttpsError('unauthenticated', 'User must be logged in.');
-    }
+${
+  videoPrompt
+    ? `STEP 1 - GENERATE VIDEO:
+Use generateVerticalVideo tool to create a vertical (9:16) video from this prompt:
+"${videoPrompt}"
+${videoDuration ? `Duration: ${videoDuration} seconds` : 'Duration: 5 seconds (default)'}
 
-    const { uid, token } = data.auth;
-    const { displayName, photoURL } = token;
+The tool will return videoUrl and storagePath. Use the storagePath for the next steps.
 
-    const { feedId, videoStoragePath, title } = data;
+`
+    : `Video already exists at: ${videoStoragePath}
 
-    const feedMemberRef = db.collection('feeds').doc(feedId).collection('members').doc(uid);
-    const feedMemberDoc = await feedMemberRef.get();
-    if (!feedMemberDoc.exists) {
-      throw new HttpsError('permission-denied', 'User is not a member of this feed.');
-    }
+`
+}WORKFLOW:
+1. ${videoPrompt ? 'After generating video, moderate it' : 'Moderate the video'} using moderateVideo tool
+2. If video is not safe, stop and return the moderation result with isSafe: false
+3. If video is safe, generate a summary using generateVideoSummary tool
+4. If no title was provided, generate an engaging title using generateVideoTitle tool (pass the summary to it)
+5. Create the flip using createFlip tool with:
+   - feedIds: ${feedIds.join(', ')}
+   - videoStoragePath: ${videoPrompt ? 'the storagePath from generated video' : videoStoragePath}
+   - title: ${title || 'the generated title'}
+   - summary: the generated summary
 
-    const moderationResult = await moderateVideo(videoStoragePath);
-    if (!moderationResult.isSafe) {
-      throw new HttpsError('invalid-argument', 'Video is not safe.');
-    }
-
-    const summary = await generateVideoSummary(videoStoragePath);
-    const generatedTitle = title ?? (await generateVideoTitle(videoStoragePath));
-
-    const newFlipRef = db.collection('flips').doc();
-    const flipId = newFlipRef.id;
-
-    await db.runTransaction(async (transaction) => {
-      transaction.set(newFlipRef, {
-        feedId,
-        authorId: uid,
-        authorName: displayName,
-        authorPhotoURL: photoURL,
-        title: generatedTitle,
-        summary,
-        videoStoragePath,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+Return:
+- flipId: The created flip ID
+- title: The final title (generated or provided)
+- summary: The generated summary
+- videoStoragePath: Path to the video (${videoPrompt ? 'generated' : 'provided'})
+- wasGenerated: ${videoPrompt ? 'true' : 'false'}
+- moderationResult: The moderation result with isSafe and optional reasons`,
+        tools: [
+          ...(videoPrompt ? ['generateVerticalVideo'] : []),
+          'moderateVideo',
+          'generateVideoSummary',
+          'generateVideoTitle',
+          'createFlip',
+        ],
+        output: {
+          schema: z.object({
+            flipId: z.string(),
+            title: z.string(),
+            summary: z.string(),
+            videoStoragePath: z.string(),
+            wasGenerated: z.boolean(),
+            moderationResult: z.object({
+              isSafe: z.boolean(),
+              reasons: z.array(z.string()).optional(),
+            }),
+          }),
+        },
       });
 
-      const feedRef = db.collection('feeds').doc(feedId);
-      transaction.update(feedRef, {
-        'stats.flipCount': admin.firestore.FieldValue.increment(1),
-      });
-    });
+      if (!result.output?.moderationResult.isSafe) {
+        throw new Error(
+          `Video failed moderation: ${result.output?.moderationResult.reasons?.join(', ') || 'Unknown reasons'}`
+        );
+      }
 
-    return { flipId };
-  }
-);
+      return {
+        flipId: result.output?.flipId ?? '',
+        title: result.output?.title ?? '',
+        summary: result.output?.summary ?? '',
+        videoStoragePath: result.output?.videoStoragePath ?? videoStoragePath ?? '',
+        wasGenerated: !!videoPrompt,
+        moderationResult: result.output?.moderationResult ?? { isSafe: false },
+      };
+    }
+  );
+
+  /**
+   * Flip Browser Agent
+   *
+   * Manages browsing and discovering flips in feeds.
+   */
+  const flipBrowserAgentAction = ai.defineFlow(
+    {
+      name: 'flipBrowserAgent',
+      metadata: {
+        description: 'An intelligent assistant for browsing and discovering video content in feeds',
+      },
+      inputSchema: z.object({
+        feedId: z.string(),
+        limit: z.number().min(1).max(100).optional(),
+      }),
+      outputSchema: z.object({
+        flips: z.array(FlipSchema),
+      }),
+    },
+    async (data, { context }) => {
+      requireAuth(context);
+
+      const result = await ai.generate({
+        model: 'googleai/gemini-2.5-flash-lite',
+        prompt: `Get flips for feed ${data.feedId}.
+
+Use the getFeedFlips tool to retrieve the flips${data.limit ? ` with a limit of ${data.limit}` : ''}.
+
+Return the list of flips.`,
+        tools: ['getFeedFlips'],
+        output: {
+          schema: z.object({ flips: z.array(FlipSchema) }),
+        },
+      });
+
+      return { flips: result.output?.flips ?? [] };
+    }
+  );
+
+  return {
+    flipCreationAgentAction,
+    flipBrowserAgentAction,
+  };
+}

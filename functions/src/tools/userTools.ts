@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import type { ActionContext, Genkit } from 'genkit';
 import { z } from 'zod';
 
@@ -7,6 +8,11 @@ import { z } from 'zod';
  * This ensures Firebase Admin is initialized before accessing Firestore
  */
 const db = () => getFirestore();
+
+/**
+ * Get Storage instance lazily
+ */
+const storage = () => getStorage();
 
 // ============================================================================
 // SCHEMAS
@@ -192,6 +198,136 @@ export async function releaseUsernameTool(
 }
 
 /**
+ * Add username change to history (immutable audit log)
+ * 🔒 SECURE: Gets uid from context.auth only - prevents impersonation
+ */
+export async function addUsernameHistoryTool(
+  input: { oldUsername: string | null; newUsername: string },
+  context?: { auth?: { uid: string } }
+): Promise<void> {
+  console.log('[addUsernameHistoryTool] Starting tool execution');
+
+  const uid = context?.auth?.uid;
+  if (!uid) {
+    console.error('[addUsernameHistoryTool] Unauthorized: No authenticated user in context');
+    throw new Error('Unauthorized: No authenticated user in context');
+  }
+
+  console.log(
+    '[addUsernameHistoryTool] Adding history entry for uid:',
+    uid,
+    'old:',
+    input.oldUsername,
+    'new:',
+    input.newUsername
+  );
+
+  await db().collection(`users/${uid}/usernameHistory`).add({
+    oldUsername: input.oldUsername,
+    newUsername: input.newUsername,
+    changedAt: FieldValue.serverTimestamp(),
+  });
+
+  console.log('[addUsernameHistoryTool] History entry added successfully');
+}
+
+/**
+ * Generate signed upload URL for profile image
+ * 🔒 SECURE: Gets uid from context.auth only - prevents impersonation
+ *
+ * Supports the Storage rules structure:
+ * profile-images/{userId}/{imageType}/{imageId}
+ * where imageType is: generated, selected, uploaded, processed
+ */
+export async function generateProfileImageUploadUrlTool(
+  input: {
+    imageType: 'generated' | 'selected' | 'uploaded' | 'processed';
+    imageId: string;
+    contentType: string;
+  },
+  context?: { auth?: { uid: string } }
+): Promise<{ uploadUrl: string; publicUrl: string; storagePath: string }> {
+  console.log('[generateProfileImageUploadUrlTool] Starting tool execution');
+
+  const uid = context?.auth?.uid;
+  if (!uid) {
+    console.error(
+      '[generateProfileImageUploadUrlTool] Unauthorized: No authenticated user in context'
+    );
+    throw new Error('Unauthorized: No authenticated user in context');
+  }
+
+  // Validate content type is an image
+  if (!input.contentType.startsWith('image/')) {
+    throw new Error('Invalid content type: must be an image/*');
+  }
+
+  const storagePath = `profile-images/${uid}/${input.imageType}/${input.imageId}`;
+  console.log('[generateProfileImageUploadUrlTool] Generating upload URL for:', storagePath);
+
+  const bucket = storage().bucket();
+  const file = bucket.file(storagePath);
+
+  // Generate signed upload URL (valid for 15 minutes)
+  const [uploadUrl] = await file.getSignedUrl({
+    version: 'v4',
+    action: 'write',
+    expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+    contentType: input.contentType,
+  });
+
+  // Generate public URL
+  const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+
+  console.log('[generateProfileImageUploadUrlTool] Upload URL generated successfully');
+
+  return {
+    uploadUrl,
+    publicUrl,
+    storagePath,
+  };
+}
+
+/**
+ * Delete profile image from Storage
+ * 🔒 SECURE: Gets uid from context.auth only - prevents impersonation
+ */
+export async function deleteProfileImageTool(
+  input: { storagePath: string },
+  context?: { auth?: { uid: string } }
+): Promise<void> {
+  console.log('[deleteProfileImageTool] Starting tool execution');
+
+  const uid = context?.auth?.uid;
+  if (!uid) {
+    console.error('[deleteProfileImageTool] Unauthorized: No authenticated user in context');
+    throw new Error('Unauthorized: No authenticated user in context');
+  }
+
+  // Verify the path belongs to the user
+  if (!input.storagePath.startsWith(`profile-images/${uid}/`)) {
+    console.error('[deleteProfileImageTool] Unauthorized: Path does not belong to user');
+    throw new Error('Unauthorized: Cannot delete files that do not belong to you');
+  }
+
+  console.log('[deleteProfileImageTool] Deleting image at:', input.storagePath);
+
+  const bucket = storage().bucket();
+  const file = bucket.file(input.storagePath);
+
+  try {
+    await file.delete();
+    console.log('[deleteProfileImageTool] Image deleted successfully');
+  } catch (error: any) {
+    if (error.code === 404) {
+      console.log('[deleteProfileImageTool] Image not found (already deleted)');
+      return;
+    }
+    throw error;
+  }
+}
+
+/**
  * Update user profile
  * 🔒 SECURE: Gets uid from context.auth only - prevents impersonation
  */
@@ -238,7 +374,7 @@ export async function updateUserProfileTool(
 /**
  * Create user profile (called on signup)
  * 🔒 SECURE: Gets uid from context.auth only - prevents impersonation
- * TODO: Also create personal feed automatically (personal_{userId})
+ * ✅ Automatically creates personal feed (personal_{userId})
  */
 export async function createUserProfileTool(
   input: {
@@ -262,6 +398,7 @@ export async function createUserProfileTool(
   console.log('[createUserProfileTool] Creating profile for uid:', uid);
   const timestamp = FieldValue.serverTimestamp();
 
+  // Create user profile
   await db()
     .collection('users')
     .doc(uid)
@@ -274,20 +411,54 @@ export async function createUserProfileTool(
         bio: null,
         phoneNumber: context.auth?.phoneNumber || input.phoneNumber || null,
         email: context.auth?.email || input.email || null,
-        feedCount: 0,
+        feedCount: 1, // Personal feed
         createdAt: timestamp,
         updatedAt: timestamp,
       },
     });
 
   console.log('[createUserProfileTool] Profile created successfully');
+
+  // Create personal feed automatically
+  const personalFeedId = `personal_${uid}`;
+  console.log('[createUserProfileTool] Creating personal feed:', personalFeedId);
+
+  await db().collection('feeds').doc(personalFeedId).set({
+    name: 'My Personal Feed',
+    description: 'My private collection of videos',
+    visibility: 'private',
+    owner: uid,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    memberCount: 1,
+    flipCount: 0,
+  });
+
+  // Add user as admin of personal feed
+  await db().collection('feeds').doc(personalFeedId).collection('members').doc(uid).set({
+    role: 'admin',
+    joinedAt: timestamp,
+  });
+
+  // Add feed to user's feeds subcollection
+  await db().collection('users').doc(uid).collection('feeds').doc(personalFeedId).set({
+    role: 'admin',
+    joinedAt: timestamp,
+  });
+
+  // Store personal feed reference
+  await db().collection('users').doc(uid).collection('personalFeed').doc('ref').set({
+    feedId: personalFeedId,
+    createdAt: timestamp,
+  });
+
+  console.log('[createUserProfileTool] Personal feed created successfully');
+
   const newProfile = await getUserProfileTool({}, { auth: context?.auth as any });
   if (!newProfile) {
     throw new Error('Failed to retrieve newly created profile');
   }
-  // TODO: Create personal feed automatically
-  // const personalFeedId = `personal_${uid}`;
-  // await createPersonalFeed(uid, personalFeedId);
+
   return newProfile;
 }
 
@@ -453,13 +624,13 @@ export function registerUserTools(ai: Genkit) {
   /**
    * Create user profile (called on signup)
    * 🔒 SECURE: Gets uid from context.auth only - prevents impersonation
-   * TODO: Also create personal feed automatically (personal_{userId})
+   * ✅ Automatically creates personal feed (personal_{userId})
    */
   ai.defineTool(
     {
       name: 'createUserProfile',
       description:
-        'Create a new user profile in Firestore during signup for the authenticated user',
+        'Create a new user profile in Firestore during signup for the authenticated user. Automatically creates a personal feed.',
       inputSchema: z.object({
         // NO uid parameter - security risk! Always use context.auth.uid
         displayName: z.string().optional().describe('User display name'),
@@ -472,6 +643,84 @@ export function registerUserTools(ai: Genkit) {
     async (input, { context }) => {
       return createUserProfileTool(input, {
         auth: context?.auth,
+      });
+    }
+  );
+
+  /**
+   * Add username change to history (immutable audit log)
+   * 🔒 SECURE: Gets uid from context.auth only - prevents impersonation
+   */
+  ai.defineTool(
+    {
+      name: 'addUsernameHistory',
+      description:
+        "Record a username change in the user's immutable history log (usernameHistory subcollection)",
+      inputSchema: z.object({
+        oldUsername: z.string().nullable().describe('Previous username (null if first username)'),
+        newUsername: z.string().describe('New username'),
+      }),
+      outputSchema: z.void(),
+    },
+    async (input, { context }) => {
+      return addUsernameHistoryTool(input, {
+        auth: context?.auth as { uid: string } | undefined,
+      });
+    }
+  );
+
+  /**
+   * Generate signed upload URL for profile image
+   * 🔒 SECURE: Gets uid from context.auth only - prevents impersonation
+   */
+  ai.defineTool(
+    {
+      name: 'generateProfileImageUploadUrl',
+      description:
+        'Generate a signed URL for uploading a profile image to Firebase Storage. Returns upload URL, public URL, and storage path.',
+      inputSchema: z.object({
+        imageType: z
+          .enum(['generated', 'selected', 'uploaded', 'processed'])
+          .describe(
+            'Type of image: generated (AI), selected (chosen), uploaded (user), processed (optimized)'
+          ),
+        imageId: z.string().describe('Unique image identifier (e.g., UUID)'),
+        contentType: z.string().describe('Image content type (e.g., image/jpeg, image/png)'),
+      }),
+      outputSchema: z.object({
+        uploadUrl: z.string().describe('Signed URL for uploading (valid 15 minutes)'),
+        publicUrl: z.string().describe('Public URL for accessing the image after upload'),
+        storagePath: z
+          .string()
+          .describe('Storage path: profile-images/{userId}/{imageType}/{imageId}'),
+      }),
+    },
+    async (input, { context }) => {
+      return generateProfileImageUploadUrlTool(input, {
+        auth: context?.auth as { uid: string } | undefined,
+      });
+    }
+  );
+
+  /**
+   * Delete profile image from Storage
+   * 🔒 SECURE: Gets uid from context.auth only - prevents impersonation
+   */
+  ai.defineTool(
+    {
+      name: 'deleteProfileImage',
+      description:
+        'Delete a profile image from Firebase Storage. User can only delete their own images.',
+      inputSchema: z.object({
+        storagePath: z
+          .string()
+          .describe('Storage path to delete (must belong to authenticated user)'),
+      }),
+      outputSchema: z.void(),
+    },
+    async (input, { context }) => {
+      return deleteProfileImageTool(input, {
+        auth: context?.auth as { uid: string } | undefined,
       });
     }
   );

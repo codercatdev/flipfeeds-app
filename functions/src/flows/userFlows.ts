@@ -1,17 +1,11 @@
 import parseDataURL from 'data-urls';
 import * as admin from 'firebase-admin';
-import { HttpsError } from 'firebase-functions/v2/https';
 import type { Genkit } from 'genkit';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { requireAuth } from '../auth/contextProvider';
-import { vertexAI } from '../genkit';
 import {
-  claimUsernameTool,
-  createUserProfileTool,
   getUserProfileTool,
-  isUsernameAvailableTool,
-  releaseUsernameTool,
   UserProfileOutputSchema,
   updateUserProfileTool,
 } from '../tools/userTools';
@@ -24,466 +18,185 @@ function buildPublicStorageUrl(bucketName: string, filePath: string, token: stri
 }
 
 /**
- * Register all user flows with the provided Genkit instance.
+ * Register all user agents with the provided Genkit instance.
  * This function is called from genkit.ts after Genkit is initialized.
- * Returns the conversationalProfileFlow action for export.
+ * Returns agent actions for export.
  */
 export function registerUserFlows(ai: Genkit) {
   /**
-   * Conversational User Profile Flow
+   * Onboarding Agent
    *
-   * This flow provides an interactive conversation to help users:
-   * 1. Check authentication
-   * 2. Check if profile exists, create if missing
-   * 3. Optionally customize their profile (username, bio)
-   * 4. Optionally generate or find a profile image
-   *
-   * Uses available tools: getUserProfileTool, createUserProfileTool,
-   * updateUserProfileTool, isUsernameAvailableTool, claimUsernameTool
+   * Handles new user onboarding and profile creation with a warm, conversational approach.
+   * The LLM decides which tools to call based on user state and conversation.
    */
-  const conversationalProfileFlowAction = ai.defineFlow(
+  const onboardingAgentAction = ai.defineFlow(
     {
-      name: 'conversationalProfileFlow',
+      name: 'onboardingAgent',
       metadata: {
         description:
-          'An interactive flow to help users see their profile and set up and customize their profile through conversation.',
+          'An intelligent onboarding assistant that helps new users set up their profile and preferences',
       },
       inputSchema: z.object({
-        message: z.string().optional().describe('User message or request'),
-      }),
-      outputSchema: z
-        .object({
-          response: z.string().describe('Conversational response to the user'),
-          profile: UserProfileOutputSchema.optional().describe('Current user profile state'),
-          needsInput: z.boolean().describe('Whether the flow needs more user input'),
-          suggestedActions: z
-            .array(z.string())
-            .optional()
-            .describe('Suggested next actions for the user'),
-        })
-        .passthrough(),
-    },
-    async (input, { context }) => {
-      const auth = requireAuth(context);
-
-      // Check if profile exists
-      const profile = await getUserProfileTool({}, { auth: context?.auth as any });
-
-      // If no profile exists, create one
-      if (!profile) {
-        await createUserProfileTool(
-          {
-            displayName: auth.displayName,
-            email: auth.email,
-            photoURL: auth.photoURL,
-          },
-          { auth: context?.auth as any }
-        );
-
-        // Fetch the newly created profile
-        const newProfile = await getUserProfileTool({}, { auth: context?.auth as any });
-        if (!newProfile) {
-          throw new HttpsError('internal', 'Failed to create user profile');
-        }
-
-        return {
-          response: `Welcome! I've created your profile. Your profile is set up with the display name "${auth.displayName || 'User'}". Would you like to customize it further? You can:
-- Choose a unique username
-- Add a bio to tell others about yourself
-- Generate or find a profile image`,
-          profile: {
-            uid: newProfile.uid,
-            displayName: newProfile.displayName,
-            username: newProfile.username,
-            photoURL: newProfile.photoURL,
-            bio: newProfile.bio,
-            feedCount: newProfile.feedCount,
-            createdAt: newProfile.createdAt,
-            updatedAt: newProfile.updatedAt,
-          },
-          needsInput: true,
-          suggestedActions: [
-            'Set a username',
-            'Add a bio',
-            'Generate a profile image',
-            'Skip customization',
-          ],
-        };
-      }
-
-      // Profile exists - handle conversational requests
-      const userMessage = input.message?.toLowerCase() || '';
-
-      // Handle username requests
-      if (userMessage.includes('username')) {
-        if (!profile.username) {
-          return {
-            response:
-              "You don't have a username set yet. Usernames must be 3-20 characters and unique. What username would you like?",
-            profile: {
-              uid: profile.uid,
-              displayName: profile.displayName,
-              username: profile.username,
-              photoURL: profile.photoURL,
-              bio: profile.bio,
-              feedCount: profile.feedCount,
-              createdAt: profile.createdAt,
-              updatedAt: profile.updatedAt,
-            },
-            needsInput: true,
-            suggestedActions: ['Enter a username'],
-          };
-        } else {
-          return {
-            response: `Your current username is "${profile.username}". Would you like to change it?`,
-            profile: {
-              uid: profile.uid,
-              displayName: profile.displayName,
-              username: profile.username,
-              photoURL: profile.photoURL,
-              bio: profile.bio,
-              feedCount: profile.feedCount,
-              createdAt: profile.createdAt,
-              updatedAt: profile.updatedAt,
-            },
-            needsInput: true,
-            suggestedActions: ['Enter a new username', 'Keep current username'],
-          };
-        }
-      }
-
-      // Handle bio requests
-      if (userMessage.includes('bio')) {
-        if (!profile.bio) {
-          return {
-            response: "You don't have a bio yet. Tell me about yourself!",
-            profile: {
-              uid: profile.uid,
-              displayName: profile.displayName,
-              username: profile.username,
-              photoURL: profile.photoURL,
-              bio: profile.bio,
-              feedCount: profile.feedCount,
-              createdAt: profile.createdAt,
-              updatedAt: profile.updatedAt,
-            },
-            needsInput: true,
-            suggestedActions: ['Enter your bio'],
-          };
-        } else {
-          return {
-            response: `Your current bio: "${profile.bio}". Would you like to update it?`,
-            profile: {
-              uid: profile.uid,
-              displayName: profile.displayName,
-              username: profile.username,
-              photoURL: profile.photoURL,
-              bio: profile.bio,
-              feedCount: profile.feedCount,
-              createdAt: profile.createdAt,
-              updatedAt: profile.updatedAt,
-            },
-            needsInput: true,
-            suggestedActions: ['Enter a new bio', 'Keep current bio'],
-          };
-        }
-      }
-
-      // Handle profile image requests
-      if (
-        userMessage.includes('image') ||
-        userMessage.includes('photo') ||
-        userMessage.includes('picture') ||
-        userMessage.includes('avatar')
-      ) {
-        if (!profile.photoURL) {
-          return {
-            response:
-              "You don't have a profile image yet. I can help you:\n1. Generate an AI image based on your interests\n2. Find an image from the web\n3. Use a URL you provide\n\nWhat would you like to do?",
-            profile: {
-              uid: profile.uid,
-              displayName: profile.displayName,
-              username: profile.username,
-              photoURL: profile.photoURL,
-              bio: profile.bio,
-              feedCount: profile.feedCount,
-              createdAt: profile.createdAt,
-              updatedAt: profile.updatedAt,
-            },
-            needsInput: true,
-            suggestedActions: ['Generate AI image', 'Find image on web', 'Provide image URL'],
-          };
-        } else {
-          return {
-            response: `Your current profile image: ${profile.photoURL}\n\nWould you like to change it?`,
-            profile: {
-              uid: profile.uid,
-              displayName: profile.displayName,
-              username: profile.username,
-              photoURL: profile.photoURL,
-              bio: profile.bio,
-              feedCount: profile.feedCount,
-              createdAt: profile.createdAt,
-              updatedAt: profile.updatedAt,
-            },
-            needsInput: true,
-            suggestedActions: ['Generate new AI image', 'Find new image', 'Keep current image'],
-          };
-        }
-      }
-
-      // Default response - show profile status
-      const missingFields = [];
-      if (!profile.username) missingFields.push('username');
-      if (!profile.bio) missingFields.push('bio');
-      if (!profile.photoURL) missingFields.push('profile image');
-
-      if (missingFields.length > 0) {
-        return {
-          response: `Your profile is partially complete. You're missing: ${missingFields.join(', ')}. What would you like to set up first?`,
-          profile: {
-            uid: profile.uid,
-            displayName: profile.displayName,
-            username: profile.username,
-            photoURL: profile.photoURL,
-            bio: profile.bio,
-            feedCount: profile.feedCount,
-            createdAt: profile.createdAt,
-            updatedAt: profile.updatedAt,
-          },
-          needsInput: true,
-          suggestedActions: missingFields.map((field) => `Set ${field}`),
-        };
-      }
-
-      return {
-        response: `Your profile is complete! 
-Username: ${profile.username}
-Bio: ${profile.bio}
-Photo: ${profile.photoURL ? 'Set' : 'Not set'}
-Feeds: ${profile.feedCount}
-
-Would you like to update anything?`,
-        profile: {
-          uid: profile.uid,
-          displayName: profile.displayName,
-          username: profile.username,
-          photoURL: profile.photoURL,
-          bio: profile.bio,
-          feedCount: profile.feedCount,
-          createdAt: profile.createdAt,
-          updatedAt: profile.updatedAt,
-        },
-        needsInput: false,
-        suggestedActions: ['Update username', 'Update bio', 'Change profile image'],
-      };
-    }
-  );
-
-  /**
-   * Update Profile Field Flow
-   *
-   * This flow handles specific profile field updates through conversation.
-   * It validates inputs (like username availability) and provides helpful feedback.
-   */
-  ai.defineFlow(
-    {
-      name: 'updateProfileFieldFlow',
-      metadata: {
-        description: 'A flow to update specific user profile fields with validation and feedback.',
-      },
-      inputSchema: z.object({
-        field: z
-          .enum(['username', 'bio', 'photoURL', 'displayName'])
-          .describe('The field to update'),
-        value: z.string().describe('The new value for the field'),
+        userMessage: z.string().optional().describe('User message or request'),
       }),
       outputSchema: z.object({
-        success: z.boolean(),
-        message: z.string(),
-        profile: UserProfileOutputSchema.optional(),
+        response: z.string().describe('Conversational response to the user'),
+        profile: UserProfileOutputSchema.optional().describe('Current user profile state'),
+        isComplete: z.boolean().describe('Whether onboarding is complete'),
+        nextStep: z.string().optional().describe('Suggested next step'),
       }),
     },
     async (input, { context }) => {
-      console.log('[updateProfileFieldFlow] Starting flow with input:', JSON.stringify(input));
-      console.log('[updateProfileFieldFlow] Context:', JSON.stringify(context, null, 2));
-
       const auth = requireAuth(context);
-      console.log('[updateProfileFieldFlow] Auth user:', auth.uid, auth.email);
+      const userMessage = input.userMessage || 'Start onboarding';
 
-      const { field, value } = input;
-      console.log('[updateProfileFieldFlow] Field to update:', field, 'Value:', value);
+      const result = await ai.generate({
+        model: 'googleai/gemini-2.5-flash',
+        prompt: `You are a friendly onboarding assistant for FlipFeeds, a video-sharing social platform.
 
-      // Get current profile
-      console.log('[updateProfileFieldFlow] Fetching current profile...');
-      const profile = await getUserProfileTool({}, { auth: context?.auth as any });
-      console.log('[updateProfileFieldFlow] Profile fetched:', profile ? 'exists' : 'null');
+User: ${auth.displayName || 'New User'} (${auth.email || 'No email'})
+UID: ${auth.uid}
+Message: "${userMessage}"
 
-      if (!profile) {
-        console.log('[updateProfileFieldFlow] Profile not found, returning error');
-        return {
-          success: false,
-          message: 'Profile not found. Please create a profile first.',
-        };
-      }
+Your role:
+1. Check if they have a profile using getUserProfile
+2. If no profile exists, create one using createUserProfile with their auth data
+3. For new users, generate a warm welcome and guide them through:
+   - Choosing a unique username (check with isUsernameAvailable, then claimUsername)
+   - Adding a bio to introduce themselves
+   - Setting up their first feed (mention they can do this later)
+4. If profile exists, check completeness (username, bio) and help fill gaps
+5. Be encouraging and concise - keep responses under 3 sentences
 
-      console.log(
-        '[updateProfileFieldFlow] Current profile data:',
-        JSON.stringify(profile, null, 2)
-      );
-
-      // Handle username updates with validation
-      if (field === 'username') {
-        console.log('[updateProfileFieldFlow] Handling username update');
-
-        // Validate username length
-        if (value.length < 3 || value.length > 20) {
-          console.log('[updateProfileFieldFlow] Username length invalid:', value.length);
-          return {
-            success: false,
-            message: 'Username must be between 3 and 20 characters.',
-          };
-        }
-
-        // Check if username is the same
-        if (value === profile.username) {
-          console.log('[updateProfileFieldFlow] Username is already current username');
-          return {
-            success: false,
-            message: 'This is already your username.',
-          };
-        }
-
-        // Check availability
-        console.log('[updateProfileFieldFlow] Checking username availability...');
-        const available = await isUsernameAvailableTool({ username: value });
-        console.log('[updateProfileFieldFlow] Username available:', available);
-
-        if (!available) {
-          console.log('[updateProfileFieldFlow] Username already taken');
-          return {
-            success: false,
-            message: `The username "${value}" is already taken. Please try another.`,
-          };
-        }
-
-        // Release old username if exists
-        if (profile.username) {
-          console.log('[updateProfileFieldFlow] Releasing old username:', profile.username);
-          await releaseUsernameTool({ username: profile.username }, { auth: context?.auth as any });
-        }
-
-        // Claim new username
-        console.log('[updateProfileFieldFlow] Claiming new username...');
-        const claimed = await claimUsernameTool(
-          { username: value },
-          { auth: context?.auth as any }
-        );
-        console.log('[updateProfileFieldFlow] Username claimed:', claimed);
-
-        if (!claimed) {
-          console.log('[updateProfileFieldFlow] Failed to claim username');
-          return {
-            success: false,
-            message: 'Failed to claim username. Please try again.',
-          };
-        }
-
-        // Update profile
-        console.log('[updateProfileFieldFlow] Updating profile in Firestore...');
-        await updateUserProfileTool(
-          {
-            updates: { username: value },
-          },
-          { auth: context?.auth as any }
-        );
-
-        console.log('[updateProfileFieldFlow] Fetching updated profile...');
-        const updatedProfile = await getUserProfileTool({}, { auth: context?.auth as any });
-        if (!updatedProfile) {
-          console.error('[updateProfileFieldFlow] Failed to retrieve updated profile');
-          throw new HttpsError('internal', 'Failed to retrieve updated profile');
-        }
-
-        console.log('[updateProfileFieldFlow] Username update successful');
-        console.log(
-          '[updateProfileFieldFlow] Updated profile:',
-          JSON.stringify(updatedProfile, null, 2)
-        );
-
-        return {
-          success: true,
-          message: `Successfully updated your username to "${value}"!`,
-          profile: {
-            uid: updatedProfile.uid,
-            displayName: updatedProfile.displayName,
-            username: updatedProfile.username,
-            photoURL: updatedProfile.photoURL,
-            bio: updatedProfile.bio,
-            feedCount: updatedProfile.feedCount,
-            createdAt: updatedProfile.createdAt,
-            updatedAt: updatedProfile.updatedAt,
-          },
-        };
-      }
-
-      // Handle other field updates
-      console.log('[updateProfileFieldFlow] Handling other field update for:', field);
-      const updates: Record<string, string> = {};
-      updates[field] = value;
-      console.log('[updateProfileFieldFlow] Updates object:', updates);
-
-      console.log('[updateProfileFieldFlow] Updating profile in Firestore...');
-      await updateUserProfileTool(
-        {
-          updates,
+Return:
+- response: Your warm, friendly message (under 3 sentences)
+- profile: Current profile state
+- isComplete: true if username and bio are set
+- nextStep: "Choose username" | "Add bio" | "All set!" | null`,
+        tools: [
+          'getUserProfile',
+          'createUserProfile',
+          'updateUserProfile',
+          'isUsernameAvailable',
+          'claimUsername',
+        ],
+        output: {
+          schema: z.object({
+            response: z.string(),
+            profile: UserProfileOutputSchema.nullable(),
+            isComplete: z.boolean(),
+            nextStep: z.string().optional(),
+          }),
         },
-        { auth: context?.auth as any }
-      );
-
-      console.log('[updateProfileFieldFlow] Fetching updated profile...');
-      const updatedProfile = await getUserProfileTool({}, { auth: context?.auth as any });
-      if (!updatedProfile) {
-        console.error('[updateProfileFieldFlow] Failed to retrieve updated profile');
-        throw new HttpsError('internal', 'Failed to retrieve updated profile');
-      }
-
-      console.log('[updateProfileFieldFlow] Field update successful');
-      console.log(
-        '[updateProfileFieldFlow] Updated profile:',
-        JSON.stringify(updatedProfile, null, 2)
-      );
+      });
 
       return {
-        success: true,
-        message: `Successfully updated your ${field}!`,
-        profile: {
-          uid: updatedProfile.uid,
-          displayName: updatedProfile.displayName,
-          username: updatedProfile.username,
-          photoURL: updatedProfile.photoURL,
-          bio: updatedProfile.bio,
-          feedCount: updatedProfile.feedCount,
-          createdAt: updatedProfile.createdAt,
-          updatedAt: updatedProfile.updatedAt,
-        },
+        response: result.output?.response ?? "Welcome! Let's get you set up.",
+        profile: result.output?.profile ?? undefined,
+        isComplete: result.output?.isComplete ?? false,
+        nextStep: result.output?.nextStep,
       };
     }
   );
 
   /**
-   * Profile Image Assistant Flow
+   * Profile Agent
    *
-   * This flow helps users set up their profile image by:
-   * 1. Accepting a direct image URL
-   * 2. Providing guidance on generating AI images (via external tools)
-   * 3. Suggesting image search strategies
-   *
-   * Note: Actual image generation would require additional tools/services
+   * Manages profile updates and queries with intelligent tool selection.
+   * Handles username changes, bio updates, and profile queries.
    */
-  ai.defineFlow(
+  const profileAgentAction = ai.defineFlow(
     {
-      name: 'profileImageAssistantFlow',
+      name: 'profileAgent',
+      metadata: {
+        description:
+          'An intelligent profile management assistant that helps users view and update their profile',
+      },
+      inputSchema: z.object({
+        userMessage: z.string().describe('User message or request'),
+      }),
+      outputSchema: z.object({
+        response: z.string().describe('Conversational response to the user'),
+        profile: UserProfileOutputSchema.optional().describe('Updated user profile state'),
+        action: z.string().optional().describe('Action taken (e.g., "updated_username")'),
+      }),
+    },
+    async (input, { context }) => {
+      const auth = requireAuth(context);
+
+      const result = await ai.generate({
+        model: 'googleai/gemini-2.5-flash',
+        prompt: `You are a helpful profile assistant for FlipFeeds.
+
+User: ${auth.displayName || 'User'} (UID: ${auth.uid})
+Request: "${input.userMessage}"
+
+Available actions:
+1. Show profile - Use getUserProfile to display current profile
+2. Update username - FULL WORKFLOW:
+   a. Get current profile (getUserProfile) to see old username
+   b. Check new username availability (isUsernameAvailable)
+   c. If old username exists, release it (releaseUsername)
+   d. Claim new username (claimUsername)
+   e. Update profile with new username (updateUserProfile)
+   f. Record change in history (addUsernameHistory with old and new username)
+3. Update bio - Use updateUserProfile
+4. Update display name - Use updateUserProfile
+5. Generate profile image upload URL - Use generateProfileImageUploadUrl
+6. Delete profile image - Use deleteProfileImage
+
+Guidelines:
+- Be concise and friendly (1-2 sentences)
+- For username changes, ALWAYS follow ALL steps including addUsernameHistory
+- Validate before making changes
+- Return updated profile data after changes
+
+Return:
+- response: Your concise message
+- profile: Current/updated profile
+- action: "viewed" | "updated_username" | "updated_bio" | "updated_display_name" | "generated_upload_url" | "deleted_image" | null`,
+        tools: [
+          'getUserProfile',
+          'updateUserProfile',
+          'isUsernameAvailable',
+          'claimUsername',
+          'releaseUsername',
+          'addUsernameHistory',
+          'generateProfileImageUploadUrl',
+          'deleteProfileImage',
+        ],
+        output: {
+          schema: z.object({
+            response: z.string(),
+            profile: UserProfileOutputSchema.nullable(),
+            action: z.string().optional(),
+          }),
+        },
+      });
+
+      return {
+        response: result.output?.response ?? 'Error processing request',
+        profile: result.output?.profile ?? undefined,
+        action: result.output?.action,
+      };
+    }
+  );
+
+  /**
+   * User Update Agent (Removed - merged into profileAgent)
+   *
+   * This functionality is now handled by the profileAgent for better cohesion.
+   */
+
+  /**
+   * Image Agent
+   *
+   * Generates AI-powered profile images using Vertex AI Imagen.
+   * Provides URL management and image generation capabilities.
+   */
+  const imageAgentAction = ai.defineFlow(
+    {
+      name: 'imageAgent',
       metadata: {
         description:
           'A flow to assist users in setting up their profile image through AI generation or direct URL.',
@@ -622,7 +335,7 @@ Would you like to update anything?`,
             const imagePromises = prompts.map(async (prompt, index) => {
               console.log(`Starting generation for image ${index + 1}`);
               const response = await ai.generate({
-                model: vertexAI.model('imagen-3.0-fast-generate-001'),
+                model: 'vertexai/imagen-3.0-fast-generate-001',
                 prompt: prompt,
                 output: { format: 'media' },
                 config: {
@@ -831,5 +544,9 @@ To select an image, call this flow again with:
     }
   );
 
-  return { conversationalProfileFlowAction };
+  return {
+    onboardingAgentAction,
+    profileAgentAction,
+    imageAgentAction,
+  };
 }

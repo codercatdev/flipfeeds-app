@@ -18,37 +18,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      const previousUser = user;
-      setUser(user);
+    let previousUser: User | null = null;
+
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
       setLoading(false);
 
       // Sync session cookie with Firebase auth state
       try {
-        if (user) {
+        if (currentUser) {
           // User is signed in - get fresh token and set cookie
-          const token = await user.getIdToken();
-          await fetch('/api/auth/session', {
+          const token = await currentUser.getIdToken();
+          const response = await fetch('/api/auth/session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token }),
           });
-          console.log('[Auth] Session cookie set for user:', user.uid);
-        } else {
-          // User signed out - clear the cookie
-          await fetch('/api/auth/session', {
+
+          if (!response.ok) {
+            console.warn('[Auth] Failed to set session cookie:', response.status);
+          } else {
+            console.log('[Auth] Session cookie set for user:', currentUser.uid);
+          }
+        } else if (previousUser) {
+          // User signed out (not initial load) - clear the cookie
+          const response = await fetch('/api/auth/session', {
             method: 'DELETE',
           });
-          console.log('[Auth] Session cookie cleared');
 
-          // Redirect to signin if we had a user before (actual signout, not initial load)
-          if (previousUser !== null) {
-            router.push('/signin');
+          if (!response.ok) {
+            console.warn('[Auth] Failed to clear session cookie:', response.status);
+          } else {
+            console.log('[Auth] Session cookie cleared');
           }
+
+          // Redirect to signin after actual signout
+          router.push('/signin');
         }
       } catch (error) {
         console.error('[Auth] Failed to sync session cookie:', error);
+        // Don't throw - allow app to continue even if session sync fails
       }
+
+      // Update previous user for next iteration
+      previousUser = currentUser;
     });
 
     return () => unsubscribe();

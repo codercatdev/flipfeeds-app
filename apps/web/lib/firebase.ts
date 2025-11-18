@@ -27,14 +27,14 @@ const isClient = typeof window !== 'undefined';
 
 // Initialize Firebase (client-side only)
 let app: FirebaseApp | undefined;
-let auth: Auth | undefined;
+let authInstance: Auth | undefined;
 let db: Firestore | undefined;
 let functions: Functions | undefined;
 
 if (isClient) {
   // Initialize Firebase
   app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  auth = getAuth(app);
+  authInstance = getAuth(app);
   db = getFirestore(app);
   functions = getFunctions(app);
 
@@ -43,7 +43,7 @@ if (isClient) {
     const host = 'localhost';
 
     try {
-      connectAuthEmulator(auth, `http://${host}:9099`, { disableWarnings: true });
+      connectAuthEmulator(authInstance, `http://${host}:9099`, { disableWarnings: true });
       connectFirestoreEmulator(db, host, 8080);
       connectFunctionsEmulator(functions, host, 5001);
 
@@ -60,11 +60,23 @@ if (isClient) {
   }
 
   // Enable persistence so auth state survives page reloads and redirects
-  void setPersistence(auth, browserLocalPersistence).catch((err) => {
+  void setPersistence(authInstance, browserLocalPersistence).catch((err) => {
     console.error('Failed to set persistence:', err);
   });
 }
 
-// Export with non-null assertions for client-side usage
-// These will throw if accessed on server-side, which is intentional
-export { app, auth, db, functions };
+// Export with type assertions for client-side usage
+// Client components should only use these on the client side
+export { app, db, functions };
+
+// Export auth with proper typing - asserts it's defined on client
+const clientAuth = authInstance as Auth;
+export { clientAuth as auth };
+
+// Safe auth getter for client components with better error handling
+export const getClientAuth = (): Auth => {
+  if (!authInstance) {
+    throw new Error('Firebase Auth is only available on the client side');
+  }
+  return authInstance;
+};

@@ -32,11 +32,11 @@ env:
 
 # Build configuration for monorepo
 buildConfig:
-  # Root directory is the monorepo root (where pnpm-lock.yaml is)
-  rootDirectory: "."
+  # Root directory where the lock file exists
+  rootDirectory: "../../"
   
-  # Install command - run from monorepo root
-  installCommand: "pnpm install --frozen-lockfile"
+  # Install command - copy lock file and install
+  installCommand: "cp ../../pnpm-lock.yaml . && pnpm install --frozen-lockfile"
   
-  # Build command - build the web app specifically
-  buildCommand: "pnpm --filter flipfeeds build"
+  # Build command - build the Next.js app
+  buildCommand: "pnpm build"

@@ -1,7 +1,9 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import type { ActionContext, Genkit } from 'genkit';
 import { z } from 'zod';
 import type { FlipFeedsAuthContext } from '../auth/contextProvider';
+import { getPublicUrlFromStoragePath } from './videoGenerationTools';
 
 /**
  * Get Firestore instance lazily
@@ -21,7 +23,19 @@ export const FlipSchema = z.object({
   title: z.string(),
   summary: z.string().optional(),
   videoStoragePath: z.string(),
-  publicUrl: z.string().url().optional().describe('Public URL of the video'),
+  publicUrl: z
+    .string()
+    .url()
+    .refine(
+      (url) =>
+        url.includes('firebasestorage.googleapis.com') ||
+        url.includes('storage.googleapis.com') ||
+        url.includes('localhost') ||
+        url.includes('127.0.0.1'),
+      'Public URL must be a valid Firebase Storage URL'
+    )
+    .optional()
+    .describe('Public URL of the video from Firebase Storage'),
   createdAt: z.string(),
 });
 
@@ -59,6 +73,34 @@ export async function createFlipTool(
   const { feedIds, videoStoragePath, title, summary, publicUrl } = input;
   const { displayName, photoURL } = auth || {};
 
+  // Generate publicUrl from videoStoragePath if not provided
+  // This ensures consistency and works for both AI-generated and uploaded videos
+  let finalPublicUrl = publicUrl;
+  if (!finalPublicUrl) {
+    const storage = getStorage();
+    const bucket = storage.bucket();
+    finalPublicUrl = getPublicUrlFromStoragePath(videoStoragePath, bucket.name);
+    console.log('[createFlipTool] Auto-generated publicUrl:', finalPublicUrl);
+  } else {
+    // Validate provided publicUrl matches Firebase Storage pattern
+    const isValidUrl =
+      finalPublicUrl.includes('firebasestorage.googleapis.com') ||
+      finalPublicUrl.includes('storage.googleapis.com') ||
+      finalPublicUrl.includes('localhost') ||
+      finalPublicUrl.includes('127.0.0.1');
+
+    if (!isValidUrl) {
+      // Invalid URL provided - regenerate from videoStoragePath instead of failing
+      const storage = getStorage();
+      const bucket = storage.bucket();
+      finalPublicUrl = getPublicUrlFromStoragePath(videoStoragePath, bucket.name);
+      console.warn(
+        '[createFlipTool] Invalid publicUrl provided, regenerated from videoStoragePath:',
+        finalPublicUrl
+      );
+    }
+  }
+
   // Verify user is a member of all feeds
   for (const feedId of feedIds) {
     const memberDoc = await db()
@@ -86,7 +128,7 @@ export async function createFlipTool(
       title,
       summary: summary || null,
       videoStoragePath,
-      publicUrl: publicUrl || null,
+      publicUrl: finalPublicUrl,
       createdAt: FieldValue.serverTimestamp(),
     });
 
@@ -237,9 +279,10 @@ export async function updateFlipTool(
     title?: string;
     summary?: string;
     publicUrl?: string;
+    regeneratePublicUrl?: boolean;
   },
   { context }: { context?: ActionContext }
-): Promise<{ success: boolean }> {
+): Promise<{ success: boolean; publicUrl?: string }> {
   console.log('[updateFlipTool] Updating flip:', input.flipId);
 
   const auth = context?.auth as FlipFeedsAuthContext | undefined;
@@ -277,14 +320,24 @@ export async function updateFlipTool(
     updates.summary = input.summary;
   }
 
-  if (input.publicUrl !== undefined) {
+  // Handle publicUrl update
+  let newPublicUrl: string | undefined;
+  if (input.regeneratePublicUrl && data.videoStoragePath) {
+    // Regenerate publicUrl from existing videoStoragePath
+    const storage = getStorage();
+    const bucket = storage.bucket();
+    newPublicUrl = getPublicUrlFromStoragePath(data.videoStoragePath, bucket.name);
+    updates.publicUrl = newPublicUrl;
+    console.log('[updateFlipTool] Regenerated publicUrl:', newPublicUrl);
+  } else if (input.publicUrl !== undefined) {
     updates.publicUrl = input.publicUrl;
+    newPublicUrl = input.publicUrl;
   }
 
   await db().collection('flips').doc(input.flipId).update(updates);
 
   console.log(`[updateFlipTool] Updated flip ${input.flipId}`);
-  return { success: true };
+  return { success: true, publicUrl: newPublicUrl };
 }
 
 /**
@@ -371,16 +424,24 @@ export function registerFlipTools(ai: Genkit) {
   ai.defineTool(
     {
       name: 'createFlip',
-      description: 'Create a new flip (video post) in one or more feeds',
+      description:
+        'Create a new flip (video post) in one or more feeds. The publicUrl will be automatically generated from videoStoragePath if not provided.',
       inputSchema: z.object({
         feedIds: z.array(z.string()).min(1).describe('Array of feed IDs to share this flip to'),
-        videoStoragePath: z.string().describe('Path to the video in Firebase Storage'),
+        videoStoragePath: z
+          .string()
+          .describe(
+            'Path to the video in Firebase Storage (e.g., "generated-videos/userId/video.mp4" or "uploads/userId/video.mp4")'
+          ),
         title: z.string().min(1).max(200).describe('Video title'),
         summary: z.string().max(500).optional().describe('Optional video summary'),
         publicUrl: z
           .string()
           .url()
-          .describe('Public URL of the video (use publicUrl from uploadGeneratedVideo)'),
+          .optional()
+          .describe(
+            'OPTIONAL: Public URL of the video. If not provided, will be auto-generated from videoStoragePath. Only provide this if you have it from uploadGeneratedVideo.'
+          ),
       }),
       outputSchema: z.object({ flipId: z.string() }),
     },
@@ -430,18 +491,24 @@ export function registerFlipTools(ai: Genkit) {
   ai.defineTool(
     {
       name: 'updateFlip',
-      description: 'Update a flip title, summary, or public video URL (author only)',
+      description:
+        'Update a flip title, summary, or regenerate publicUrl from storage path (author only)',
       inputSchema: z.object({
         flipId: z.string().describe('The flip ID to update'),
         title: z.string().min(1).max(200).optional().describe('New video title'),
         summary: z.string().max(500).optional().describe('New video summary'),
-        publicUrl: z
-          .string()
-          .url()
+        publicUrl: z.string().url().optional().describe('New public URL for the video'),
+        regeneratePublicUrl: z
+          .boolean()
           .optional()
-          .describe('Public URL of the video generated from videoStoragePath'),
+          .describe(
+            'Set to true to regenerate publicUrl from the existing videoStoragePath. Useful for fixing broken URLs.'
+          ),
       }),
-      outputSchema: z.object({ success: z.boolean() }),
+      outputSchema: z.object({
+        success: z.boolean(),
+        publicUrl: z.string().optional().describe('The new publicUrl if regenerated'),
+      }),
     },
     async (input, { context }) => {
       return updateFlipTool(input, { context });

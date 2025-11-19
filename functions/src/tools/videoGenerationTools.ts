@@ -569,13 +569,21 @@ export function registerVideoGenerationTools(ai: Genkit) {
     {
       name: 'uploadGeneratedVideo',
       description:
-        'Upload a completed generated video to Firebase Storage. Downloads from the temporary Google AI URL and uploads to permanent storage. Only works on completed jobs. Returns the public URL and storage path needed to create a Flip.',
+        'Upload a completed generated video to Firebase Storage. Downloads from the temporary Google AI URL and uploads to permanent storage. Only works on completed jobs. Returns storagePath and publicUrl - ALWAYS use the returned storagePath when calling createFlip.',
       inputSchema: z.object({
         jobId: z.string().describe('The job ID of a completed video generation'),
       }),
       outputSchema: z.object({
-        storagePath: z.string().describe('Firebase Storage path of the uploaded video'),
-        publicUrl: z.string().describe('Public URL to access the video'),
+        storagePath: z
+          .string()
+          .describe(
+            'Firebase Storage path - use this EXACT value as videoStoragePath when calling createFlip'
+          ),
+        publicUrl: z
+          .string()
+          .describe(
+            'Public URL to access the video - you can ignore this, createFlip will regenerate it from storagePath'
+          ),
         flipReady: z.boolean().describe('Whether the video is ready to create a Flip'),
       }),
     },

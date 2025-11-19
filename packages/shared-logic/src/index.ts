@@ -7,3 +7,13 @@
 
 // Export hooks
 export { useAuth } from './hooks/useAuth';
+
+// Export conversation history utilities
+export {
+  buildMultimodalPrompt,
+  type ConversationHistoryOptions,
+  type ConversationMessage,
+  estimateTokens,
+  formatHistoryForPrompt,
+  getConversationPath,
+} from './utils/conversationHistory';

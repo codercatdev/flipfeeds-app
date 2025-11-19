@@ -1,11 +1,35 @@
 {
-    "extends": "../../tsconfig.base.json",
+    "$schema": "https://json.schemastore.org/tsconfig",
     "compilerOptions": {
-        "target": "ES2017",
-        "lib": ["dom", "dom.iterable", "esnext"],
-        "jsx": "preserve",
+        // Type Checking (from base)
+        "strict": true,
+        "exactOptionalPropertyTypes": false,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitOverride": true,
+        "noImplicitReturns": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        // Modules
         "module": "esnext",
         "moduleResolution": "bundler",
+        "resolveJsonModule": true,
+        // Emit
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "noEmit": true,
+        // JavaScript Support
+        "allowJs": true,
+        "checkJs": false,
+        // Interop Constraints
+        "isolatedModules": true,
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        // Next.js specific
+        "target": "ES2017",
+        "lib": ["dom", "dom.iterable", "esnext"],
+        "jsx": "react-jsx",
         "incremental": true,
         "baseUrl": ".",
         "skipLibCheck": true,
@@ -18,6 +42,12 @@
             "@/*": ["./*"]
         }
     },
-    "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+    "include": [
+        "next-env.d.ts",
+        "**/*.ts",
+        "**/*.tsx",
+        ".next/types/**/*.ts",
+        ".next/dev/types/**/*.ts"
+    ],
     "exclude": ["node_modules", ".next", "out"]
 }

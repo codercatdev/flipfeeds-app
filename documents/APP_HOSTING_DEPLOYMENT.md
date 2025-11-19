@@ -25,11 +25,11 @@ Firebase App Hosting is a serverless hosting platform optimized for Next.js appl
    - Visit [Firebase Console](https://console.firebase.google.com/project/flipfeeds-app)
    - Enable App Hosting in the Build section
 
-4. **pnpm Lock File Sync** (for monorepo):
-   - The `pnpm-lock.yaml` must exist in both the root and `apps/web` directories
-   - Automatically synced after `pnpm install` via postinstall hook
-   - Pre-push validation prevents deploying with out-of-sync lock files
-   - Manual sync: `pnpm sync:lock` | Validation: `pnpm validate:lock`
+4. **pnpm Lock File** (for monorepo):
+   - A standalone `pnpm-lock.yaml` is generated for `apps/web` with `--ignore-workspace`
+   - Automatically regenerated after `pnpm install` via postinstall hook
+   - Pre-push validation ensures the lock file exists before deployment
+   - Manual generation: `pnpm sync:lock` | Validation: `pnpm validate:lock`
 
 ## Configuration Files
 

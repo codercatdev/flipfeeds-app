@@ -1,0 +1,42 @@
+# Firebase App Hosting configuration for Next.js
+# https://firebase.google.com/docs/app-hosting/configure
+
+runConfig:
+  # Cloud Run CPU configuration
+  cpu: 1
+  # Memory allocation (in GB)
+  memoryMiB: 512
+  # Maximum number of instances
+  maxInstances: 10
+  # Minimum number of instances (0 for scale to zero)
+  minInstances: 0
+  # Request timeout
+  concurrency: 80
+
+env:
+  # Environment variables for the Next.js app
+  - variable: NODE_ENV
+    value: production
+  
+  # Firebase configuration (auto-populated by App Hosting)
+  # - variable: FIREBASE_CONFIG
+  #   availability: RUNTIME
+
+  # Add your custom environment variables here
+  # - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+  #   value: your-api-key
+  
+  # For secrets, use Cloud Secret Manager
+  # - variable: SECRET_NAME
+  #   secret: secret-id
+
+# Build configuration for monorepo
+buildConfig:
+  # Root directory is the monorepo root (where pnpm-lock.yaml is)
+  rootDirectory: "."
+  
+  # Install command - run from monorepo root
+  installCommand: "pnpm install --frozen-lockfile"
+  
+  # Build command - build the web app specifically
+  buildCommand: "pnpm --filter flipfeeds build"

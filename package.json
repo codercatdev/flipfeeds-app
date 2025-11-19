@@ -33,6 +33,8 @@
         "genkit:open": "pnpm --filter functions genkit:open",
         "deploy:functions": "firebase deploy --only functions",
         "deploy:hosting": "firebase deploy --only hosting",
+        "deploy:apphosting": "firebase apphosting:backends:create --location us-central1",
+        "deploy:web": "cd apps/web && firebase apphosting:backends:deploy",
         "deploy:all": "firebase deploy",
         "prepare": "husky install"
     },

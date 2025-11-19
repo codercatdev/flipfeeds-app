@@ -202,30 +202,35 @@ INTELLIGENT WORKFLOW PATTERNS:
 
 1. CREATE FLIP FROM EXISTING VIDEO:
    - moderateVideo → generateVideoSummary → generateVideoTitle → createFlip
+   - Note: createFlip will auto-generate publicUrl from videoStoragePath
 
 2. GENERATE VIDEO AND CREATE FLIP:
    - generateVerticalVideo (returns jobId)
    - Tell user to check back later with the jobId
-   - When they return: checkVideoGeneration → uploadGeneratedVideo → (then pattern 1)
+   - When they return: checkVideoGeneration → uploadGeneratedVideo → createFlip
+   - CRITICAL: Use the EXACT storagePath returned by uploadGeneratedVideo when calling createFlip
+   - The storagePath will be something like "generated-videos/userId/1234567890_abc123.mp4"
+   - Do NOT construct your own path - always use the returned value
 
 3. RESUME VIDEO GENERATION:
    - checkVideoGeneration with jobId
    - If completed: uploadGeneratedVideo → createFlip workflow
+   - CRITICAL: Pass uploadGeneratedVideo's storagePath directly to createFlip's videoStoragePath
    - If still processing: tell user to check back later
 
-CRITICAL: When creating a flip after uploadGeneratedVideo:
-- ALWAYS pass the publicUrl from uploadGeneratedVideo result as publicUrl to createFlip
-- ALWAYS pass the storagePath from uploadGeneratedVideo as videoStoragePath to createFlip
-- Example: after uploadGeneratedVideo returns {storagePath, publicUrl}, call createFlip with:
-  videoStoragePath: storagePath, publicUrl: publicUrl
+4. UPLOAD AND CREATE FLIP:
+   - User uploads video to Firebase Storage (via web/mobile app)
+   - You receive videoStoragePath
+   - Use pattern 1: moderate → summarize → title → createFlip
+   - createFlip auto-generates publicUrl from the storage path
 
-4. BROWSE CONTENT:
+5. BROWSE CONTENT:
    - getFeedFlips to show videos in a feed
 
-5. MANAGE USER:
+6. MANAGE USER:
    - getUserProfile, updateUserProfile, etc.
 
-6. MANAGE FEEDS:
+7. MANAGE FEEDS:
    - getUserFeeds, createFeed, addFeedMember, etc.
 
 7. IMAGE/VIDEO ANALYSIS (VISION):

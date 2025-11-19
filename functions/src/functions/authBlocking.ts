@@ -8,15 +8,28 @@
  * not explicitly listed in the allowedUsers collection.
  */
 
-import { initializeApp } from 'firebase-admin/app';
+import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import * as functions from 'firebase-functions';
-import type { AuthBlockingEvent } from 'firebase-functions/v2/identity';
+import * as logger from 'firebase-functions/logger';
+import { HttpsError } from 'firebase-functions/v2/https';
+import {
+  type AuthBlockingEvent,
+  beforeUserCreated as beforeUserCreatedV2,
+  beforeUserSignedIn as beforeUserSignedInV2,
+} from 'firebase-functions/v2/identity';
 
-// Initialize Firebase Admin
-initializeApp();
+// Lazy initialization to prevent cold start issues
+let dbInstance: FirebaseFirestore.Firestore | undefined;
 
-const db = getFirestore();
+function getDb(): FirebaseFirestore.Firestore {
+  if (!dbInstance) {
+    if (getApps().length === 0) {
+      initializeApp();
+    }
+    dbInstance = getFirestore();
+  }
+  return dbInstance;
+}
 
 /**
  * Check if a user is allowed to authenticate
@@ -30,10 +43,11 @@ async function isUserAllowed(email: string | undefined): Promise<boolean> {
 
   try {
     // Query the allowedUsers collection for this email
+    const db = getDb();
     const allowedUserDoc = await db.collection('allowedUsers').doc(email).get();
     return allowedUserDoc.exists;
   } catch (error) {
-    functions.logger.error('Error checking allowed users:', error);
+    logger.error('Error checking allowed users:', error);
     // Fail closed - if we can't check, deny access
     return false;
   }
@@ -43,52 +57,48 @@ async function isUserAllowed(email: string | undefined): Promise<boolean> {
  * Blocking function that runs before a user is created
  * Prevents user creation if email is not in allowedUsers collection
  */
-export const beforeUserCreated = functions.identity.beforeUserCreated(
-  async (event: AuthBlockingEvent) => {
-    const email = event.data?.email;
+export const beforeUserCreated = beforeUserCreatedV2(async (event: AuthBlockingEvent) => {
+  const email = event.data?.email;
 
-    functions.logger.info('beforeUserCreated triggered', { email });
+  logger.info('beforeUserCreated triggered', { email });
 
-    const isAllowed = await isUserAllowed(email);
+  const isAllowed = await isUserAllowed(email);
 
-    if (!isAllowed) {
-      functions.logger.warn('User creation blocked - email not in allowedUsers', {
-        email,
-      });
-      throw new functions.https.HttpsError(
-        'permission-denied',
-        'Your email address is not authorized to create an account. Please contact support.'
-      );
-    }
-
-    functions.logger.info('User creation allowed', { email });
-    // Return nothing to allow the operation to proceed
+  if (!isAllowed) {
+    logger.warn('User creation blocked - email not in allowedUsers', {
+      email,
+    });
+    throw new HttpsError(
+      'permission-denied',
+      'Your email address is not authorized to create an account. Please contact support.'
+    );
   }
-);
+
+  logger.info('User creation allowed', { email });
+  // Return nothing to allow the operation to proceed
+});
 
 /**
  * Blocking function that runs before a user signs in
  * Prevents sign-in if email is not in allowedUsers collection
  */
-export const beforeUserSignedIn = functions.identity.beforeUserSignedIn(
-  async (event: AuthBlockingEvent) => {
-    const email = event.data?.email;
+export const beforeUserSignedIn = beforeUserSignedInV2(async (event: AuthBlockingEvent) => {
+  const email = event.data?.email;
 
-    functions.logger.info('beforeUserSignedIn triggered', { email });
+  logger.info('beforeUserSignedIn triggered', { email });
 
-    const isAllowed = await isUserAllowed(email);
+  const isAllowed = await isUserAllowed(email);
 
-    if (!isAllowed) {
-      functions.logger.warn('Sign-in blocked - email not in allowedUsers', {
-        email,
-      });
-      throw new functions.https.HttpsError(
-        'permission-denied',
-        'Your email address is not authorized to sign in. Please contact support.'
-      );
-    }
-
-    functions.logger.info('Sign-in allowed', { email });
-    // Return nothing to allow the operation to proceed
+  if (!isAllowed) {
+    logger.warn('Sign-in blocked - email not in allowedUsers', {
+      email,
+    });
+    throw new HttpsError(
+      'permission-denied',
+      'Your email address is not authorized to sign in. Please contact support.'
+    );
   }
-);
+
+  logger.info('Sign-in allowed', { email });
+  // Return nothing to allow the operation to proceed
+});

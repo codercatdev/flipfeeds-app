@@ -1,35 +1,44 @@
-import { ThemedText, ThemedView } from '@flip-feeds/ui-components';
+import type React from 'react';
 import { type PropsWithChildren, useState } from 'react';
-import { StyleSheet, TouchableOpacity } from 'react-native';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const theme = useColorScheme() ?? 'light';
-  const backgroundColor = useThemeColor({}, 'background');
+export type CollapsibleProps = PropsWithChildren & {
+  title: string;
+  /** Optional icon component */
+  icon?: React.ReactNode;
+  /** Initially open state */
+  defaultOpen?: boolean;
+};
+
+/**
+ * Collapsible Component
+ *
+ * An accordion-style component that can expand and collapse content.
+ * Universal component that works on both web and mobile.
+ *
+ * @example
+ * ```tsx
+ * <Collapsible title="Show More">
+ *   <Text>Hidden content here</Text>
+ * </Collapsible>
+ * ```
+ */
+export function Collapsible({ children, title, icon, defaultOpen = false }: CollapsibleProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <ThemedView backgroundColor={backgroundColor}>
+    <View>
       <TouchableOpacity
         style={styles.heading}
         onPress={() => setIsOpen((value) => !value)}
         activeOpacity={0.8}
       >
-        <IconSymbol
-          name="chevron.right"
-          size={18}
-          weight="medium"
-          color={theme === 'light' ? Colors.light.icon : Colors.dark.icon}
-          style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }}
-        />
-
-        <ThemedText type="defaultSemiBold">{title}</ThemedText>
+        {icon && <View style={styles.icon}>{icon}</View>}
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.chevron}>{isOpen ? '▼' : '▶'}</Text>
       </TouchableOpacity>
-      {isOpen && <ThemedView style={styles.content}>{children}</ThemedView>}
-    </ThemedView>
+      {isOpen && <View style={styles.content}>{children}</View>}
+    </View>
   );
 }
 
@@ -38,9 +47,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    padding: 12,
+  },
+  icon: {
+    marginRight: 8,
+  },
+  title: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  chevron: {
+    fontSize: 12,
+    color: '#666',
   },
   content: {
     marginTop: 6,
     marginLeft: 24,
+    paddingBottom: 12,
   },
 });

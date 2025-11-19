@@ -5,9 +5,6 @@ packages:
   # Applications that will be deployed
   - "apps/*"
 
-  # Shared packages/libraries
-  - "packages/*"
-
   # Firebase Cloud Functions
   - "functions"
 

@@ -5,9 +5,9 @@
  * These run server-side and interact with Firestore directly.
  */
 
-import type { ConversationMessage } from '@flip-feeds/shared-logic/utils/conversationHistory';
-import { getConversationPath } from '@flip-feeds/shared-logic/utils/conversationHistory';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import type { ConversationMessage } from './conversationTypes';
+import { getConversationPath } from './conversationTypes';
 
 /**
  * Load conversation history from Firestore

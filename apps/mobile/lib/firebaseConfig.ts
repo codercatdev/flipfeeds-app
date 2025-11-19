@@ -1,19 +1,13 @@
-// Firebase configuration
-// React Native Firebase v23+ - Using modular API where available
+// Firebase configuration for React Native
+// This uses @react-native-firebase which is initialized via native config files
 
-import analytics from '@react-native-firebase/analytics';
 import { getApp } from '@react-native-firebase/app';
-import { initializeAppCheck } from '@react-native-firebase/app-check';
-import crashlytics from '@react-native-firebase/crashlytics';
 import { connectDatabaseEmulator, getDatabase } from '@react-native-firebase/database';
 import { connectFirestoreEmulator, getFirestore } from '@react-native-firebase/firestore';
 import { connectFunctionsEmulator, getFunctions } from '@react-native-firebase/functions';
-import inAppMessaging from '@react-native-firebase/in-app-messaging';
-import perf from '@react-native-firebase/perf';
-import remoteConfig from '@react-native-firebase/remote-config';
 import { Platform } from 'react-native';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: 'AIzaSyD1573e-6QA1z7pzcCVZS8FJjYb3Kywcy0',
   authDomain: 'flipfeeds-app.firebaseapp.com',
   databaseURL: 'https://flipfeeds-app-default-rtdb.firebaseio.com',
@@ -38,19 +32,19 @@ export const initializeFirebase = async () => {
   console.log(`   Environment: ${__DEV__ ? 'DEVELOPMENT' : 'PRODUCTION'}`);
 
   try {
-    // Get the default Firebase app
-    const app = getApp();
+    // Get the default Firebase app (initialized via native config)
+    // This validates that the app is initialized
+    getApp();
 
     // CRITICAL: Connect to emulators FIRST, before accessing any Firebase services
     if (USE_EMULATORS) {
       // Android emulator: use 10.0.2.2 (maps to localhost on host machine)
       // iOS simulator: use 'localhost'
-      // Physical device: use your computer's IP address (e.g., '192.168.68.70')
       const host = Platform.OS === 'ios' ? 'localhost' : '10.0.2.2';
 
-      const functionsInstance = getFunctions(app);
-      const firestoreInstance = getFirestore(app);
-      const databaseInstance = getDatabase(app);
+      const functionsInstance = getFunctions();
+      const firestoreInstance = getFirestore();
+      const databaseInstance = getDatabase();
 
       connectFunctionsEmulator(functionsInstance, host, 5001);
       connectFirestoreEmulator(firestoreInstance, host, 8080);
@@ -66,46 +60,6 @@ export const initializeFirebase = async () => {
       console.log('🌐 Using production Firebase');
     }
 
-    // Initialize App Check for production
-    if (!__DEV__) {
-      await initializeAppCheck(app, {
-        provider: 'playIntegrity', // Android
-        isTokenAutoRefreshEnabled: true,
-      });
-      console.log('✅ App Check initialized');
-    }
-
-    // Initialize Crashlytics
-    await crashlytics().setCrashlyticsCollectionEnabled(true);
-    console.log('✅ Crashlytics enabled');
-
-    // Initialize Performance Monitoring
-    await perf().setPerformanceCollectionEnabled(true);
-    console.log('✅ Performance Monitoring enabled');
-
-    // Initialize Analytics
-    await analytics().setAnalyticsCollectionEnabled(true);
-    console.log('✅ Analytics enabled');
-
-    // Initialize Remote Config with defaults
-    await remoteConfig().setDefaults({
-      flip_prompt_template:
-        'Generate a single, short, SFW piece of micro-content. It could be a weird fact, a 1-sentence joke, or a bizarre compliment. Be quirky and fun. Keep it under 100 characters.',
-    });
-
-    // Set config settings for development
-    await remoteConfig().setConfigSettings({
-      minimumFetchIntervalMillis: __DEV__ ? 0 : 3600000, // 0 in dev, 1 hour in prod
-    });
-
-    // Fetch and activate remote config
-    await remoteConfig().fetchAndActivate();
-    console.log('✅ Remote Config initialized');
-
-    // Initialize In-App Messaging
-    await inAppMessaging().setMessagesDisplaySuppressed(false);
-    console.log('✅ In-App Messaging enabled');
-
     isInitialized = true;
     console.log('✅ Firebase initialization complete');
   } catch (error) {
@@ -114,4 +68,5 @@ export const initializeFirebase = async () => {
   }
 };
 
-export { firebaseConfig };
+// Export Firebase app instance
+export const getFirebaseApp = () => getApp();

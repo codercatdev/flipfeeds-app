@@ -1,7 +1,3 @@
-import {
-  buildMultimodalPrompt,
-  formatHistoryForPrompt,
-} from '@flip-feeds/shared-logic/utils/conversationHistory';
 import type { Genkit } from 'genkit';
 import { z } from 'zod';
 import { requireAuth } from '../auth/contextProvider';
@@ -13,6 +9,7 @@ import {
 } from '../utils/conversationHistory'; /**
  * Register the unified Flip Agent with the provided Genkit instance.
  */
+import { buildMultimodalPrompt, formatHistoryForPrompt } from '../utils/conversationTypes';
 export function registerFlipFlows(ai: Genkit) {
   /**
    * Unified Flip Agent

@@ -7,10 +7,10 @@ import 'react-native-reanimated';
 import messaging from '@react-native-firebase/messaging';
 import '../global.css';
 
-import { initializeFirebase } from '@flip-feeds/firebase-config/native';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { initializeFirebase } from '../lib/firebaseConfig';
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();

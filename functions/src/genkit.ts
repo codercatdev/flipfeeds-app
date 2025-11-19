@@ -60,6 +60,7 @@ if (!admin.apps.length) {
 
 const googleAIapiKey = defineSecret('GEMINI_API_KEY');
 export const genKitGoogleAiOptions: CallableOptions = {
+  cors: ['https://flipfeeds.com', 'https://www.flipfeeds.com'],
   secrets: [googleAIapiKey],
   enforceAppCheck: false,
   consumeAppCheckToken: false,

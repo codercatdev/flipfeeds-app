@@ -85,6 +85,7 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
 
   // Register tool list handler
   server.setRequestHandler(ListToolsRequestSchema, async () => {
+    console.log('📋 ListTools request received for user:', auth.uid);
     // Get all Genkit tools and expose them as MCP tools
     const actions = await ai.registry.listActions();
 
@@ -355,22 +356,55 @@ function createMCPServer(auth: FlipFeedsAuthContext): Server {
 
 const app = express();
 
+// Log ALL incoming requests FIRST
+app.use((req, _res, next) => {
+  console.log('📥 INCOMING REQUEST:', {
+    method: req.method,
+    path: req.path,
+    url: req.url,
+    contentType: req.headers['content-type'],
+    contentLength: req.headers['content-length'],
+    authorization: req.headers.authorization ? 'present' : 'missing',
+    mcpProtocolVersion: req.headers['mcp-protocol-version'],
+    mcpSessionId: req.headers['mcp-session-id'],
+    allHeaders: Object.keys(req.headers),
+  });
+  next();
+});
+
 // Parse JSON bodies
 app.use(express.json());
 
+// Log parsed body
+app.use((req, _res, next) => {
+  if (req.body) {
+    console.log('📦 Parsed body:', JSON.stringify(req.body, null, 2));
+  } else {
+    console.log('📦 No body parsed');
+  }
+  next();
+});
+
 // Add CORS middleware for all requests
 app.use((_req, res, next) => {
+  console.log('🌐 CORS middleware - Method:', _req.method, 'Path:', _req.path);
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, mcp-protocol-version, mcp-session-id'
+  );
   res.setHeader('Access-Control-Max-Age', '86400');
 
   // Handle OPTIONS preflight requests
   if (_req.method === 'OPTIONS') {
+    console.log('✅ OPTIONS preflight - returning 204');
     res.status(204).send();
     return;
   }
 
+  console.log('➡️  CORS headers set, continuing to route handler');
   next();
 });
 
@@ -418,28 +452,39 @@ app.get('/health', (_req, res) => {
  * 4. Connects the server to the transport and handles the request
  */
 app.post('/', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  console.log('📨 MCP request received at root path /');
+  console.log('  Method:', req.method);
+  console.log('  Body:', JSON.stringify(req.body, null, 2));
+  console.log('  Headers:', JSON.stringify(req.headers, null, 2));
+
   if (!req.auth?.uid) {
+    console.error('❌ No user context in request');
     res.status(401).json({ error: 'Unauthorized: No user context' });
     return;
   }
 
+  console.log('✓ User authenticated:', req.auth.uid, req.auth.email);
+
   try {
-    // Create a new MCP server instance for this authenticated request
-    // Pass the full auth context so flows can access uid, email, etc.
+    // Create a new MCP server instance for this request (stateless)
+    console.log('🔧 Creating MCP server instance...');
     const mcpServer = createMCPServer(req.auth);
 
-    // Create transport for this request (stateless mode)
+    console.log('🔧 Creating StreamableHTTPServerTransport...');
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
+      sessionIdGenerator: undefined, // Stateless mode
     });
 
-    // Connect the transport to the server
+    console.log('🔗 Connecting transport to server...');
     mcpServer.connect(transport);
 
+    console.log('🚀 Handling MCP request...');
     await transport.handleRequest(req as any, res, req.body);
+    console.log('✅ MCP request completed successfully');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('MCP request handling error:', errorMessage);
+    console.error('❌ MCP request handling error:', errorMessage);
+    console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ error: errorMessage });
   }
 });
@@ -448,25 +493,40 @@ app.post('/', authMiddleware, async (req: AuthenticatedRequest, res) => {
  * Alternative MCP endpoint at /mcp path (for backwards compatibility)
  */
 app.post('/mcp', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  console.log('📨 MCP request received at /mcp path');
+  console.log('  Method:', req.method);
+  console.log('  Body:', JSON.stringify(req.body, null, 2));
+  console.log('  MCP Protocol Version:', req.headers['mcp-protocol-version']);
+  console.log('  MCP Session ID:', req.headers['mcp-session-id']);
+
   if (!req.auth?.uid) {
+    console.error('❌ No user context in request');
     res.status(401).json({ error: 'Unauthorized: No user context' });
     return;
   }
 
+  console.log('✓ User authenticated:', req.auth.uid, req.auth.email);
+
   try {
-    // Create a new MCP server instance for this authenticated request
-    // Pass the full auth context so flows can access uid, email, etc.
+    // Create a new MCP server instance for this request (stateless)
+    console.log('🔧 Creating MCP server instance...');
     const mcpServer = createMCPServer(req.auth);
 
+    console.log('🔧 Creating StreamableHTTPServerTransport...');
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
+      sessionIdGenerator: undefined, // Stateless mode
     });
 
+    console.log('🔗 Connecting transport to server...');
     mcpServer.connect(transport);
+
+    console.log('🚀 Handling MCP request...');
     await transport.handleRequest(req as any, res, req.body);
+    console.log('✅ MCP request completed successfully');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('MCP request handling error:', errorMessage);
+    console.error('❌ MCP request handling error:', errorMessage);
+    console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ error: errorMessage });
   }
 });

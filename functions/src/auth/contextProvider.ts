@@ -85,26 +85,35 @@ async function verifyFirebaseToken(token: string): Promise<FlipFeedsAuthContext 
  * and populate the Genkit context with auth information.
  */
 export async function authenticateRequest(req: Request): Promise<FlipFeedsAuthContext> {
+  console.log('🔐 Authenticating request...');
+  console.log('  Path:', req.path);
+  console.log('  Method:', req.method);
+
   // Extract token from request
   const token = extractBearerToken(req);
 
   if (!token) {
+    console.error('❌ No bearer token found in request');
     throw new UserFacingError('UNAUTHENTICATED', 'Missing or invalid authorization header');
   }
+
+  console.log('✓ Bearer token extracted (length:', token.length, ')');
 
   // Try OAuth token first (if configured)
   let authContext = await verifyOAuthToken(token);
 
   // Fall back to Firebase ID token
   if (!authContext) {
+    console.log('⚡ Trying Firebase ID token verification...');
     authContext = await verifyFirebaseToken(token);
   }
 
   if (!authContext) {
+    console.error('❌ Token verification failed for both OAuth and Firebase');
     throw new UserFacingError('UNAUTHENTICATED', 'Invalid or expired token');
   }
 
-  console.log('Auth context established:', {
+  console.log('✅ Auth context established:', {
     uid: authContext.uid,
     email: authContext.email,
   });

@@ -198,6 +198,30 @@ async function createTestUsers() {
       console.error(`❌ Error creating Firestore profile for ${userData.email}:`, error.message);
     }
   }
+
+  // Create user profiles in Firestore
+  for (const userData of TEST_USERS) {
+    try {
+      await db
+        .collection('allowedUsers')
+        .doc(userData.email)
+        .set({
+          uid: userData.uid,
+          email: userData.email,
+          displayName: userData.displayName,
+          photoURL: userData.photoURL,
+          bio: userData.bio,
+          username: userData.email.split('@')[0],
+          feedCount: 0,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+      console.log(`✅ Created Firestore profile: ${userData.displayName} (${userData.email})`);
+    } catch (error) {
+      console.error(`❌ Error creating Firestore profile for ${userData.email}:`, error.message);
+    }
+  }
 }
 
 /**

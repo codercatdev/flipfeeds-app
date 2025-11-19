@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   // Output configuration for Firebase App Hosting
   output: 'standalone',
 
+  // Note: All MCP and auth endpoint proxying is handled by middleware in proxy.ts
+
   images: {
     remotePatterns: [
       {

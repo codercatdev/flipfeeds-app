@@ -42,11 +42,10 @@ export const OAuth2Config = {
 export function getHostingBaseUrl(): string {
   if (process.env.FUNCTIONS_EMULATOR === 'true') {
     // Local emulator - use localhost (not 127.0.0.1) for OAuth compatibility
-    return 'http://localhost:5002';
+    return 'http://localhost:3000';
   }
   // Production - use your Firebase Hosting domain
-  const projectId = process.env.GCLOUD_PROJECT || 'flipfeeds-app';
-  return `https://${projectId}.web.app`;
+  return `https://flipfeeds.com`;
 }
 
 /**
@@ -55,14 +54,9 @@ export function getHostingBaseUrl(): string {
  */
 export function getBaseUrl(): string {
   if (process.env.FUNCTIONS_EMULATOR === 'true') {
-    // Local emulator
-    const projectId = process.env.GCLOUD_PROJECT || 'flipfeeds-app';
-    return `http://localhost:5001/${projectId}/us-central1`;
+    return `http://localhost:3000`;
   }
-  // Production
-  const region = process.env.FUNCTION_REGION || 'us-central1';
-  const projectId = process.env.GCLOUD_PROJECT || 'flipfeeds-app';
-  return `https://${region}-${projectId}.cloudfunctions.net`;
+  return `https://flipfeeds.com`;
 }
 
 /**

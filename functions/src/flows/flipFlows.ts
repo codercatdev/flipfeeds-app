@@ -44,11 +44,13 @@ export function registerFlipFlows(ai: Genkit) {
         // Multimodal inputs for vision analysis
         imageUrls: z
           .array(z.string().url())
-          .optional()
+          .nullable()
+          .default([])
           .describe('URLs or data URIs of images to analyze (enables vision capabilities)'),
         videoUrls: z
           .array(z.string().url())
-          .optional()
+          .nullable()
+          .default([])
           .describe('URLs or data URIs of videos to analyze'),
         // Conversation context
         conversationId: z
@@ -102,8 +104,8 @@ export function registerFlipFlows(ai: Genkit) {
           role: 'user',
           content: data.request,
           timestamp: new Date(),
-          imageUrls: data.imageUrls,
-          videoUrls: data.videoUrls,
+          imageUrls: data.imageUrls || undefined,
+          videoUrls: data.videoUrls || undefined,
         });
 
         // Load ALL available tools - this is a unified agent
@@ -250,7 +252,11 @@ After completing the task, provide a clear summary in natural language explainin
 Your response should be conversational and helpful.${historyContext}`;
 
         // Build multimodal prompt with media context
-        const fullPrompt = buildMultimodalPrompt(basePrompt, data.imageUrls, data.videoUrls);
+        const fullPrompt = buildMultimodalPrompt(
+          basePrompt,
+          data.imageUrls || undefined,
+          data.videoUrls || undefined
+        );
 
         // The agent intelligently chooses tools based on the request
         const result = await ai.generate({

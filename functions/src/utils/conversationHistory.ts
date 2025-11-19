@@ -7,7 +7,7 @@
 
 import type { ConversationMessage } from '@flip-feeds/shared-logic/utils/conversationHistory';
 import { getConversationPath } from '@flip-feeds/shared-logic/utils/conversationHistory';
-import * as admin from 'firebase-admin';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
 /**
  * Load conversation history from Firestore
@@ -17,7 +17,7 @@ export async function loadConversationHistory(
   conversationId: string,
   limit = 20
 ): Promise<ConversationMessage[]> {
-  const db = admin.firestore();
+  const db = getFirestore();
   const messagesPath = getConversationPath(uid, conversationId);
 
   const snapshot = await db.collection(messagesPath).orderBy('timestamp', 'asc').limit(limit).get();
@@ -42,13 +42,13 @@ export async function saveMessageToHistory(
   conversationId: string,
   message: ConversationMessage
 ): Promise<void> {
-  const db = admin.firestore();
+  const db = getFirestore();
   const messagesPath = getConversationPath(uid, conversationId);
 
   await db.collection(messagesPath).add({
     role: message.role,
     content: message.content,
-    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    timestamp: FieldValue.serverTimestamp(),
     imageUrls: message.imageUrls || [],
     videoUrls: message.videoUrls || [],
   });
@@ -66,13 +66,13 @@ export async function updateConversationMetadata(
     title?: string;
   }
 ): Promise<void> {
-  const db = admin.firestore();
+  const db = getFirestore();
   const conversationPath = `users/${uid}/conversations/${conversationId}`;
 
   await db.doc(conversationPath).set(
     {
       ...metadata,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     },
     { merge: true }
   );
@@ -86,14 +86,14 @@ export async function initializeConversation(
   conversationId: string,
   title?: string
 ): Promise<void> {
-  const db = admin.firestore();
+  const db = getFirestore();
   const conversationPath = `users/${uid}/conversations/${conversationId}`;
 
   await db.doc(conversationPath).set({
     id: conversationId,
     title: title || 'New Conversation',
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
     messageCount: 0,
   });
 }

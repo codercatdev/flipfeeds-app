@@ -160,8 +160,8 @@ export function AgentChat({ open, onOpenChange }: AgentChatProps) {
 
       const result = await callAgent({
         request: userMessage.content,
-        imageUrls: currentImages.length > 0 ? currentImages : undefined,
-        videoUrls: currentVideos.length > 0 ? currentVideos : undefined,
+        imageUrls: currentImages.length > 0 ? currentImages : [],
+        videoUrls: currentVideos.length > 0 ? currentVideos : [],
         conversationId,
       });
 

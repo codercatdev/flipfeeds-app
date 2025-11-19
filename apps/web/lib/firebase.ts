@@ -8,6 +8,7 @@ import {
 } from 'firebase/auth';
 import { connectFirestoreEmulator, type Firestore, getFirestore } from 'firebase/firestore';
 import { connectFunctionsEmulator, type Functions, getFunctions } from 'firebase/functions';
+import { connectStorageEmulator, type FirebaseStorage, getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyD1573e-6QA1z7pzcCVZS8FJjYb3Kywcy0',
@@ -30,6 +31,7 @@ let app: FirebaseApp | undefined;
 let authInstance: Auth | undefined;
 let db: Firestore | undefined;
 let functions: Functions | undefined;
+let storageInstance: FirebaseStorage | undefined;
 
 if (isClient) {
   // Initialize Firebase
@@ -37,6 +39,7 @@ if (isClient) {
   authInstance = getAuth(app);
   db = getFirestore(app);
   functions = getFunctions(app);
+  storageInstance = getStorage(app);
 
   // Connect to emulators in development
   if (USE_EMULATORS) {
@@ -46,11 +49,13 @@ if (isClient) {
       connectAuthEmulator(authInstance, `http://${host}:9099`, { disableWarnings: true });
       connectFirestoreEmulator(db, host, 8080);
       connectFunctionsEmulator(functions, host, 5001);
+      connectStorageEmulator(storageInstance, host, 9199);
 
       console.log('✅ Firebase Emulators Connected');
       console.log(`   Auth: http://${host}:9099`);
       console.log(`   Functions: http://${host}:5001`);
       console.log(`   Firestore: http://${host}:8080`);
+      console.log(`   Storage: http://${host}:9199`);
       console.log(`   Emulator UI: http://localhost:4000`);
     } catch (error) {
       console.warn('⚠️  Emulator connection error (may already be connected):', error);
@@ -69,9 +74,10 @@ if (isClient) {
 // Client components should only use these on the client side
 export { app, db, functions };
 
-// Export auth with proper typing - asserts it's defined on client
+// Export auth and storage with proper typing - asserts they're defined on client
 const clientAuth = authInstance as Auth;
-export { clientAuth as auth };
+const clientStorage = storageInstance as FirebaseStorage;
+export { clientAuth as auth, clientStorage as storage };
 
 // Safe auth getter for client components with better error handling
 export const getClientAuth = (): Auth => {

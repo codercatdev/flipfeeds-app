@@ -3,22 +3,17 @@
     "version": "1.0.0",
     "description": "Firebase configuration and initialization for FlipFeeds",
     "main": "./dist/index.js",
-    "module": "./dist/index.mjs",
     "types": "./dist/index.d.ts",
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.mjs",
-            "require": "./dist/index.js"
+            "default": "./dist/index.js"
         },
-        "./native": {
-            "types": "./src/native.ts",
-            "default": "./src/native.ts"
-        }
+        "./native": "./src/native.ts"
     },
     "scripts": {
-        "build": "tsup src/index.ts --format cjs,esm",
-        "dev": "tsup src/index.ts --format cjs,esm --watch",
+        "build": "tsc",
+        "dev": "tsc --watch",
         "typecheck": "tsc --noEmit",
         "clean": "rm -rf dist node_modules"
     },

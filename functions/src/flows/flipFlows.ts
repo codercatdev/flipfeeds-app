@@ -1,8 +1,16 @@
+import {
+  buildMultimodalPrompt,
+  formatHistoryForPrompt,
+} from '@flip-feeds/shared-logic/utils/conversationHistory';
 import type { Genkit } from 'genkit';
 import { z } from 'zod';
 import { requireAuth } from '../auth/contextProvider';
-
-/**
+import { getTools } from '../genkit';
+import {
+  initializeConversation,
+  loadConversationHistory,
+  saveMessageToHistory,
+} from '../utils/conversationHistory'; /**
  * Register the unified Flip Agent with the provided Genkit instance.
  */
 export function registerFlipFlows(ai: Genkit) {
@@ -33,6 +41,20 @@ export function registerFlipFlows(ai: Genkit) {
           .describe(
             'Natural language request describing what you want to do. Examples: "Create a flip from my video", "Generate a dragon video and share to family", "Check status of job veo_123", "Show me flips in my feed", "Get my profile"'
           ),
+        // Multimodal inputs for vision analysis
+        imageUrls: z
+          .array(z.string().url())
+          .optional()
+          .describe('URLs or data URIs of images to analyze (enables vision capabilities)'),
+        videoUrls: z
+          .array(z.string().url())
+          .optional()
+          .describe('URLs or data URIs of videos to analyze'),
+        // Conversation context
+        conversationId: z
+          .string()
+          .optional()
+          .describe('Conversation ID for maintaining context across multiple requests'),
         // Optional context for specific operations
         videoStoragePath: z
           .string()
@@ -61,6 +83,28 @@ export function registerFlipFlows(ai: Genkit) {
 
       try {
         console.log('[flipAgent] Processing request:', data.request);
+
+        // Initialize conversation if needed
+        const conversationId = data.conversationId || `conv_${Date.now()}`;
+        if (!data.conversationId) {
+          await initializeConversation(auth.uid, conversationId, 'Flip Agent Conversation');
+        }
+
+        // Load conversation history for context
+        const history = await loadConversationHistory(auth.uid, conversationId, 10);
+        const historyContext = formatHistoryForPrompt(history, {
+          maxMessages: 10,
+          maxTokens: 4096,
+        });
+
+        // Save user message to history
+        await saveMessageToHistory(auth.uid, conversationId, {
+          role: 'user',
+          content: data.request,
+          timestamp: new Date(),
+          imageUrls: data.imageUrls,
+          videoUrls: data.videoUrls,
+        });
 
         // Load ALL available tools - this is a unified agent
         const toolNames: string[] = [
@@ -99,16 +143,12 @@ export function registerFlipFlows(ai: Genkit) {
           'getPublicUrl',
         ];
 
-        // Look up the actual tool references from the registry
-        const toolPromises = toolNames.map((name) => ai.registry.lookupAction(`/tool/${name}`));
-        const tools = (await Promise.all(toolPromises)).filter((tool) => tool !== undefined);
-
+        // Use getTools helper for consistent tool loading
+        const tools = await getTools(toolNames);
         console.log('[flipAgent] Loaded', tools.length, 'tools for unified agent');
 
-        // The agent intelligently chooses tools based on the request
-        const result = await ai.generate({
-          model: 'googleai/gemini-2.5-flash',
-          prompt: `You are an intelligent assistant helping user ${auth.uid} with flip-related tasks.
+        // Build the base prompt text
+        const basePrompt = `You are an intelligent assistant helping user ${auth.uid} with flip-related tasks.
 
 User Request: "${data.request}"
 
@@ -120,6 +160,8 @@ ${data.jobId ? `- Job ID: ${data.jobId}` : ''}
 ${data.title ? `- Title: ${data.title}` : ''}
 ${data.aspectRatio ? `- Aspect Ratio: ${data.aspectRatio}` : ''}
 ${data.resolution ? `- Resolution: ${data.resolution}` : ''}
+${data.imageUrls && data.imageUrls.length > 0 ? `- Images Provided: ${data.imageUrls.length} image(s) attached for analysis` : ''}
+${data.videoUrls && data.videoUrls.length > 0 ? `- Videos Provided: ${data.videoUrls.length} video(s) attached for analysis` : ''}
 
 You have access to ALL tools needed to complete this request:
 
@@ -184,6 +226,11 @@ CRITICAL: When creating a flip after uploadGeneratedVideo:
 6. MANAGE FEEDS:
    - getUserFeeds, createFeed, addFeedMember, etc.
 
+7. IMAGE/VIDEO ANALYSIS (VISION):
+   - If images or videos are provided, use your vision capabilities to analyze them
+   - Describe what you see and suggest actions (e.g., "generate a flip based on this", "create a video similar to this")
+   - Use the visual context to enhance flip creation and video generation
+
 IMPORTANT GUIDELINES:
 - Always check video generation status before trying to upload
 - Always moderate videos before creating flips
@@ -191,6 +238,7 @@ IMPORTANT GUIDELINES:
 - Return clear, actionable messages to the user
 - Include relevant data in your response (flip IDs, job IDs, etc.)
 - If operation is async (video generation), explain next steps clearly
+- If images/videos are provided, analyze them and incorporate insights into your response
 
 Analyze the request and use the appropriate tools to complete it.
 
@@ -199,7 +247,15 @@ After completing the task, provide a clear summary in natural language explainin
 2. Whether the operation succeeded
 3. Any important details or next steps
 
-Your response should be conversational and helpful.`,
+Your response should be conversational and helpful.${historyContext}`;
+
+        // Build multimodal prompt with media context
+        const fullPrompt = buildMultimodalPrompt(basePrompt, data.imageUrls, data.videoUrls);
+
+        // The agent intelligently chooses tools based on the request
+        const result = await ai.generate({
+          model: 'googleai/gemini-2.5-flash', // Supports vision
+          prompt: fullPrompt,
           tools, // Dynamically loaded tools based on request context
         });
 
@@ -216,12 +272,20 @@ Your response should be conversational and helpful.`,
         console.log('[flipAgent] Response:', responseText);
         console.log('[flipAgent] Success:', !hasError);
 
+        // Save assistant response to history
+        await saveMessageToHistory(auth.uid, conversationId, {
+          role: 'assistant',
+          content: responseText,
+          timestamp: new Date(),
+        });
+
         // Return structured response
         return {
           success: !hasError,
           message: responseText,
           data: {
             toolCalls: result.toolRequests?.length || 0,
+            conversationId,
           },
         };
       } catch (error: any) {

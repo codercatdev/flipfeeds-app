@@ -170,3 +170,24 @@ export { FlipSchema } from './tools/flipTools';
 export { UserProfileSchema } from './tools/userTools';
 export { VideoGenerationJobSchema } from './tools/videoGenerationTools';
 export { VideoModerationResultSchema } from './tools/videoTools';
+
+// ============================================================================
+// TOOL HELPER UTILITIES
+// ============================================================================
+
+/**
+ * Get tool references from the Genkit registry by name.
+ * This provides a consistent way to load tools across all flows.
+ *
+ * @param toolNames - Array of tool names to load
+ * @returns Promise resolving to array of tool references (undefined entries filtered out)
+ *
+ * @example
+ * const tools = await getTools(['getUserProfile', 'createFlip']);
+ * const result = await ai.generate({ tools, prompt: '...' });
+ */
+export async function getTools(toolNames: string[]) {
+  const toolPromises = toolNames.map((name) => ai.registry.lookupAction(`/tool/${name}`));
+  const tools = (await Promise.all(toolPromises)).filter((tool) => tool !== undefined);
+  return tools;
+}

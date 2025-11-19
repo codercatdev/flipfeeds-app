@@ -493,6 +493,10 @@ export const mcpServerFunc = onRequest(
     cors: true,
     maxInstances: 10,
     secrets: [jwtSecret],
+    timeoutSeconds: 540,
+    memory: '512MiB',
+    cpu: 1,
+    minInstances: 0,
   },
   app
 );

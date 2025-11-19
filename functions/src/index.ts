@@ -1,7 +1,9 @@
-// Import Genkit instance and all agents
+// Import Genkit instance and all agents ONLY for Genkit-related functions
 // This ensures agents are registered with Genkit before MCP server starts
 // Note: Firebase Admin is initialized in genkit.ts
-import './genkit';
+
+// IMPORTANT: We don't import './genkit' here to avoid slow cold starts
+// Each function that needs Genkit will import it directly
 
 // Export OAuth Authorization Server (handles OAuth 2.1 flow)
 export { mcpAuthServer } from './auth/authServer';
@@ -30,6 +32,3 @@ export {
 // Export MCP Server (supports both OAuth and Firebase ID token auth)
 // Built with genkitx-mcp package for automatic tool/agent exposure
 export { mcpServerFunc as mcpServer } from './mcpServer';
-
-// Note: Agents are auto-registered when genkit.ts is imported
-// The mcpServer accesses them via ai.registry.listActions()

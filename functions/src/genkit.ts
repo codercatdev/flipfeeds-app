@@ -63,6 +63,10 @@ export const genKitGoogleAiOptions: CallableOptions = {
   secrets: [googleAIapiKey],
   enforceAppCheck: false,
   consumeAppCheckToken: false,
+  timeoutSeconds: 540,
+  memory: '512MiB',
+  cpu: 1,
+  minInstances: 0,
 };
 
 // ============================================================================

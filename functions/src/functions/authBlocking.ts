@@ -8,9 +8,13 @@
  * not explicitly listed in the allowedUsers collection.
  */
 
+import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import * as functions from 'firebase-functions';
 import type { AuthBlockingEvent } from 'firebase-functions/v2/identity';
+
+// Initialize Firebase Admin
+initializeApp();
 
 const db = getFirestore();
 

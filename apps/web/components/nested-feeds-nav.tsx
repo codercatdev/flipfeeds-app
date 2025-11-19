@@ -40,6 +40,8 @@ export function NestedFeedsNav() {
       return;
     }
 
+    if (!db) return;
+
     setLoading(true);
 
     // Query for feeds that have this feed as their parent

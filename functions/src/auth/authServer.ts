@@ -741,6 +741,9 @@ export const mcpAuthServer = onRequest(
   {
     cors: true,
     secrets: [jwtSecret],
+    timeoutSeconds: 300,
+    memory: '512MiB',
+    minInstances: 0,
   },
   app
 );

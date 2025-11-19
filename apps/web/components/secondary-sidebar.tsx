@@ -24,13 +24,13 @@ export function SecondarySidebar({ ...props }: React.ComponentProps<typeof Sideb
   const [feedName, setFeedName] = useState<string>('Select a Feed');
 
   useEffect(() => {
-    if (!selectedFeedId) {
+    if (!selectedFeedId || !db) {
       setFeedName('Select a Feed');
       return;
     }
 
     const fetchFeedName = async () => {
-      const feedDoc = await getDoc(doc(db, 'feeds', selectedFeedId));
+      const feedDoc = await getDoc(doc(db!, 'feeds', selectedFeedId));
       if (feedDoc.exists()) {
         setFeedName(feedDoc.data()?.name || 'Feed');
       }

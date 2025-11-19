@@ -1,6 +1,8 @@
 import { FeedFlipsList } from '@/components/feed-flips-list';
 import { getFeed } from '@/lib/feeds';
 
+export const dynamic = 'force-dynamic';
+
 interface FeedPageProps {
   params: {
     feedId: string;

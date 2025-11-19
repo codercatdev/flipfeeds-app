@@ -43,8 +43,8 @@ export function NavNestedFeeds() {
       <SidebarGroupLabel>Nested Feeds</SidebarGroupLabel>
       <SidebarMenu>
         {nestedFeeds.map((item) => (
-          <Collapsible key={item.title} asChild defaultOpen={false}>
-            <SidebarMenuItem>
+          <SidebarMenuItem key={item.title}>
+            <Collapsible defaultOpen={false}>
               <SidebarMenuButton asChild tooltip={item.title}>
                 <a href={item.url}>
                   <Folder className="size-4" />
@@ -74,8 +74,8 @@ export function NavNestedFeeds() {
                   </CollapsibleContent>
                 </>
               ) : null}
-            </SidebarMenuItem>
-          </Collapsible>
+            </Collapsible>
+          </SidebarMenuItem>
         ))}
       </SidebarMenu>
     </SidebarGroup>

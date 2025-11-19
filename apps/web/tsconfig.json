@@ -8,6 +8,7 @@
         "moduleResolution": "bundler",
         "incremental": true,
         "baseUrl": ".",
+        "skipLibCheck": true,
         "plugins": [
             {
                 "name": "next"

@@ -38,7 +38,7 @@ export function NavFeeds({ userId }: NavFeedsProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !db) return;
 
     const userFeedsRef = collection(db, `users/${userId}/feeds`);
     const q = query(userFeedsRef);

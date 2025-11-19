@@ -1,6 +1,8 @@
 import { requireAuth } from '@/lib/auth-server';
 import { FlipPageClient } from './page.client';
 
+export const dynamic = 'force-dynamic';
+
 export interface FlipPageProps {
   params: {
     flipId: string;

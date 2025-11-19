@@ -43,4 +43,11 @@ app.options('/.well-known/oauth-protected-resource', (_req, res) => {
 });
 
 // Export as Firebase Function
-export const mcpProtectedResource = onRequest({ cors: true }, app);
+export const mcpProtectedResource = onRequest(
+  {
+    cors: true,
+    timeoutSeconds: 60,
+    memory: '256MiB',
+  },
+  app
+);

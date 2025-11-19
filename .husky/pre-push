@@ -1,6 +1,14 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
+echo "🔍 Validating pnpm lock files..."
+bash scripts/validate-pnpm-lock.sh
+
+if [ $? -ne 0 ]; then
+  echo "❌ Lock file validation failed. Fix the issues and try again."
+  exit 1
+fi
+
 echo "🔍 Running pre-push checks (biome)..."
 pnpm precheck
 

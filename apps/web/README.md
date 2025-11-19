@@ -2,6 +2,17 @@
 
 Next.js-based web application for FlipFeeds, deployed on Firebase App Hosting.
 
+## Monorepo Configuration
+
+This app is part of a pnpm workspace monorepo. **Important for Firebase App Hosting**:
+
+- A copy of `pnpm-lock.yaml` must exist in this directory for the Firebase buildpack
+- The lock file is automatically synced after `pnpm install` via postinstall hook
+- Pre-push validation ensures lock files are in sync before pushing to GitHub
+- Manual sync: Run `pnpm sync:lock` from the repo root if needed
+- Validation: Run `pnpm validate:lock` to check sync status
+- The app uses shared workspace packages from `packages/*`
+
 ## Quick Start
 
 ### Development

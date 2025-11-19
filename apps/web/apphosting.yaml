@@ -31,12 +31,11 @@ env:
   #   secret: secret-id
 
 # Build configuration for pnpm monorepo
-# When rootDirectory is set to a subdirectory (apps/web), we need to tell
-# Firebase where to find the lock file and how to install dependencies
+# The pnpm-lock.yaml file is copied to apps/web for Firebase App Hosting buildpack detection
+# It must be kept in sync with the root pnpm-lock.yaml
 buildConfig:
-  # Install from the repo root where pnpm-lock.yaml exists
-  # Use .. to go up from apps/web to the repo root
-  installCommand: "cd ../.. && pnpm install --frozen-lockfile"
+  # Install dependencies (buildpack will use the lock file in apps/web)
+  installCommand: "pnpm install --frozen-lockfile"
   
-  # Build the Next.js app (will be run from apps/web directory)
+  # Build the Next.js app
   buildCommand: "pnpm build"

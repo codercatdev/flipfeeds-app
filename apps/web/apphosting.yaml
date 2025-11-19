@@ -32,11 +32,12 @@ env:
 
 # Build configuration for monorepo
 buildConfig:
-  # Root directory where the lock file exists
-  rootDirectory: "../../"
+  # Root directory - Firebase checks out the entire repo
+  # Set to "." to use the repo root where pnpm-lock.yaml exists
+  rootDirectory: "."
   
-  # Install command - copy lock file and install
+  # Install command - install all workspace dependencies from repo root
   installCommand: "pnpm install --frozen-lockfile"
   
-  # Build command - build the Next.js app
-  buildCommand: "pnpm --filter flipfeeds build"
+  # Build command - navigate to web app and build
+  buildCommand: "cd apps/web && pnpm build"

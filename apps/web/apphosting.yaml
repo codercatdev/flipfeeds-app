@@ -36,7 +36,7 @@ buildConfig:
   rootDirectory: "../../"
   
   # Install command - copy lock file and install
-  installCommand: "cp ../../pnpm-lock.yaml . && pnpm install --frozen-lockfile"
+  installCommand: "pnpm install --frozen-lockfile"
   
   # Build command - build the Next.js app
-  buildCommand: "pnpm build"
+  buildCommand: "pnpm --filter flipfeeds build"

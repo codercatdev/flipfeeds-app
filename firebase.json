@@ -87,6 +87,13 @@
                     "functionId": "mcpServer",
                     "region": "us-central1"
                 }
+            },
+            {
+                "source": "**",
+                "run": {
+                    "serviceId": "flipfeeds",
+                    "region": "us-central1"
+                }
             }
         ]
     },

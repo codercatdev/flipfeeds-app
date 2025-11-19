@@ -7,6 +7,13 @@ import './genkit';
 export { mcpAuthServer } from './auth/authServer';
 // Export Protected Resource Metadata (MCP discovery endpoint)
 export { mcpProtectedResource } from './auth/protectedResource';
+
+// Export Authentication Blocking Functions
+export {
+  beforeUserCreated,
+  beforeUserSignedIn,
+} from './functions/authBlocking';
+
 // Export Genkit agents as Cloud Functions
 // User agents
 // Feed agents

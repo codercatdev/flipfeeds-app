@@ -18,20 +18,8 @@ function getFirebaseAdmin() {
       projectId: 'flipfeeds-app',
     });
   }
-
-  // Production mode - require service account
-  if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-    throw new Error(
-      'FIREBASE_SERVICE_ACCOUNT_KEY environment variable is required for Firebase Admin SDK'
-    );
-  }
-
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-
-  return initializeApp({
-    credential: cert(serviceAccount),
-    projectId: serviceAccount.project_id,
-  });
+  // Uses ADC automatically in Cloud Run/App Hosting
+  return initializeApp();
 }
 
 // Initialize the admin app

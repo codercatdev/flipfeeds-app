@@ -5,7 +5,7 @@
     "scripts": {
         "dev": "next dev",
         "build": "next build",
-        "start": "next start",
+        "start": "node .next/standalone/server.js -p 8080",
         "lint": "biome check",
         "format": "biome format --write"
     },
@@ -73,10 +73,5 @@
     "engines": {
         "node": ">=20.0.0",
         "pnpm": ">=10.0.0"
-    },
-    "pnpm": {
-        "overrides": {
-            "long": "^5.2.3"
-        }
     }
 }

@@ -243,13 +243,14 @@ Return:
       const { action, imageUrl, selectedImageIndex } = input;
 
       // Get current profile
-      const profile = await getUserProfileTool({}, { auth: context?.auth as any });
-      if (!profile) {
+      const result = await getUserProfileTool({}, { auth: context?.auth as any });
+      if (!result.exists || !result.profile) {
         return {
           success: false,
           message: 'Profile not found. Please create a profile first.',
         };
       }
+      const profile = result.profile;
 
       switch (action) {
         case 'provide_url':

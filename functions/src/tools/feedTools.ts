@@ -192,7 +192,10 @@ export async function listUserFeedsTool(
   // Get user's feed memberships from their sub-collection
   const userFeedsSnapshot = await db().collection(`users/${uid}/feeds`).get();
 
-  const feedIds = userFeedsSnapshot.docs.map((doc) => doc.data().feedId);
+  // Filter out invalid feedIds (undefined, null, empty string)
+  const feedIds = userFeedsSnapshot.docs
+    .map((doc) => doc.data().feedId)
+    .filter((feedId) => feedId && typeof feedId === 'string' && feedId.trim().length > 0);
 
   if (feedIds.length === 0) {
     console.log('[listUserFeedsTool] User has no feeds');

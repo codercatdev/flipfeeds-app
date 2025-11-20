@@ -44,7 +44,7 @@ export type UserProfile = z.infer<typeof UserProfileSchema>;
 export async function getUserProfileTool(
   _input: unknown,
   context?: { auth?: { uid: string } }
-): Promise<UserProfile | null> {
+): Promise<{ exists: boolean; profile?: UserProfile }> {
   console.log('[getUserProfileTool] Starting tool execution');
 
   // 🔒 SECURITY: Only get uid from authenticated context
@@ -59,7 +59,7 @@ export async function getUserProfileTool(
 
   if (!userDoc.exists) {
     console.log('[getUserProfileTool] Profile not found for uid:', uid);
-    return null;
+    return { exists: false };
   }
 
   const data = userDoc.data();
@@ -77,7 +77,7 @@ export async function getUserProfileTool(
   };
 
   console.log('[getUserProfileTool] Profile fetched successfully, username:', profile.username);
-  return profile;
+  return { exists: true, profile };
 }
 
 /**
@@ -100,15 +100,21 @@ export async function getUserFeedsTool(
   console.log('[getUserFeedsTool] Fetching feeds for uid:', uid);
   const feedsSnapshot = await db().collection(`users/${uid}/feeds`).get();
 
-  const feeds = feedsSnapshot.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      feedId: doc.id,
-      name: data.name,
-      role: data.role || 'member',
-      joinedAt: (data.joinedAt?.toDate() || new Date()).toISOString(),
-    };
-  });
+  const feeds = feedsSnapshot.docs
+    .filter((doc) => {
+      // Filter out documents with invalid feedId
+      const feedId = doc.data().feedId || doc.id;
+      return feedId && typeof feedId === 'string' && feedId.trim().length > 0;
+    })
+    .map((doc) => {
+      const data = doc.data();
+      return {
+        feedId: data.feedId || doc.id,
+        name: data.name || 'Unnamed Feed',
+        role: data.role || 'member',
+        joinedAt: (data.joinedAt?.toDate() || new Date()).toISOString(),
+      };
+    });
 
   console.log('[getUserFeedsTool] Found', feeds.length, 'feeds for user');
   return feeds;
@@ -459,12 +465,12 @@ export async function createUserProfileTool(
 
   console.log('[createUserProfileTool] Personal feed created successfully');
 
-  const newProfile = await getUserProfileTool({}, { auth: context?.auth as any });
-  if (!newProfile) {
+  const result = await getUserProfileTool({}, { auth: context?.auth as any });
+  if (!result.exists || !result.profile) {
     throw new Error('Failed to retrieve newly created profile');
   }
 
-  return newProfile;
+  return result.profile;
 }
 
 // ============================================================================
@@ -490,7 +496,7 @@ export const UserProfileOutputSchema = z.object({
  */
 export function registerUserTools(ai: Genkit) {
   /**
-   * Get user profile from Firestore
+   * Get user profile
    * 🔒 SECURE: Gets uid from context.auth only - prevents impersonation
    */
   ai.defineTool(
@@ -500,7 +506,10 @@ export function registerUserTools(ai: Genkit) {
       inputSchema: z.object({
         // NO uid parameter - security risk! Always use context.auth.uid
       }),
-      outputSchema: UserProfileSchema.nullable(),
+      outputSchema: z.object({
+        exists: z.boolean().describe('Whether the profile exists'),
+        profile: UserProfileSchema.optional().describe('The user profile if it exists'),
+      }),
     },
     async (_input, { context }) => {
       return getUserProfileTool(_input, {

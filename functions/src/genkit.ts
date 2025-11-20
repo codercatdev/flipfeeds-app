@@ -16,6 +16,7 @@
  * See GENKIT_ARCHITECTURE.md for details.
  */
 
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import * as admin from 'firebase-admin';
@@ -86,6 +87,9 @@ export const genKitGoogleAiOptions: CallableOptions = {
  * - googleai/gemini-2.5-pro (stable, powerful reasoning)
  * - vertexai/imagen-3.0-fast-generate-001 (image generation)
  */
+
+enableFirebaseTelemetry();
+
 export const ai = genkit({
   plugins: [
     googleAI({

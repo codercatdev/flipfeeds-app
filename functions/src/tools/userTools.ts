@@ -170,7 +170,7 @@ export async function claimUsernameTool(
 export async function releaseUsernameTool(
   input: { username: string },
   context?: { auth?: { uid: string } }
-): Promise<void> {
+): Promise<{ success: boolean }> {
   console.log('[releaseUsernameTool] Starting tool execution');
 
   // 🔒 SECURITY: Only get uid from authenticated context
@@ -196,6 +196,7 @@ export async function releaseUsernameTool(
 
   await db().collection('usernames').doc(normalizedUsername).delete();
   console.log('[releaseUsernameTool] Username released successfully');
+  return { success: true };
 }
 
 /**
@@ -205,7 +206,7 @@ export async function releaseUsernameTool(
 export async function addUsernameHistoryTool(
   input: { oldUsername: string | null; newUsername: string },
   context?: { auth?: { uid: string } }
-): Promise<void> {
+): Promise<{ success: boolean }> {
   console.log('[addUsernameHistoryTool] Starting tool execution');
 
   const uid = context?.auth?.uid;
@@ -230,6 +231,7 @@ export async function addUsernameHistoryTool(
   });
 
   console.log('[addUsernameHistoryTool] History entry added successfully');
+  return { success: true };
 }
 
 /**
@@ -296,7 +298,7 @@ export async function generateProfileImageUploadUrlTool(
 export async function deleteProfileImageTool(
   input: { storagePath: string },
   context?: { auth?: { uid: string } }
-): Promise<void> {
+): Promise<{ success: boolean }> {
   console.log('[deleteProfileImageTool] Starting tool execution');
 
   const uid = context?.auth?.uid;
@@ -322,10 +324,11 @@ export async function deleteProfileImageTool(
   } catch (error: any) {
     if (error.code === 404) {
       console.log('[deleteProfileImageTool] Image not found (already deleted)');
-      return;
+      return { success: true };
     }
     throw error;
   }
+  return { success: true };
 }
 
 /**
@@ -344,7 +347,7 @@ export async function updateUserProfileTool(
     };
   },
   context?: { auth?: { uid: string } }
-): Promise<void> {
+): Promise<{ success: boolean }> {
   console.log('[updateUserProfileTool] Starting tool execution');
 
   // 🔒 SECURITY: Only get uid from authenticated context
@@ -370,6 +373,7 @@ export async function updateUserProfileTool(
     });
 
   console.log('[updateUserProfileTool] Profile updated successfully');
+  return { success: true };
 }
 
 /**
@@ -584,7 +588,9 @@ export function registerUserTools(ai: Genkit) {
       inputSchema: z.object({
         username: z.string().describe('The username to release'),
       }),
-      outputSchema: z.void(),
+      outputSchema: z.object({
+        success: z.boolean().describe('True if username was successfully released'),
+      }),
     },
     async (input, { context }) => {
       return releaseUsernameTool(input, {
@@ -614,7 +620,9 @@ export function registerUserTools(ai: Genkit) {
           })
           .describe('The fields to update'),
       }),
-      outputSchema: z.void(),
+      outputSchema: z.object({
+        success: z.boolean().describe('True if profile was successfully updated'),
+      }),
     },
     async (input, { context }) => {
       return updateUserProfileTool(input, {
@@ -662,7 +670,9 @@ export function registerUserTools(ai: Genkit) {
         oldUsername: z.string().nullable().describe('Previous username (null if first username)'),
         newUsername: z.string().describe('New username'),
       }),
-      outputSchema: z.void(),
+      outputSchema: z.object({
+        success: z.boolean().describe('True if history entry was successfully added'),
+      }),
     },
     async (input, { context }) => {
       return addUsernameHistoryTool(input, {
@@ -718,7 +728,9 @@ export function registerUserTools(ai: Genkit) {
           .string()
           .describe('Storage path to delete (must belong to authenticated user)'),
       }),
-      outputSchema: z.void(),
+      outputSchema: z.object({
+        success: z.boolean().describe('True if image was successfully deleted'),
+      }),
     },
     async (input, { context }) => {
       return deleteProfileImageTool(input, {

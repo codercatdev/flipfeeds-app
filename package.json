@@ -9,6 +9,7 @@
         "functions"
     ],
     "scripts": {
+        "apphosting:build": "echo 'it works' && pnpm build:web",
         "dev": "concurrently \"pnpm --filter flipfeeds dev\" \"pnpm --filter flipfeeds-app dev\"",
         "dev:web": "pnpm --filter flipfeeds dev",
         "dev:mobile": "pnpm --filter flipfeeds-app dev",

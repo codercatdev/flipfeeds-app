@@ -1,0 +1,15 @@
+[
+  {
+    "origin": [
+      "https://flipfeeds.com",
+      "https://www.flipfeeds.com",
+      "https://flipfeeds-app.web.app",
+      "https://flipfeeds-app.firebaseapp.com",
+      "http://localhost:3000",
+      "http://localhost:5002"
+    ],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": ["Content-Type", "Content-Range", "Accept-Ranges"]
+  }
+]

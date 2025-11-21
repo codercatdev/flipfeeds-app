@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import { AuthProvider } from '@/hooks/use-auth';
 import { getServerAuth } from '@/lib/auth-server';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   // Server-side auth check (works in both emulator and production)
   const user = await getServerAuth();

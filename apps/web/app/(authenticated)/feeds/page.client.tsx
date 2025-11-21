@@ -6,8 +6,7 @@ import { AgentChat } from '@/components/agent-chat';
 import { AuthLayout } from '@/components/auth-layout';
 import { FeedIconBar } from '@/components/feed-icon-bar';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
-import { MobileFeedSelector } from '@/components/mobile-feed-selector';
-import { NestedFeedsNav } from '@/components/nested-feeds-nav';
+import { MobileDrawerContent } from '@/components/mobile-drawer-content';
 import { SecondarySidebar } from '@/components/secondary-sidebar';
 import { SwipeableFeed } from '@/components/swipeable-feed';
 import {
@@ -28,7 +27,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { SelectedFeedProvider, useSelectedFeed } from '@/hooks/use-selected-feed';
 import type { AuthUser } from '@/lib/auth-server';
@@ -81,32 +79,17 @@ function FeedsContent() {
                 <Menu className="size-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-80 text-foreground z-[100]">
+            <SheetContent
+              side="left"
+              className="p-0 w-80 text-foreground z-[100] border-r-0 bg-transparent shadow-none"
+            >
               <SheetHeader className="sr-only">
                 <SheetTitle>Navigation</SheetTitle>
                 <SheetDescription>Select a feed or nested feed</SheetDescription>
               </SheetHeader>
-              <Tabs defaultValue="feeds" className="h-full flex flex-col">
-                <div className="p-4 border-b">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="feeds">Feeds</TabsTrigger>
-                    <TabsTrigger value="nested" disabled={!selectedFeedId}>
-                      Nested
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-                <TabsContent value="feeds" className="flex-1 overflow-auto mt-0">
-                  {user && (
-                    <MobileFeedSelector
-                      userId={user.uid}
-                      onSelect={() => setMobileMenuOpen(false)}
-                    />
-                  )}
-                </TabsContent>
-                <TabsContent value="nested" className="flex-1 overflow-auto mt-0 p-2">
-                  <NestedFeedsNav />
-                </TabsContent>
-              </Tabs>
+              <div className="h-full w-full bg-background rounded-r-2xl overflow-hidden border-r border-border">
+                <MobileDrawerContent />
+              </div>
             </SheetContent>
           </Sheet>
         </div>

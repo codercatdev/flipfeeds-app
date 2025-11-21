@@ -1,6 +1,8 @@
 'use client';
 
-import { Home, Inbox, Lock, Plus, User } from 'lucide-react';
+import { Compass, Home, Inbox, Plus, User } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useSelectedFeed } from '@/hooks/use-selected-feed';
 import { useUserFeeds } from '@/hooks/use-user-feeds';
@@ -13,90 +15,101 @@ interface MobileBottomNavProps {
 }
 
 export function MobileBottomNav({ userId, onAgentClick, className }: MobileBottomNavProps) {
+  const pathname = usePathname();
   const { selectedFeedId, setSelectedFeedId, setSelectedNestedFeedId } = useSelectedFeed();
   const { feeds } = useUserFeeds(userId);
-  const personalFeedId = `personal_${userId}`;
+
+  // Determine if we are on the feeds page (Home)
+  const isFeedsPage = pathname === '/feeds' || pathname.startsWith('/feeds/');
+  const isInboxPage = pathname === '/inbox';
+  const isProfilePage = pathname === '/profile';
+  const isDiscoverActive = false; // Placeholder for now
 
   const handleHomeClick = () => {
-    // If currently on personal feed, switch to the first available public/shared feed
-    if (selectedFeedId === personalFeedId) {
-      const homeFeed = feeds.find((f) => f.id !== personalFeedId);
-      if (homeFeed) {
-        setSelectedFeedId(homeFeed.id);
-        setSelectedNestedFeedId(null);
-      }
+    // If not on feeds page, navigate there (this would be handled by Link, but logic for feed selection remains)
+    // If we are already on feeds page, ensure we are on a "Home" feed (not a nested one or private one if desired)
+    // For now, we keep current behavior: Select first available feed if none selected
+    if (!selectedFeedId && feeds.length > 0) {
+      setSelectedFeedId(feeds[0].id);
     }
-  };
-
-  const handlePrivateClick = () => {
-    setSelectedFeedId(personalFeedId);
     setSelectedNestedFeedId(null);
   };
-
-  const isPrivateActive = selectedFeedId === personalFeedId;
-  const isHomeActive = !isPrivateActive;
 
   return (
     <div
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around bg-black/90 backdrop-blur-sm border-t border-white/10 pb-safe text-white md:hidden',
+        'fixed bottom-0 left-0 right-0 z-50 grid grid-cols-5 items-end h-16 bg-black border-t border-white/10 pb-safe text-white md:hidden',
         className
       )}
     >
+      {/* Home */}
       <Button
         variant="ghost"
-        size="icon"
         className={cn(
-          'flex flex-col items-center gap-1 h-auto py-1',
-          isHomeActive ? 'text-white' : 'text-white/60'
+          'flex flex-col items-center justify-center gap-1 h-full rounded-none hover:bg-transparent',
+          isFeedsPage && !isDiscoverActive ? 'text-white' : 'text-white/50'
         )}
+        asChild
         onClick={handleHomeClick}
       >
-        <Home className="size-6" />
-        <span className="text-[10px] font-medium">Home</span>
+        <Link href="/feeds">
+          <Home className={cn('size-6', isFeedsPage && !isDiscoverActive && 'fill-current')} />
+          <span className="text-[10px] font-medium">Home</span>
+        </Link>
       </Button>
 
+      {/* Discover (Placeholder) */}
       <Button
         variant="ghost"
-        size="icon"
         className={cn(
-          'flex flex-col items-center gap-1 h-auto py-1',
-          isPrivateActive ? 'text-white' : 'text-white/60'
+          'flex flex-col items-center justify-center gap-1 h-full rounded-none hover:bg-transparent',
+          isDiscoverActive ? 'text-white' : 'text-white/50'
         )}
-        onClick={handlePrivateClick}
+        onClick={() => console.log('Discover clicked')}
       >
-        <Lock className="size-6" />
-        <span className="text-[10px] font-medium">Private</span>
+        <Compass className="size-6" />
+        <span className="text-[10px] font-medium">Discover</span>
       </Button>
 
-      <div className="relative -top-3">
+      {/* Center Add Button (Agent) */}
+      <div className="flex items-center justify-center h-full">
         <Button
           size="icon"
-          className="size-12 rounded-full bg-white text-black hover:bg-white/90 shadow-lg border-2 border-black/20"
+          className="size-11 rounded-xl bg-white text-black hover:bg-white/90 hover:scale-105 transition-transform shadow-[0_0_10px_rgba(255,255,255,0.3)]"
           onClick={onAgentClick}
         >
           <Plus className="size-7 stroke-[3]" />
         </Button>
       </div>
 
+      {/* Inbox */}
       <Button
         variant="ghost"
-        size="icon"
-        className="flex flex-col items-center gap-1 h-auto py-1 text-white/60 hover:text-white"
-        onClick={() => console.log('Inbox clicked')}
+        className={cn(
+          'flex flex-col items-center justify-center gap-1 h-full rounded-none hover:bg-transparent',
+          isInboxPage ? 'text-white' : 'text-white/50'
+        )}
+        asChild
       >
-        <Inbox className="size-6" />
-        <span className="text-[10px] font-medium">Inbox</span>
+        <Link href="/inbox">
+          <Inbox className={cn('size-6', isInboxPage && 'fill-current')} />
+          <span className="text-[10px] font-medium">Inbox</span>
+        </Link>
       </Button>
 
+      {/* Profile */}
       <Button
         variant="ghost"
-        size="icon"
-        className="flex flex-col items-center gap-1 h-auto py-1 text-white/60 hover:text-white"
-        onClick={() => console.log('Profile clicked')}
+        className={cn(
+          'flex flex-col items-center justify-center gap-1 h-full rounded-none hover:bg-transparent',
+          isProfilePage ? 'text-white' : 'text-white/50'
+        )}
+        asChild
       >
-        <User className="size-6" />
-        <span className="text-[10px] font-medium">Profile</span>
+        <Link href="/profile">
+          <User className={cn('size-6', isProfilePage && 'fill-current')} />
+          <span className="text-[10px] font-medium">Profile</span>
+        </Link>
       </Button>
     </div>
   );

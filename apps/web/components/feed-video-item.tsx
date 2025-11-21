@@ -1,6 +1,6 @@
 'use client';
 
-import { Heart, MessageCircle, Share2, Volume2, VolumeX } from 'lucide-react';
+import { Heart, MessageCircle, Plus, Share2, VolumeX } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -42,8 +42,6 @@ export function FeedVideoItem({
     } else {
       video.pause();
       setIsPlaying(false);
-      // Reset time if desired? Usually we keep it or reset.
-      // video.currentTime = 0;
     }
   }, [isActive]);
 
@@ -72,23 +70,26 @@ export function FeedVideoItem({
       )}
 
       {/* Mute Indicator (optional, if clicking toggles) */}
-      <div className="absolute top-4 right-4 z-20 pointer-events-none">
+      <div className="absolute top-safe-offset-4 right-4 z-20 pointer-events-none transition-opacity duration-300">
         {isMuted ? (
-          <VolumeX className="text-white/50 size-6" />
-        ) : (
-          <Volume2 className="text-white/50 size-6" />
-        )}
+          <div className="bg-black/40 p-2 rounded-full backdrop-blur-sm">
+            <VolumeX className="text-white size-4" />
+          </div>
+        ) : null}
       </div>
 
       {/* Right Side Actions */}
-      <div className="absolute bottom-24 right-2 z-20 flex flex-col items-center gap-6 md:right-4">
+      <div className="absolute bottom-[100px] right-2 z-20 flex flex-col items-center gap-4 md:right-4 md:bottom-8">
         {/* Author Profile */}
-        <div className="relative">
-          <Avatar className="size-12 border-2 border-white">
+        <div className="relative mb-4">
+          <Avatar className="size-12 border border-white shadow-sm">
             <AvatarImage src={flip.authorPhotoURL} alt={flip.authorName} />
             <AvatarFallback>{flip.authorName?.substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
-          {/* Follow Plus Button (could be added here) */}
+          {/* Follow Plus Button */}
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-red-500 rounded-full p-0.5">
+            <Plus className="size-3 text-white" />
+          </div>
         </div>
 
         {/* Like Button */}
@@ -96,11 +97,11 @@ export function FeedVideoItem({
           <Button
             size="icon"
             variant="ghost"
-            className="size-10 rounded-full text-white hover:bg-white/20 hover:text-white"
+            className="size-10 rounded-full text-white hover:bg-white/20 hover:text-white [&_svg]:size-8"
           >
-            <Heart className="size-8" />
+            <Heart className="fill-white/10" />
           </Button>
-          <span className="text-xs font-medium text-white shadow-black drop-shadow-md">Like</span>
+          <span className="text-xs font-medium text-white drop-shadow-md">Like</span>
         </div>
 
         {/* Comment Button */}
@@ -108,11 +109,11 @@ export function FeedVideoItem({
           <Button
             size="icon"
             variant="ghost"
-            className="size-10 rounded-full text-white hover:bg-white/20 hover:text-white"
+            className="size-10 rounded-full text-white hover:bg-white/20 hover:text-white [&_svg]:size-8"
           >
-            <MessageCircle className="size-8" />
+            <MessageCircle className="fill-white/10" />
           </Button>
-          <span className="text-xs font-medium text-white shadow-black drop-shadow-md">Reply</span>
+          <span className="text-xs font-medium text-white drop-shadow-md">Reply</span>
         </div>
 
         {/* Share Button */}
@@ -120,29 +121,29 @@ export function FeedVideoItem({
           <Button
             size="icon"
             variant="ghost"
-            className="size-10 rounded-full text-white hover:bg-white/20 hover:text-white"
+            className="size-10 rounded-full text-white hover:bg-white/20 hover:text-white [&_svg]:size-8"
           >
-            <Share2 className="size-8" />
+            <Share2 className="fill-white/10" />
           </Button>
-          <span className="text-xs font-medium text-white shadow-black drop-shadow-md">Share</span>
+          <span className="text-xs font-medium text-white drop-shadow-md">Share</span>
         </div>
       </div>
 
       {/* Bottom Info Overlay */}
-      <div className="absolute bottom-4 left-4 right-16 z-20 flex flex-col gap-2 text-white">
-        <div className="font-semibold text-lg shadow-black drop-shadow-md">@{flip.authorName}</div>
-        <div className="text-sm leading-tight line-clamp-2 shadow-black drop-shadow-md">
-          {flip.title}
-        </div>
-        {flip.summary && (
-          <div className="text-xs text-white/80 line-clamp-1 shadow-black drop-shadow-md">
-            {flip.summary}
+      <div className="absolute bottom-[80px] left-4 right-20 z-20 flex flex-col gap-2 text-white md:bottom-8 pointer-events-none">
+        <div className="flex flex-col items-start text-shadow-sm">
+          <div className="font-bold text-lg hover:underline cursor-pointer pointer-events-auto">
+            @{flip.authorName}
           </div>
-        )}
+          <div className="text-base leading-tight line-clamp-2 text-white/90">{flip.title}</div>
+          {flip.summary && (
+            <div className="text-sm text-white/80 line-clamp-1 mt-1">{flip.summary}</div>
+          )}
+        </div>
       </div>
 
       {/* Gradient for better text visibility */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-linear-to-t from-black/80 to-transparent z-10 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-10 pointer-events-none" />
     </div>
   );
 }

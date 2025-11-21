@@ -1,9 +1,10 @@
 'use client';
 
 import useEmblaCarousel from 'embla-carousel-react';
-import { Loader2, Video } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, Video } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { FeedVideoItem } from '@/components/feed-video-item';
+import { Button } from '@/components/ui/button';
 import { useInfiniteFlips } from '@/hooks/use-infinite-flips';
 import { cn } from '@/lib/utils';
 
@@ -50,6 +51,15 @@ export function SwipeableFeed({ feedId, className }: SwipeableFeedProps) {
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => !prev);
   }, []);
+
+  // Desktop Navigation Handlers
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev();
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext();
+  }, [emblaApi]);
 
   if (loading && flips.length === 0) {
     return (
@@ -103,6 +113,28 @@ export function SwipeableFeed({ feedId, className }: SwipeableFeedProps) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Desktop Navigation Buttons */}
+      <div className="hidden md:flex flex-col gap-4 absolute right-[-60px] top-1/2 -translate-y-1/2 z-50">
+        <Button
+          variant="secondary"
+          size="icon"
+          className="rounded-full bg-zinc-800/80 text-white hover:bg-zinc-700 backdrop-blur-sm border border-white/10"
+          onClick={scrollPrev}
+          disabled={activeIndex === 0}
+        >
+          <ChevronUp className="size-6" />
+        </Button>
+        <Button
+          variant="secondary"
+          size="icon"
+          className="rounded-full bg-zinc-800/80 text-white hover:bg-zinc-700 backdrop-blur-sm border border-white/10"
+          onClick={scrollNext}
+          disabled={!hasMore && activeIndex === flips.length - 1}
+        >
+          <ChevronDown className="size-6" />
+        </Button>
       </div>
     </div>
   );

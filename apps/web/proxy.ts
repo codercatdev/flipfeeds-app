@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 
 const FUNCTIONS_URL =
   process.env.NEXT_PUBLIC_FUNCTIONS_URL ||
-  (process.env.NODE_ENV === 'development'
+  (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === 'true'
     ? 'http://127.0.0.1:5001/flipfeeds-app/us-central1'
     : 'https://us-central1-flipfeeds-app.cloudfunctions.net');
 

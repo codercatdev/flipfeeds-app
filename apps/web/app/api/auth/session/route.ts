@@ -1,3 +1,4 @@
+import type { DecodedIdToken } from 'firebase-admin/auth';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
@@ -48,14 +49,38 @@ export async function POST(request: NextRequest) {
 
     // Production mode - verify and create session cookie
     console.log('[Session API] Verifying ID token...');
-    const decodedToken = await adminAuth.verifyIdToken(token, true); // checkRevoked = true
+    let decodedToken: DecodedIdToken;
+    try {
+      decodedToken = await adminAuth.verifyIdToken(token, true); // checkRevoked = true
+    } catch (e) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(
+          '[Session API] Verification with checkRevoked=true failed, trying without revocation check...'
+        );
+        decodedToken = await adminAuth.verifyIdToken(token, false);
+      } else {
+        throw e;
+      }
+    }
     console.log('[Session API] Token verified for user:', decodedToken.uid);
 
     // Create a proper session cookie
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days in milliseconds
     console.log('[Session API] Creating session cookie...');
-    const sessionCookie = await adminAuth.createSessionCookie(token, { expiresIn });
-    console.log('[Session API] Session cookie created, length:', sessionCookie.length);
+    let sessionCookie: string;
+    try {
+      sessionCookie = await adminAuth.createSessionCookie(token, { expiresIn });
+    } catch (e) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(
+          '[Session API] createSessionCookie failed, falling back to ID token as session cookie (Dev only)'
+        );
+        sessionCookie = token;
+      } else {
+        throw e;
+      }
+    }
+    console.log('[Session API] Session cookie created/set, length:', sessionCookie.length);
 
     // Set the session cookie
     const response = NextResponse.json({ success: true });

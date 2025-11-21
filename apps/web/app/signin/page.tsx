@@ -13,14 +13,44 @@ export default function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  const [sessionSyncFailed, setSessionSyncFailed] = useState(false);
+
   // Redirect if already authenticated
   useEffect(() => {
-    if (!authLoading && user && !isRedirecting) {
-      setIsRedirecting(true);
-      // Use window.location for full page reload to ensure server sees the session
-      window.location.href = '/feeds';
+    // Check !loading to avoid race condition with manual sign-in
+    // Check !sessionSyncFailed to avoid infinite loop if server is broken
+    if (!authLoading && user && !isRedirecting && !loading && !sessionSyncFailed) {
+      const syncAndRedirect = async () => {
+        try {
+          setIsRedirecting(true);
+          // Ensure session cookie is set before redirecting
+          const token = await user.getIdToken();
+          const response = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+              errorData.details || errorData.error || `Session sync failed: ${response.statusText}`
+            );
+          }
+
+          // Use window.location for full page reload to ensure server sees the session
+          window.location.href = '/feeds';
+        } catch (error) {
+          console.error('Auto-redirect session sync failed:', error);
+          setIsRedirecting(false);
+          setSessionSyncFailed(true);
+          setError('Failed to synchronize session. Please try signing in again.');
+        }
+      };
+
+      syncAndRedirect();
     }
-  }, [user, authLoading, isRedirecting]);
+  }, [user, authLoading, isRedirecting, loading, sessionSyncFailed]);
 
   const handleGoogleSignIn = async () => {
     try {

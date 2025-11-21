@@ -1,6 +1,6 @@
 # AI Agent Context & Guidelines for FlipFeeds
 
-This document provides context and guidelines for AI agents (like GitHub Copilot, Jules, etc.) working on the FlipFeeds codebase.
+This document provides context and guidelines for AI agents (like GitHub Copilot, Jules, etc.) working on the FlipFeeds codebase. Next.js 16 DOES NOT USE MIDDLEWARE, ONLY USE proxy.ts the same way you once used middleware.js!!
 
 ## 1. Project Overview
 **FlipFeeds** is a video-only, "intentional" social platform designed as a replacement for Google+, TikTok, and YouTube Shorts. Users share videos to curated audiences called "Feeds." Instead of broadcasting to all followers, users create Flips (short-form videos) and choose which of their Feeds (e.g., "Family," "Work," "Friends") to share them with.
@@ -28,7 +28,7 @@ This document provides context and guidelines for AI agents (like GitHub Copilot
 
 This is a `pnpm` monorepo. The workspaces are defined in `pnpm-workspace.yaml`.
 
-- **`apps/web`**: The Next.js web application must use version 16+. This is the primary web client.
+- **`apps/web`**: The Next.js web application must use version 16+, which only has proxy, not middleware. This is the primary web client.
 - **`apps/mobile`**: The Expo (React Native) mobile application for iOS and Android.
 - **`functions`**: The backend, built with Firebase Cloud Functions and Firebase Genkit for all AI logic.
 - **`packages/*`**: Shared libraries used across the monorepo.

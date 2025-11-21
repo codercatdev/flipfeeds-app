@@ -1,3 +1,4 @@
+import type { DecodedIdToken } from 'firebase-admin/auth';
 import { cookies } from 'next/headers';
 import { adminAuth } from './firebase-admin';
 
@@ -60,18 +61,51 @@ export async function getServerAuth(): Promise<AuthUser | null> {
 
     // Production mode - verify the session cookie
     console.log('[Auth Server] Production mode - verifying session cookie');
-    const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
+    let decodedToken: DecodedIdToken;
+    try {
+      decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
+    } catch (error) {
+      // If session cookie verification fails, try verifying as ID token
+      // This handles the case where we fell back to ID token in route.ts (e.g. local dev without service account)
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(
+          '[Auth Server] Session cookie verification failed, trying as ID token (Dev fallback)...'
+        );
+        try {
+          decodedToken = await adminAuth.verifyIdToken(sessionCookie);
+          console.log('[Auth Server] ID token verified successfully (Dev fallback)');
+        } catch (_innerError) {
+          // If both fail, throw the original error
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
     console.log('[Auth Server] Token verified for user:', decodedToken.uid);
 
     // Get full user details
-    const user = await adminAuth.getUser(decodedToken.uid);
-
-    return {
-      uid: user.uid,
-      email: user.email || null,
-      displayName: user.displayName || null,
-      photoURL: user.photoURL || null,
-    };
+    try {
+      const user = await adminAuth.getUser(decodedToken.uid);
+      return {
+        uid: user.uid,
+        email: user.email || null,
+        displayName: user.displayName || null,
+        photoURL: user.photoURL || null,
+      };
+    } catch (error) {
+      console.warn(
+        '[Auth Server] Failed to fetch user details from Admin SDK, falling back to token claims:',
+        error
+      );
+      // Fallback to token claims if Admin SDK fails (e.g. permission denied in local dev)
+      return {
+        uid: decodedToken.uid,
+        email: decodedToken.email || null,
+        displayName: (decodedToken.name as string) || null,
+        photoURL: (decodedToken.picture as string) || null,
+      };
+    }
   } catch (error) {
     // Token is invalid or expired
     console.error('[Auth Server] Error verifying session:', error);

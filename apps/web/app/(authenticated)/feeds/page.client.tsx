@@ -130,7 +130,7 @@ export function FeedsPageClient({ initialUser }: FeedsPageClientProps) {
       <SelectedFeedProvider>
         <div className="flex h-screen w-full bg-background text-foreground">
           {/* Left icon bar - Desktop only */}
-          <div className="hidden md:block bg-sidebar border-r shrink-0 w-[60px]">
+          <div className="hidden md:block bg-sidebar border-r shrink-0 w-[60px] overflow-y-auto">
             <FeedIconBar userId={currentUser.uid} />
           </div>
 

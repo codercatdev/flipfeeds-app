@@ -43,7 +43,7 @@ function FeedsContent() {
   const [agentChatOpen, setAgentChatOpen] = useState(false);
 
   return (
-    <SidebarInset className="h-[100dvh] overflow-hiddenrelative flex-1 w-full overflow-hidden p-0 m-0 flex flex-col">
+    <SidebarInset className="h-[100dvh] overflow-hidden relative flex-1 w-full p-0 m-0 flex flex-col">
       {/* Desktop Header */}
       <header className="hidden md:flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-background text-foreground z-10">
         <SidebarTrigger className="-ml-1" />

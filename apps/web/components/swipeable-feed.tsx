@@ -18,8 +18,6 @@ export function SwipeableFeed({ feedId, className, onAgentClick }: SwipeableFeed
   const { flips, loading, loadMore, hasMore } = useInfiniteFlips(feedId);
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
-    skipSnaps: false,
-    duration: 25,
   });
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
@@ -42,11 +40,27 @@ export function SwipeableFeed({ feedId, className, onAgentClick }: SwipeableFeed
 
   useEffect(() => {
     if (!emblaApi) return;
+    console.log('[SwipeableFeed] Embla initialized');
     emblaApi.on('select', onSelect);
+    emblaApi.on('reInit', () => console.log('[SwipeableFeed] Embla re-initialized'));
     return () => {
       emblaApi.off('select', onSelect);
     };
   }, [emblaApi, onSelect]);
+
+  useEffect(() => {
+    if (emblaApi) {
+      console.log(
+        '[SwipeableFeed] Re-initializing Embla due to flips change. Flips:',
+        flips.length
+      );
+      // Small timeout to ensure DOM is updated
+      setTimeout(() => {
+        emblaApi.reInit();
+        console.log('[SwipeableFeed] Embla re-initialized. Slides:', emblaApi.slideNodes().length);
+      }, 100);
+    }
+  }, [emblaApi, flips.length]);
 
   // Toggle mute globally for the feed
   const toggleMute = useCallback(() => {
@@ -59,7 +73,15 @@ export function SwipeableFeed({ feedId, className, onAgentClick }: SwipeableFeed
   }, [emblaApi]);
 
   const scrollNext = useCallback(() => {
-    if (emblaApi) emblaApi.scrollNext();
+    if (!emblaApi) return;
+    console.log('[SwipeableFeed] scrollNext called', {
+      canScrollNext: emblaApi.canScrollNext(),
+      selectedScrollSnap: emblaApi.selectedScrollSnap(),
+      scrollSnapListLength: emblaApi.scrollSnapList().length,
+      containerHeight: emblaApi.containerNode().getBoundingClientRect().height,
+      slideNodesLength: emblaApi.slideNodes().length,
+    });
+    emblaApi.scrollNext();
   }, [emblaApi]);
 
   if (loading && flips.length === 0) {
@@ -97,7 +119,7 @@ export function SwipeableFeed({ feedId, className, onAgentClick }: SwipeableFeed
             const isNeighbor = Math.abs(index - activeIndex) === 1;
 
             return (
-              <div key={flip.id} className="relative h-full w-full flex-[0_0_100%]">
+              <div key={flip.id} className="relative h-full w-full flex-[0_0_100%] min-h-0">
                 {shouldRender ? (
                   <FeedVideoItem
                     flip={flip}
@@ -112,9 +134,9 @@ export function SwipeableFeed({ feedId, className, onAgentClick }: SwipeableFeed
               </div>
             );
           })}
-          {/* Loading indicator at the bottom */}
+          {/* Loading indicator at the bottom - make it a static slide */}
           {hasMore && (
-            <div className="flex items-center justify-center h-20 w-full absolute bottom-0 z-0">
+            <div className="flex items-center justify-center h-20 w-full shrink-0">
               <Loader2 className="size-6 animate-spin text-white/20" />
             </div>
           )}

@@ -37,12 +37,21 @@ export function useInfiniteFlips(feedId?: string) {
 
   const loadFlips = useCallback(
     async (isInitial: boolean = false) => {
+      console.log(
+        `[useInfiniteFlips] Loading flips for feedId: ${feedId}, isInitial: ${isInitial}`
+      );
       if (!feedId || !db) {
+        console.log('[useInfiniteFlips] Missing feedId or db');
         setLoading(false);
         return;
       }
 
-      if (!isInitial && (loadingMore || !hasMore)) return;
+      if (!isInitial && (loadingMore || !hasMore)) {
+        console.log(
+          `[useInfiniteFlips] Skipping load. loadingMore: ${loadingMore}, hasMore: ${hasMore}`
+        );
+        return;
+      }
 
       try {
         if (isInitial) {
@@ -65,6 +74,7 @@ export function useInfiniteFlips(feedId?: string) {
         }
 
         const snapshot = await getDocs(q);
+        console.log(`[useInfiniteFlips] Fetched ${snapshot.docs.length} flips`);
 
         const newFlips: Flip[] = snapshot.docs.map(
           (doc) =>

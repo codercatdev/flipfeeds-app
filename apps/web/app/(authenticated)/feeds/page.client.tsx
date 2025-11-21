@@ -1,14 +1,14 @@
 'use client';
 
-import { Menu, Plus } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useState } from 'react';
 import { AgentChat } from '@/components/agent-chat';
 import { AuthLayout } from '@/components/auth-layout';
 import { FeedIconBar } from '@/components/feed-icon-bar';
-import { FlipsList } from '@/components/flips-list';
-import { MobileFeedSelector } from '@/components/mobile-feed-selector';
-import { NestedFeedsNav } from '@/components/nested-feeds-nav';
+import { MobileBottomNav } from '@/components/mobile-bottom-nav';
+import { MobileDrawerContent } from '@/components/mobile-drawer-content';
 import { SecondarySidebar } from '@/components/secondary-sidebar';
+import { SwipeableFeed } from '@/components/swipeable-feed';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -27,7 +27,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { SelectedFeedProvider, useSelectedFeed } from '@/hooks/use-selected-feed';
 import type { AuthUser } from '@/lib/auth-server';
@@ -44,79 +43,66 @@ function FeedsContent() {
   const [agentChatOpen, setAgentChatOpen] = useState(false);
 
   return (
-    <SidebarInset>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1 hidden md:flex" />
+    <SidebarInset className="h-[100dvh] overflow-hidden bg-black p-0 m-0 flex flex-col">
+      {/* Desktop Header */}
+      <header className="hidden md:flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-background text-foreground z-10">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbPage>My Feeds</BreadcrumbPage>
+            </BreadcrumbItem>
+            {selectedFeedId && (
+              <>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{selectedNestedFeedId ? 'Nested Feed' : 'Feed'}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </>
+            )}
+          </BreadcrumbList>
+        </Breadcrumb>
+      </header>
 
-          {/* Mobile menu for feed selection */}
+      {/* Main Content Area */}
+      <div className="relative flex-1 w-full bg-black overflow-hidden">
+        {/* Mobile Hamburger (Floating) */}
+        <div className="absolute top-4 left-4 z-50 md:hidden">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden -ml-1">
-                <Menu className="size-5" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/20 rounded-full bg-black/20 backdrop-blur-sm"
+              >
+                <Menu className="size-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-80">
+            <SheetContent
+              side="left"
+              className="p-0 w-80 text-foreground z-[100] border-r-0 bg-transparent shadow-none"
+            >
               <SheetHeader className="sr-only">
                 <SheetTitle>Navigation</SheetTitle>
                 <SheetDescription>Select a feed or nested feed</SheetDescription>
               </SheetHeader>
-              <Tabs defaultValue="feeds" className="h-full flex flex-col">
-                <div className="p-4 border-b">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="feeds">Feeds</TabsTrigger>
-                    <TabsTrigger value="nested" disabled={!selectedFeedId}>
-                      Nested
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-                <TabsContent value="feeds" className="flex-1 overflow-auto mt-0">
-                  {user && (
-                    <MobileFeedSelector
-                      userId={user.uid}
-                      onSelect={() => setMobileMenuOpen(false)}
-                    />
-                  )}
-                </TabsContent>
-                <TabsContent value="nested" className="flex-1 overflow-auto mt-0 p-2">
-                  <NestedFeedsNav />
-                </TabsContent>
-              </Tabs>
+              <div className="h-full w-full bg-background rounded-r-2xl overflow-hidden border-r border-border">
+                <MobileDrawerContent />
+              </div>
             </SheetContent>
           </Sheet>
-
-          <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>My Feeds</BreadcrumbPage>
-              </BreadcrumbItem>
-              {selectedFeedId && (
-                <>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>{selectedNestedFeedId ? 'Nested Feed' : 'Feed'}</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </>
-              )}
-            </BreadcrumbList>
-          </Breadcrumb>
         </div>
-      </header>
-      <div className="flex flex-1 flex-col gap-4 p-4 pb-20 md:pb-4">
-        <FlipsList feedId={displayFeedId || undefined} />
+
+        {/* Feed Container */}
+        {/* Desktop: Centered, limited width. Mobile: Full width/height. */}
+        <div className="h-full w-full md:mx-auto md:w-[450px] md:border-x md:border-zinc-800 bg-black relative">
+          <SwipeableFeed feedId={displayFeedId || undefined} className="h-full w-full" />
+        </div>
       </div>
 
-      {/* Mobile floating action button */}
-      <div className="fixed bottom-4 right-4 z-50">
-        <Button
-          size="lg"
-          className="rounded-full size-14 shadow-lg"
-          onClick={() => setAgentChatOpen(true)}
-        >
-          <Plus className="size-6" />
-        </Button>
-      </div>
+      {/* Mobile Bottom Nav */}
+      {user && <MobileBottomNav userId={user.uid} onAgentClick={() => setAgentChatOpen(true)} />}
 
       {/* Agent Chat Dialog */}
       <AgentChat open={agentChatOpen} onOpenChange={setAgentChatOpen} />
@@ -138,9 +124,9 @@ export function FeedsPageClient({ initialUser }: FeedsPageClientProps) {
   return (
     <AuthLayout>
       <SelectedFeedProvider>
-        <div className="flex h-screen w-full">
-          {/* Left icon bar - Discord/Slack style - Hidden on mobile */}
-          <div className="hidden md:block bg-sidebar border-r shrink-0">
+        <div className="flex h-screen w-full bg-background text-foreground">
+          {/* Left icon bar - Desktop only */}
+          <div className="hidden md:block bg-sidebar border-r shrink-0 w-[60px]">
             <FeedIconBar userId={currentUser.uid} />
           </div>
 

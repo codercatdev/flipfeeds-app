@@ -10,7 +10,7 @@
     ],
     "scripts": {
         "apphosting:build": "cd apps/web && pnpm build",
-        "start": "cd apps/web && pnpm start -p 8080",
+        "start": "cd apps/web && pnpm start",
         "dev": "concurrently \"pnpm --filter flipfeeds dev\" \"pnpm --filter flipfeeds-app dev\"",
         "dev:web": "pnpm --filter flipfeeds dev",
         "dev:mobile": "pnpm --filter flipfeeds-app dev",

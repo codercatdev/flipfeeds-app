@@ -17,7 +17,8 @@ const firebaseConfig = {
   projectId: 'flipfeeds-app',
   storageBucket: 'flipfeeds-app.firebasestorage.app',
   messagingSenderId: '361402949529',
-  appId: '1:361402949559:web:a197cc4ada3a64aaef3d08',
+  appId: '1:361402949529:web:a197cc4ada3a64aaef3d08',
+  measurementId: 'G-QK7FRCQGX0',
 };
 
 // Use emulators only in development mode

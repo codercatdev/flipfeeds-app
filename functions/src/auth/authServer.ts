@@ -577,6 +577,7 @@ function getLoginPageHtml(params: Record<string, string>): string {
   <title>Sign In - FlipFeeds MCP</title>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
   <style>
     * {
       margin: 0;
@@ -673,11 +674,16 @@ function getLoginPageHtml(params: Record<string, string>): string {
       projectId: "flipfeeds-app",
       storageBucket: "flipfeeds-app.firebasestorage.app",
       messagingSenderId: "361402949529",
-      appId: "1:361402949529:web:25b7fc17fde9148cef3d08"
+      appId: "1:361402949529:web:25b7fc17fde9148cef3d08",
+      measurementId: "G-M74E7M98HZ"
     };
     
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
+
+    // Get a reference to the Analytics service
+    const analytics = firebase.analytics();
+    analytics.logEvent('page_view', { page_title: 'MCP OAuth' });
     
     // Connect to Auth emulator if running locally
     ${isEmulator ? `auth.useEmulator('http://localhost:9099');` : ''}

@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu, Plus } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useState } from 'react';
 import { AgentChat } from '@/components/agent-chat';
 import { AuthLayout } from '@/components/auth-layout';

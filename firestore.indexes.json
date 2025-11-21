@@ -1,59 +1,59 @@
 {
-  "indexes": [
-    {
-      "collectionGroup": "flips",
-      "queryScope": "COLLECTION",
-      "fields": [
+    "indexes": [
         {
-          "fieldPath": "feedIds",
-          "arrayConfig": "CONTAINS"
+            "collectionGroup": "flips",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "feedIds",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                },
+                {
+                    "fieldPath": "__name__",
+                    "order": "DESCENDING"
+                }
+            ],
+            "density": "SPARSE_ALL"
         },
         {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        },
-        {
-          "fieldPath": "__name__",
-          "order": "DESCENDING"
+            "collectionGroup": "videoGenerationJobs",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "status",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "userId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                },
+                {
+                    "fieldPath": "__name__",
+                    "order": "DESCENDING"
+                }
+            ],
+            "density": "SPARSE_ALL"
         }
-      ],
-      "density": "SPARSE_ALL"
-    },
-    {
-      "collectionGroup": "videoGenerationJobs",
-      "queryScope": "COLLECTION",
-      "fields": [
+    ],
+    "fieldOverrides": [
         {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "userId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        },
-        {
-          "fieldPath": "__name__",
-          "order": "DESCENDING"
+            "collectionGroup": "users",
+            "fieldPath": "username",
+            "ttl": false,
+            "indexes": [
+                {
+                    "order": "ASCENDING",
+                    "queryScope": "COLLECTION"
+                }
+            ]
         }
-      ],
-      "density": "SPARSE_ALL"
-    }
-  ],
-  "fieldOverrides": [
-    {
-      "collectionGroup": "users",
-      "fieldPath": "username",
-      "ttl": false,
-      "indexes": [
-        {
-          "order": "ASCENDING",
-          "queryScope": "COLLECTION"
-        }
-      ]
-    }
-  ]
+    ]
 }

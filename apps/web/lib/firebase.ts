@@ -1,3 +1,4 @@
+import { type Analytics, getAnalytics, isSupported } from 'firebase/analytics';
 import { type FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import {
   type Auth,
@@ -33,6 +34,7 @@ let authInstance: Auth | undefined;
 let db: Firestore | undefined;
 let functions: Functions | undefined;
 let storageInstance: FirebaseStorage | undefined;
+let analyticsInstance: Analytics | undefined;
 
 if (isClient) {
   // Initialize Firebase
@@ -41,6 +43,13 @@ if (isClient) {
   db = getFirestore(app);
   functions = getFunctions(app);
   storageInstance = getStorage(app);
+
+  // Initialize Analytics (async)
+  isSupported().then((supported) => {
+    if (supported) {
+      analyticsInstance = getAnalytics(app);
+    }
+  });
 
   // Connect to emulators in development
   if (USE_EMULATORS) {
@@ -73,7 +82,7 @@ if (isClient) {
 
 // Export with type assertions for client-side usage
 // Client components should only use these on the client side
-export { app, db, functions };
+export { app, db, functions, analyticsInstance as analytics };
 
 // Export auth and storage with proper typing - asserts they're defined on client
 const clientAuth = authInstance as Auth;

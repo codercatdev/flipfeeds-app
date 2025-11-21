@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  long: ^5.2.3
-
 importers:
 
   .:
@@ -434,7 +431,7 @@ importers:
         specifier: ^6.1.1
         version: 6.1.1
       long:
-        specifier: ^5.2.3
+        specifier: ^5.3.2
         version: 5.3.2
       uuid:
         specifier: ^13.0.0
@@ -7314,6 +7311,14 @@ packages:
   logkitty@0.7.1:
     resolution: {integrity: sha512-/3ER20CTTbahrCrpYfPn7Xavv9diBROZpoXGVZDWMw4b/X4uuUwAC0ki85tgsdMRONURyIJbcOvS94QsUBYPbQ==}
     hasBin: true
+
+  long@1.1.5:
+    resolution: {integrity: sha512-TU6nAF5SdasnTr28c7e74P4Crbn9o3/zwo1pM22Wvg2i2vlZ4Eelxwu4QT7j21z0sDBlJDEnEZjXTZg2J8WJrg==}
+    engines: {node: '>=0.6'}
+
+  long@2.4.0:
+    resolution: {integrity: sha512-ijUtjmO/n2A5PaosNG9ZGDsQ3vxJg7ZW8vsY8Kp0f2yIZWhSJvjmegV7t+9RPQKxKrvj8yKGehhS+po14hPLGQ==}
+    engines: {node: '>=0.6'}
 
   long@5.3.2:
     resolution: {integrity: sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==}
@@ -19077,6 +19082,10 @@ snapshots:
       yargs: 15.4.1
     optional: true
 
+  long@1.1.5: {}
+
+  long@2.4.0: {}
+
   long@5.3.2: {}
 
   loose-envify@1.4.0:
@@ -20249,7 +20258,7 @@ snapshots:
 
   protobuf.js@1.1.2:
     dependencies:
-      long: 5.3.2
+      long: 1.1.5
 
   protobufjs@7.5.4:
     dependencies:
@@ -21567,7 +21576,7 @@ snapshots:
     dependencies:
       bufrw: 1.4.0
       error: 7.0.2
-      long: 5.3.2
+      long: 2.4.0
 
   throat@5.0.0: {}
 

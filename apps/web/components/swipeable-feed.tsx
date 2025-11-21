@@ -83,7 +83,12 @@ export function SwipeableFeed({ feedId, className, onAgentClick }: SwipeableFeed
   return (
     <div className={cn('relative h-full w-full bg-black', className)}>
       <div className="overflow-hidden h-full w-full" ref={emblaRef}>
-        <div className="flex flex-col h-full w-full touch-pan-y">
+        {/* 
+          touch-pan-y allows the browser to handle vertical scrolling, which conflicts with 
+          the vertical carousel. We use touch-pan-x (or touch-none) to let the carousel 
+          handle vertical swipes while allowing horizontal browser gestures (like back/forward).
+        */}
+        <div className="flex flex-col h-full w-full touch-pan-x">
           {flips.map((flip, index) => {
             // Optimization: Only render video content if within range
             // We keep the slide container to maintain scroll position
@@ -141,7 +146,7 @@ export function SwipeableFeed({ feedId, className, onAgentClick }: SwipeableFeed
           className="size-11 rounded-xl hover:bg-white/90 hover:scale-105 transition-transform shadow-[0_0_10px_rgba(255,255,255,0.3)]"
           onClick={onAgentClick}
         >
-          <Plus className="size-7 stroke-[3]" />
+          <Plus className="size-7 stroke-3" />
         </Button>
       </div>
     </div>

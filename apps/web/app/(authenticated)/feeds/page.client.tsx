@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu } from 'lucide-react';
+import { Menu, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { AgentChat } from '@/components/agent-chat';
 import { AuthLayout } from '@/components/auth-layout';
@@ -43,7 +43,7 @@ function FeedsContent() {
   const [agentChatOpen, setAgentChatOpen] = useState(false);
 
   return (
-    <SidebarInset className="h-[100dvh] overflow-hidden bg-black p-0 m-0 flex flex-col">
+    <SidebarInset className="h-[100dvh] overflow-hiddenrelative flex-1 w-full overflow-hidden p-0 m-0 flex flex-col">
       {/* Desktop Header */}
       <header className="hidden md:flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-background text-foreground z-10">
         <SidebarTrigger className="-ml-1" />
@@ -66,7 +66,7 @@ function FeedsContent() {
       </header>
 
       {/* Main Content Area */}
-      <div className="relative flex-1 w-full bg-black overflow-hidden">
+      <div className="relative flex-1 w-full overflow-hidden">
         {/* Mobile Hamburger (Floating) */}
         <div className="absolute top-4 left-4 z-50 md:hidden">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -97,7 +97,11 @@ function FeedsContent() {
         {/* Feed Container */}
         {/* Desktop: Centered, limited width. Mobile: Full width/height. */}
         <div className="h-full w-full md:mx-auto md:w-[450px] md:border-x md:border-zinc-800 bg-black relative">
-          <SwipeableFeed feedId={displayFeedId || undefined} className="h-full w-full" />
+          <SwipeableFeed
+            feedId={displayFeedId || undefined}
+            className="h-full w-full"
+            onAgentClick={() => setAgentChatOpen(true)}
+          />
         </div>
       </div>
 

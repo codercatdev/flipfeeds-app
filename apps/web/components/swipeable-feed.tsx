@@ -1,7 +1,7 @@
 'use client';
 
 import useEmblaCarousel from 'embla-carousel-react';
-import { ChevronDown, ChevronUp, Loader2, Video } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, Plus, Video } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { FeedVideoItem } from '@/components/feed-video-item';
 import { Button } from '@/components/ui/button';
@@ -11,9 +11,10 @@ import { cn } from '@/lib/utils';
 interface SwipeableFeedProps {
   feedId?: string;
   className?: string;
+  onAgentClick: () => void;
 }
 
-export function SwipeableFeed({ feedId, className }: SwipeableFeedProps) {
+export function SwipeableFeed({ feedId, className, onAgentClick }: SwipeableFeedProps) {
   const { flips, loading, loadMore, hasMore } = useInfiniteFlips(feedId);
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
@@ -134,6 +135,13 @@ export function SwipeableFeed({ feedId, className }: SwipeableFeedProps) {
           disabled={!hasMore && activeIndex === flips.length - 1}
         >
           <ChevronDown className="size-6" />
+        </Button>
+        <Button
+          size="icon"
+          className="size-11 rounded-xl hover:bg-white/90 hover:scale-105 transition-transform shadow-[0_0_10px_rgba(255,255,255,0.3)]"
+          onClick={onAgentClick}
+        >
+          <Plus className="size-7 stroke-[3]" />
         </Button>
       </div>
     </div>

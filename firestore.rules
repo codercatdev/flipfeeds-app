@@ -199,9 +199,11 @@ service cloud.firestore {
         allow get, list: if isAuthenticated() && canViewFlip();
         
         // Create comments: If you can view the flip, you can comment
+        // Allow either text OR linkedFlipId
         allow create: if isAuthenticated() 
-          && request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt'])
-          && request.resource.data.authorId == request.auth.uid;
+          && request.resource.data.keys().hasAll(['authorId', 'createdAt'])
+          && request.resource.data.authorId == request.auth.uid
+          && (request.resource.data.keys().hasAny(['text', 'linkedFlipId']));
         
         // Update comments: Only the author
         allow update: if isAuthenticated() && isOwner(resource.data.authorId);
@@ -317,4 +319,3 @@ service cloud.firestore {
     }
   }
 }
-
